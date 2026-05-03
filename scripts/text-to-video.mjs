@@ -336,7 +336,12 @@ function parseArgs(argv) {
     }
     const eq = arg.indexOf("=");
     const key = toCamel(eq >= 0 ? arg.slice(2, eq) : arg.slice(2));
-    const rawValue = eq >= 0 ? arg.slice(eq + 1) : argv[index + 1]?.startsWith("--") ? "true" : argv[++index];
+    const rawValue =
+      eq >= 0
+        ? arg.slice(eq + 1)
+        : index + 1 >= argv.length || argv[index + 1].startsWith("--")
+          ? "true"
+          : argv[++index];
     parsed[key] = rawValue === "false" ? false : rawValue === "true" ? true : rawValue;
   }
   return parsed;

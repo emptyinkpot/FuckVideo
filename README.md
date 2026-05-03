@@ -1168,8 +1168,9 @@ http://127.0.0.1:3037
 
 - Remotion Studio 可运行。
 - 生成视频扩展已集成到 Studio 页面。
-- 23 个合成都已注册 schema 和 defaultProps。
+- 25 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
+- 自动镜头系统使用 `MultiSceneVideo`，可以把长文拆成多镜头时间轴。
 - TTS 音频会统一转成标准 MP3。
 - 可选 SRT 字幕。
 - 输出视频落到 `out/`。
@@ -1181,3 +1182,84 @@ http://127.0.0.1:3037
 npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
+
+## 22. 自动镜头系统
+
+自动镜头系统解决的是“长文案如何变成有镜头切换的视频”，而不是只给整段文本套一个模板。
+
+当前链路：
+
+```text
+文本
+  -> scripts/scene-planner.mjs 拆句与模板匹配
+  -> scenes JSON
+  -> MultiSceneVideo
+  -> Remotion Sequence 按时间轴拼接多个模板
+```
+
+新增文件：
+
+- `scripts/scene-planner.mjs`：文本拆块、关键词提取、规则式模板匹配、scene props 生成。
+- `scripts/text-to-scenes-video.mjs`：生成 scenes/props，并可直接渲染 `MultiSceneVideo`。
+- `src/templates/DocumentReveal.tsx`：条约、文件、策论、档案类镜头模板。
+- `src/templates/sceneRegistry.tsx`：把 `templateId` 映射到现有 Remotion 模板。
+- `src/templates/MultiSceneVideo.tsx`：多镜头容器，使用 Remotion `Sequence` 拼接时间轴。
+
+目前规则式匹配：
+
+```text
+条约/和约/协定/策论/转让/租借地 -> DocumentReveal
+港/铁路/关东州/南满/旅顺/大连/黄海 -> AtlasMapFlyover
+战争/战役/硝烟/参谋/作战/占领 -> HistoricalGlobeTexture1938
+本质/犹如/仿佛/关键/逻辑 -> PromptTextRotation
+其他文本 -> NarratedScene
+```
+
+只生成镜头规划，不渲染：
+
+```console
+npm run plan-scenes -- --text-file input.txt --output public/generated/scenes-demo.json
+```
+
+生成多镜头视频：
+
+```console
+npm run text-to-scenes-video -- --text-file input.txt --title "南满铁路的开端" --output out/auto-scenes-video.mp4
+```
+
+如果已有旁白音频和字幕，可以把它们传给多镜头视频：
+
+```console
+npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-xxxx.mp3 --captions-file public/generated/tts-xxxx.srt --output out/auto-scenes-video.mp4
+```
+
+`audio-src` 必须是 `public/` 下的相对路径，例如 `generated/tts-xxxx.mp3`。字幕文件可以传本地路径。
+
+`MultiSceneVideo` 的 props 结构：
+
+```json
+{
+  "title": "自动镜头视频",
+  "audioSrc": "generated/tts-xxxx.mp3",
+  "showCaptions": true,
+  "showSceneLabels": false,
+  "scenes": [
+    {
+      "id": "scene-001",
+      "index": 0,
+      "text": "《朴茨茅斯和约》悄然易手。",
+      "templateId": "DocumentReveal",
+      "fromFrame": 0,
+      "durationInFrames": 180,
+      "keywords": ["朴茨茅斯和约", "转让"],
+      "props": {
+        "title": "朴茨茅斯和约",
+        "subtitle": "历史文件",
+        "body": "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。",
+        "sealText": "ARCHIVE",
+        "highlightWords": ["转让"],
+        "tone": "aged"
+      }
+    }
+  ]
+}

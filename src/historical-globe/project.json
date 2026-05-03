@@ -161,6 +161,8 @@
   },
   "commands": {
     "startStudio": "npm run dev",
+    "planScenes": "npm run plan-scenes -- --text-file input.txt --output public/generated/scenes-demo.json",
+    "textToScenesVideo": "npm run text-to-scenes-video -- --text-file input.txt --title \"自动镜头视频\" --output out/auto-scenes-video.mp4",
     "listCompositions": "npx remotion compositions src/index.ts",
     "lint": "npm run lint",
     "renderStillExample": "npx remotion still src/index.ts HistoricalGlobeTexture1938 --frame=250 --output=screenshots/historical-globe-frame.png",

@@ -25,8 +25,10 @@ import {
   ThreeProductStage,
 } from "./ThreeDTemplates";
 import type { NarratedCaption } from "./NarratedVideo";
+import { DocumentReveal } from "./DocumentReveal";
 
 export type ExistingTemplateId =
+  | "DocumentReveal"
   | "SinoJapaneseWarDemo"
   | "HistoricalGlobeTexture1938"
   | "AtlasMapFlyover"
@@ -63,6 +65,7 @@ const asTemplate = <Props extends object>(Component: React.ComponentType<Props>)
   };
 
 const templates: Record<ExistingTemplateId, React.FC> = {
+  DocumentReveal: asTemplate(DocumentReveal),
   SinoJapaneseWarDemo: asTemplate(SinoJapaneseWarDemo),
   HistoricalGlobeTexture1938: asTemplate(HistoricalGlobeTexture1938),
   AtlasMapFlyover: asTemplate(AtlasMapFlyover),
@@ -86,6 +89,7 @@ const templates: Record<ExistingTemplateId, React.FC> = {
 };
 
 export const templateOptions: Array<{ id: ExistingTemplateId; label: string }> = [
+  { id: "DocumentReveal", label: "历史文件揭示" },
   { id: "SinoJapaneseWarDemo", label: "中日战争历史地球" },
   { id: "HistoricalGlobeTexture1938", label: "1938 历史地球纹理" },
   { id: "AtlasMapFlyover", label: "世界地图飞越" },

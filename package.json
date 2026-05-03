@@ -2,7 +2,10 @@
   "name": "remotion-project",
   "version": "1.0.0",
   "description": "My Remotion video",
-  "repository": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/emptyinkpot/FuckVideo.git"
+  },
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
@@ -31,6 +34,8 @@
     "dev": "remotion studio",
     "dev:video": "node scripts/studio-with-video-ui.mjs",
     "build": "remotion bundle",
+    "plan-scenes": "node scripts/scene-planner.mjs",
+    "text-to-scenes-video": "node scripts/text-to-scenes-video.mjs",
     "text-to-video": "node scripts/text-to-video.mjs",
     "video-ui": "node scripts/video-ui-server.mjs",
     "upgrade": "remotion upgrade",

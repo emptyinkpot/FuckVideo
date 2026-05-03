@@ -35,8 +35,14 @@ import {
   GeneratedTemplateVideo,
 } from "./templates/GeneratedTemplateVideo";
 import { NarratedVideo, type NarratedVideoProps } from "./templates/NarratedVideo";
+import { DocumentReveal } from "./templates/DocumentReveal";
+import {
+  defaultMultiSceneVideoProps,
+  MultiSceneVideo,
+} from "./templates/MultiSceneVideo";
 
 const templateIdSchema = z.enum([
+  "DocumentReveal",
   "SinoJapaneseWarDemo",
   "HistoricalGlobeTexture1938",
   "AtlasMapFlyover",
@@ -73,6 +79,44 @@ const generatedTemplateVideoSchema = z.object({
   captions: z.array(captionSchema).optional(),
   durationSeconds: z.number().min(5).max(600).optional(),
   showCaptions: z.boolean().optional(),
+});
+
+const documentRevealSchema = z.object({
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  body: z.string().optional(),
+  sealText: z.string().optional(),
+  highlightWords: z.array(z.string()).optional(),
+  tone: z.enum(["aged", "clean"]).optional(),
+});
+
+const autoSceneTemplateIdSchema = z.enum([
+  "DocumentReveal",
+  "AtlasMapFlyover",
+  "MapRouteFlyover",
+  "HistoricalGlobeTexture1938",
+  "PromptTextRotation",
+  "NarratedScene",
+]);
+
+const autoSceneSchema = z.object({
+  id: z.string(),
+  index: z.number(),
+  text: z.string(),
+  templateId: autoSceneTemplateIdSchema,
+  fromFrame: z.number().int().min(0),
+  durationInFrames: z.number().int().min(1),
+  keywords: z.array(z.string()).optional(),
+  props: z.record(z.string(), z.unknown()),
+});
+
+const multiSceneVideoSchema = z.object({
+  title: z.string().optional(),
+  scenes: z.array(autoSceneSchema),
+  audioSrc: z.string().optional(),
+  captions: z.array(captionSchema).optional(),
+  showCaptions: z.boolean().optional(),
+  showSceneLabels: z.boolean().optional(),
 });
 
 const narratedVideoSchema = z.object({
@@ -274,6 +318,15 @@ const defaultNarratedVideoProps = {
   theme: "historical",
 } satisfies Required<NarratedVideoProps>;
 
+const documentRevealDefaultProps: z.input<typeof documentRevealSchema> = {
+  title: "朴茨茅斯和约",
+  subtitle: "历史文件",
+  body: "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。",
+  sealText: "ARCHIVE",
+  highlightWords: ["转让", "条约"],
+  tone: "aged",
+};
+
 const claudeTyperDefaultProps: z.input<typeof claudeTyperSchema> = {
   prompt: "生成一套可复用的 Remotion 动画模板系统。",
   backgroundColor: "#15130f",
@@ -433,6 +486,36 @@ const sinoJapaneseWarDemoDefaultProps: z.input<typeof sinoJapaneseWarDemoSchema>
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="DocumentReveal"
+        component={DocumentReveal}
+        schema={documentRevealSchema}
+        durationInFrames={180}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={documentRevealDefaultProps}
+      />
+      <Composition
+        id="MultiSceneVideo"
+        component={MultiSceneVideo}
+        schema={multiSceneVideoSchema}
+        durationInFrames={390}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={defaultMultiSceneVideoProps}
+        calculateMetadata={({ props }) => {
+          const endFrame = props.scenes.reduce(
+            (max, scene) => Math.max(max, scene.fromFrame + scene.durationInFrames),
+            0,
+          );
+          return {
+            durationInFrames: Math.max(150, endFrame || 390),
+            props,
+          };
+        }}
+      />
       <Composition
         id="GeneratedTemplateVideo"
         component={GeneratedTemplateVideo}
