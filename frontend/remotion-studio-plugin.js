@@ -77,33 +77,24 @@
   ]);
 
   const storyboardPanelStorageKey = "ttv.storyboardPanel";
+  const generatorPanelStorageKey = "ttv.generatorPanel";
+  const progressStorageKey = "ttv.lastProgress";
+
   if (localStorage.getItem("remotion.sidebarPanel") === "storyboard") {
     localStorage.setItem("remotion.sidebarPanel", "input-props");
   }
 
   const state = {
-    activePanel: localStorage.getItem(storyboardPanelStorageKey) === "storyboard" ? "storyboard" : "native",
+    storyboardOpen: localStorage.getItem(storyboardPanelStorageKey) === "storyboard",
     jobId: "",
     timer: 0,
     project: null,
     selectedSceneId: "",
     candidates: [],
   };
-  const progressStorageKey = "ttv.lastProgress";
 
   const style = document.createElement("style");
   style.textContent = `
-    .ttv-panel {
-      display: none;
-      height: 100%;
-      min-height: 0;
-      flex: 1;
-      overflow: hidden;
-      background: #171717;
-      color: #f5f5f5;
-      font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
-    }
-    .ttv-panel.open { display: grid; grid-template-rows: auto 1fr auto; }
     .ttv-side-tab {
       border: 0;
       flex: 1;
@@ -120,11 +111,72 @@
       color: white;
       border-top-color: #0f62fe;
     }
+    .ttv-storyboard-panel {
+      display: none;
+      height: 100%;
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+      background: #171717;
+      color: #f5f5f5;
+      font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .ttv-storyboard-panel.open { display: grid; grid-template-rows: auto 1fr auto; }
+    .ttv-generator-launcher {
+      position: fixed;
+      top: 78px;
+      right: 18px;
+      z-index: 2147483000;
+      height: 34px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 9px;
+      padding: 0 12px;
+      background: #0f62fe;
+      color: white;
+      font: 600 13px Inter, "Microsoft YaHei", system-ui, sans-serif;
+      cursor: pointer;
+      box-shadow: 0 14px 34px rgba(0,0,0,.28);
+    }
+    .ttv-generator-panel {
+      position: fixed;
+      top: 58px;
+      right: 18px;
+      bottom: 18px;
+      width: 390px;
+      z-index: 2147483001;
+      display: none;
+      grid-template-rows: auto 1fr auto;
+      background: #171717;
+      color: #f5f5f5;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      box-shadow: 0 28px 80px rgba(0,0,0,.48);
+      overflow: hidden;
+      font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .ttv-generator-panel.open { display: grid; }
     .ttv-head {
       display: grid;
       gap: 4px;
       padding: 12px;
       border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .ttv-generator-head {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px 0 14px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      font-size: 14px;
+      font-weight: 750;
+    }
+    .ttv-close {
+      border: 0;
+      background: transparent;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 18px;
     }
     .ttv-title { font-size: 14px; font-weight: 750; }
     .ttv-sub { color: #9b9b9b; font-size: 11px; line-height: 1.45; }
@@ -158,11 +210,12 @@
     .ttv-input,
     .ttv-select { height: 32px; }
     .ttv-textarea {
-      min-height: 86px;
+      min-height: 112px;
       resize: vertical;
       padding: 8px 10px;
       line-height: 1.55;
     }
+    .ttv-storyboard-panel .ttv-textarea { min-height: 76px; }
     .ttv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .ttv-row { display: flex; gap: 8px; align-items: center; }
     .ttv-actions {
@@ -203,7 +256,7 @@
       line-height: 1.45;
     }
     .ttv-log {
-      max-height: 104px;
+      max-height: 128px;
       overflow: auto;
       white-space: pre-wrap;
       margin: 0;
@@ -240,69 +293,88 @@
   `;
   document.head.appendChild(style);
 
-  const panel = document.createElement("section");
-  panel.className = "ttv-panel";
-  panel.innerHTML = `
-    <div class="ttv-head">
-      <div class="ttv-title">自动分镜工作台</div>
-      <div class="ttv-sub">嵌入 Remotion 左侧栏；右侧参数栏和中央预览保持原生工作流。</div>
+  const generatorLauncher = document.createElement("button");
+  generatorLauncher.className = "ttv-generator-launcher";
+  generatorLauncher.type = "button";
+  generatorLauncher.textContent = "生成视频";
+  document.body.appendChild(generatorLauncher);
+
+  const generatorPanel = document.createElement("aside");
+  generatorPanel.className = "ttv-generator-panel";
+  generatorPanel.innerHTML = `
+    <div class="ttv-generator-head">
+      <span>一站式生成视频</span>
+      <button class="ttv-close" id="ttv-close-generator" type="button">×</button>
     </div>
     <div class="ttv-body">
-      <div id="ttv-generator">
-        <label class="ttv-label">文案
-          <textarea class="ttv-textarea" id="ttv-text">旅顺港的海风吹进东京霞关，战争的尾声并没有带来平静。新的铁路和港口，正在改变东亚的权力地图。</textarea>
+      <label class="ttv-label">文案
+        <textarea class="ttv-textarea" id="ttv-text">旅顺港的海风吹进东京霞关，战争的尾声并没有带来平静。新的铁路和港口，正在改变东亚的权力地图。</textarea>
+      </label>
+      <div class="ttv-grid">
+        <label class="ttv-label">生成模式
+          <select class="ttv-select" id="ttv-mode">
+            <option value="auto-scenes">自动镜头</option>
+            <option value="single-template">单模板</option>
+          </select>
         </label>
-        <div class="ttv-grid">
-          <label class="ttv-label">生成模式
-            <select class="ttv-select" id="ttv-mode">
-              <option value="auto-scenes">自动镜头</option>
-              <option value="single-template">单模板</option>
-            </select>
-          </label>
-          <label class="ttv-label">标题
-            <input class="ttv-input" id="ttv-title" value="南满铁路的开端" />
-          </label>
-        </div>
-        <div class="ttv-grid">
-          <label class="ttv-label">副标题
-            <input class="ttv-input" id="ttv-subtitle" value="Remotion 模板 + 千问语音" />
-          </label>
-          <label class="ttv-label">视频模板
-            <select class="ttv-select" id="ttv-template">
-              ${templates.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}
-            </select>
-          </label>
-        </div>
-        <label class="ttv-label">语音指令
-          <input class="ttv-input" id="ttv-instruction" value="标准播音风格，吐字清晰，语速平稳，停顿自然" />
+        <label class="ttv-label">标题
+          <input class="ttv-input" id="ttv-title" value="南满铁路的开端" />
         </label>
-        <div class="ttv-grid">
-          <label class="ttv-label">视觉参数
-            <select class="ttv-select" id="ttv-theme">
-              <option value="historical">历史地图</option>
-              <option value="clean">干净浅色</option>
-            </select>
-          </label>
-          <label class="ttv-label">字幕
-            <select class="ttv-select" id="ttv-srt">
-              <option value="false">生成字幕</option>
-              <option value="true">跳过字幕</option>
-            </select>
-          </label>
-        </div>
       </div>
-      <div id="ttv-project"></div>
-    </div>
-    <div class="ttv-actions">
+      <div class="ttv-grid">
+        <label class="ttv-label">副标题
+          <input class="ttv-input" id="ttv-subtitle" value="Remotion 模板 + 千问语音" />
+        </label>
+        <label class="ttv-label">视频模板
+          <select class="ttv-select" id="ttv-template">
+            ${templates.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <label class="ttv-label">语音指令
+        <input class="ttv-input" id="ttv-instruction" value="标准播音风格，吐字清晰，语速平稳，停顿自然" />
+      </label>
+      <div class="ttv-grid">
+        <label class="ttv-label">视觉参数
+          <select class="ttv-select" id="ttv-theme">
+            <option value="historical">历史地图</option>
+            <option value="clean">干净浅色</option>
+          </select>
+        </label>
+        <label class="ttv-label">字幕
+          <select class="ttv-select" id="ttv-srt">
+            <option value="false">生成字幕</option>
+            <option value="true">跳过字幕</option>
+          </select>
+        </label>
+      </div>
       <div class="ttv-progress-title">生成进度</div>
       <div class="ttv-status" id="ttv-status">生成后会自动加载到 MultiSceneVideo，使用现有 Remotion 预览屏幕查看。</div>
       <pre class="ttv-log" id="ttv-log">等待任务。</pre>
+    </div>
+    <div class="ttv-actions">
       <button class="ttv-button primary" id="ttv-generate" type="button">生成初版项目</button>
       <div class="ttv-grid">
         <button class="ttv-button" id="ttv-preview" type="button">刷新 Studio 预览</button>
         <button class="ttv-button" id="ttv-export" type="button">总导出</button>
       </div>
       <a class="ttv-button" id="ttv-open-video" target="_blank" rel="noreferrer">打开当前成片</a>
+    </div>
+  `;
+  document.body.appendChild(generatorPanel);
+
+  const storyboardPanel = document.createElement("section");
+  storyboardPanel.className = "ttv-storyboard-panel";
+  storyboardPanel.innerHTML = `
+    <div class="ttv-head">
+      <div class="ttv-title">分镜</div>
+      <div class="ttv-sub">只编辑镜头、字幕和素材；生成控制台在右侧。</div>
+    </div>
+    <div class="ttv-body">
+      <div id="ttv-project"></div>
+    </div>
+    <div class="ttv-actions">
+      <button class="ttv-button" id="ttv-open-generator" type="button">打开生成控制台</button>
     </div>
   `;
 
@@ -316,16 +388,27 @@
     setStoryboardOpen(true);
   };
 
-  const $ = (selector) => panel.querySelector(selector);
+  const g = (selector) => generatorPanel.querySelector(selector);
+  const s = (selector) => storyboardPanel.querySelector(selector);
+
+  function setGeneratorOpen(open) {
+    generatorPanel.classList.toggle("open", open);
+    localStorage.setItem(generatorPanelStorageKey, open ? "open" : "closed");
+  }
+
+  generatorLauncher.onclick = () => setGeneratorOpen(true);
+  g("#ttv-close-generator").onclick = () => setGeneratorOpen(false);
+  s("#ttv-open-generator").onclick = () => setGeneratorOpen(true);
+  setGeneratorOpen(localStorage.getItem(generatorPanelStorageKey) !== "closed");
 
   function setStatus(text) {
-    $("#ttv-status").textContent = text;
+    g("#ttv-status").textContent = text;
     persistProgress();
   }
 
   function setLog(text) {
-    $("#ttv-log").textContent = text || "等待日志。";
-    $("#ttv-log").scrollTop = $("#ttv-log").scrollHeight;
+    g("#ttv-log").textContent = text || "等待日志。";
+    g("#ttv-log").scrollTop = g("#ttv-log").scrollHeight;
     persistProgress();
   }
 
@@ -333,8 +416,8 @@
     localStorage.setItem(
       progressStorageKey,
       JSON.stringify({
-        status: $("#ttv-status").textContent,
-        log: $("#ttv-log").textContent,
+        status: g("#ttv-status").textContent,
+        log: g("#ttv-log").textContent,
         at: Date.now(),
       }),
     );
@@ -344,8 +427,8 @@
     try {
       const saved = JSON.parse(localStorage.getItem(progressStorageKey) || "null");
       if (!saved) return;
-      if (saved.status) $("#ttv-status").textContent = saved.status;
-      if (saved.log) $("#ttv-log").textContent = saved.log;
+      if (saved.status) g("#ttv-status").textContent = saved.status;
+      if (saved.log) g("#ttv-log").textContent = saved.log;
     } catch {
       localStorage.removeItem(progressStorageKey);
     }
@@ -362,12 +445,12 @@
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const node of nodes) {
-      if (panel.contains(node.parentElement)) continue;
+      if (storyboardPanel.contains(node.parentElement) || generatorPanel.contains(node.parentElement)) continue;
       const next = translateValue(node.nodeValue);
       if (next !== node.nodeValue) node.nodeValue = next;
     }
     for (const element of document.querySelectorAll("input, textarea, button, [aria-label], [title]")) {
-      if (panel.contains(element)) continue;
+      if (storyboardPanel.contains(element) || generatorPanel.contains(element)) continue;
       if (element.placeholder) element.placeholder = translateValue(element.placeholder);
       if (element.getAttribute("aria-label")) element.setAttribute("aria-label", translateValue(element.getAttribute("aria-label")));
       if (element.getAttribute("title")) element.setAttribute("title", translateValue(element.getAttribute("title")));
@@ -407,24 +490,23 @@
         if (!event.target.closest(".ttv-side-tab")) setStoryboardOpen(false);
       });
     }
-    if (panel.parentElement !== root) {
-      root.appendChild(panel);
+    if (storyboardPanel.parentElement !== root) {
+      root.appendChild(storyboardPanel);
     }
-    syncPanelVisibility(root);
+    syncStoryboardVisibility(root);
   }
 
-  function syncPanelVisibility(root) {
-    const open = state.activePanel === "storyboard";
-    sideTab.classList.toggle("active", open);
-    panel.classList.toggle("open", open);
+  function syncStoryboardVisibility(root) {
+    sideTab.classList.toggle("active", state.storyboardOpen);
+    storyboardPanel.classList.toggle("open", state.storyboardOpen);
     for (const child of Array.from(root.children)) {
-      if (child === panel || child.contains(sideTab)) continue;
-      child.style.display = open ? "none" : "";
+      if (child === storyboardPanel || child.contains(sideTab)) continue;
+      child.style.display = state.storyboardOpen ? "none" : "";
     }
   }
 
   function setStoryboardOpen(open) {
-    state.activePanel = open ? "storyboard" : "native";
+    state.storyboardOpen = open;
     localStorage.setItem(storyboardPanelStorageKey, open ? "storyboard" : "native");
     ensureDocked();
   }
@@ -467,18 +549,18 @@
   }
 
   function renderProject() {
-    const wrap = $("#ttv-project");
+    const wrap = s("#ttv-project");
     const project = state.project;
     if (!project) {
-      wrap.innerHTML = "";
-      $("#ttv-open-video").removeAttribute("href");
+      wrap.innerHTML = `<div class="ttv-status">还没有项目。先用右侧生成控制台生成初版视频。</div>`;
+      g("#ttv-open-video").removeAttribute("href");
       return;
     }
     const scene = selectedScene();
-    $("#ttv-open-video").href = project.videoUrl ? `${API}${project.videoUrl}` : "#";
+    g("#ttv-open-video").href = project.videoUrl ? `${API}${project.videoUrl}` : "#";
     wrap.innerHTML = `
       <div class="ttv-row">
-        <button class="ttv-button" id="ttv-new-draft" type="button">新建草稿</button>
+        <button class="ttv-button" id="ttv-new-draft" type="button">清空当前草稿</button>
         <button class="ttv-button" id="ttv-lock" type="button">${scene?.locked ? "解除锁定" : "锁定分镜"}</button>
       </div>
       <div class="ttv-scene-list">
@@ -504,7 +586,7 @@
         if (next) seekPreview(next);
       };
     }
-    $("#ttv-new-draft").onclick = () => {
+    s("#ttv-new-draft").onclick = () => {
       state.project = null;
       state.selectedSceneId = "";
       state.candidates = [];
@@ -563,16 +645,16 @@
   }
 
   function bindSceneEditor(scene) {
-    $("#ttv-save-scene").onclick = async () => {
+    s("#ttv-save-scene").onclick = async () => {
       const patch = {
-        voiceText: $("#ttv-scene-text").value,
-        subtitle: $("#ttv-scene-text").value,
-        visualIntent: $("#ttv-visual-intent").value,
-        templateId: $("#ttv-scene-template").value,
-        sceneType: $("#ttv-scene-type").value,
-        startMs: Number($("#ttv-start-ms").value),
-        endMs: Number($("#ttv-end-ms").value),
-        props: { body: $("#ttv-scene-text").value },
+        voiceText: s("#ttv-scene-text").value,
+        subtitle: s("#ttv-scene-text").value,
+        visualIntent: s("#ttv-visual-intent").value,
+        templateId: s("#ttv-scene-template").value,
+        sceneType: s("#ttv-scene-type").value,
+        startMs: Number(s("#ttv-start-ms").value),
+        endMs: Number(s("#ttv-end-ms").value),
+        props: { body: s("#ttv-scene-text").value },
       };
       state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/scenes/${encodeURIComponent(scene.id)}`, {
         method: "PATCH",
@@ -582,7 +664,7 @@
       setStatus("分镜已保存。需要看画面时点“刷新 Studio 预览”。");
       renderProject();
     };
-    $("#ttv-lock").onclick = async () => {
+    s("#ttv-lock").onclick = async () => {
       state.project = await fetchJson(
         `${API}/api/projects/${encodeURIComponent(state.project.id)}/scenes/${encodeURIComponent(scene.id)}/lock`,
         {
@@ -593,7 +675,7 @@
       );
       renderProject();
     };
-    $("#ttv-rematch").onclick = async () => {
+    s("#ttv-rematch").onclick = async () => {
       const data = await fetchJson(
         `${API}/api/projects/${encodeURIComponent(state.project.id)}/scenes/${encodeURIComponent(scene.id)}/rematch-material`,
         { method: "POST" },
@@ -601,7 +683,7 @@
       state.candidates = data.candidates || [];
       renderProject();
     };
-    for (const button of panel.querySelectorAll("[data-candidate]")) {
+    for (const button of storyboardPanel.querySelectorAll("[data-candidate]")) {
       button.onclick = async () => {
         const candidate = state.candidates.find((item) => item.id === button.dataset.candidate);
         if (!candidate) return;
@@ -627,20 +709,20 @@
       .replace(/"/g, "&quot;");
   }
 
-  $("#ttv-mode").onchange = () => {
-    const auto = $("#ttv-mode").value === "auto-scenes";
-    $("#ttv-template").disabled = auto;
-    $("#ttv-generate").textContent = auto ? "生成初版项目" : "生成单模板视频";
+  g("#ttv-mode").onchange = () => {
+    const auto = g("#ttv-mode").value === "auto-scenes";
+    g("#ttv-template").disabled = auto;
+    g("#ttv-generate").textContent = auto ? "生成初版项目" : "生成单模板视频";
   };
-  $("#ttv-mode").onchange();
+  g("#ttv-mode").onchange();
 
-  $("#ttv-generate").onclick = async () => {
-    const text = $("#ttv-text").value.trim();
+  g("#ttv-generate").onclick = async () => {
+    const text = g("#ttv-text").value.trim();
     if (!text) {
       setStatus("请输入文案。");
       return;
     }
-    $("#ttv-generate").disabled = true;
+    g("#ttv-generate").disabled = true;
     setStatus("提交任务中。");
     setLog("提交任务中，等待服务端返回任务 ID。");
     try {
@@ -649,25 +731,25 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
-          title: $("#ttv-title").value.trim(),
-          subtitle: $("#ttv-subtitle").value.trim(),
-          instruction: $("#ttv-instruction").value.trim(),
-          mode: $("#ttv-mode").value,
-          template: $("#ttv-template").value,
-          theme: $("#ttv-theme").value,
-          skipSrt: $("#ttv-srt").value === "true",
+          title: g("#ttv-title").value.trim(),
+          subtitle: g("#ttv-subtitle").value.trim(),
+          instruction: g("#ttv-instruction").value.trim(),
+          mode: g("#ttv-mode").value,
+          template: g("#ttv-template").value,
+          theme: g("#ttv-theme").value,
+          skipSrt: g("#ttv-srt").value === "true",
         }),
       });
       state.jobId = data.id;
       await poll();
       state.timer = window.setInterval(poll, 2000);
     } catch (error) {
-      $("#ttv-generate").disabled = false;
+      g("#ttv-generate").disabled = false;
       setStatus(error.message || String(error));
     }
   };
 
-  $("#ttv-preview").onclick = async () => {
+  g("#ttv-preview").onclick = async () => {
     if (!state.project?.id) {
       setStatus("还没有可预览的项目。");
       return;
@@ -675,7 +757,7 @@
     await applyProjectToStudioPreview(state.project.id);
   };
 
-  $("#ttv-export").onclick = async () => {
+  g("#ttv-export").onclick = async () => {
     if (!state.project?.id) {
       setStatus("还没有可导出的项目。");
       return;
@@ -694,10 +776,11 @@
       setLog((job.logs || []).join("\n") || "等待日志。");
       if (job.status === "succeeded") {
         window.clearInterval(state.timer);
-        $("#ttv-generate").disabled = false;
+        g("#ttv-generate").disabled = false;
         if (job.result?.projectId) {
           const project = await loadProject(job.result.projectId);
           if (project.scenes?.length) {
+            setStoryboardOpen(true);
             await applyProjectToStudioPreview(job.result.projectId);
           } else {
             setStatus("单模板视频已生成；自动分镜预览仅用于 MultiSceneVideo 项目。");
@@ -708,11 +791,11 @@
       }
       if (job.status === "failed") {
         window.clearInterval(state.timer);
-        $("#ttv-generate").disabled = false;
+        g("#ttv-generate").disabled = false;
       }
     } catch (error) {
       window.clearInterval(state.timer);
-      $("#ttv-generate").disabled = false;
+      g("#ttv-generate").disabled = false;
       setStatus(error.message || String(error));
     }
   }
@@ -720,6 +803,7 @@
   restoreProgress();
   translateStudioUi();
   ensureDocked();
+  renderProject();
   const observer = new MutationObserver(() => {
     window.requestAnimationFrame(() => {
       translateStudioUi();
