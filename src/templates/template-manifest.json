@@ -3,6 +3,23 @@
     "id": "DocumentReveal",
     "displayName": "历史文件揭示",
     "category": "document",
+    "accepts": {
+      "visualKinds": ["document", "quote"],
+      "requiredEntities": ["documents"],
+      "requiredFields": ["title", "body"],
+      "optionalFields": ["highlightWords", "subtitle", "sealText"]
+    },
+    "rejectIf": {
+      "missingAny": ["documents"],
+      "containsVisualKind": ["war_action", "person_only"],
+      "textTooAbstract": true
+    },
+    "propMapping": {
+      "title": "entities.documents[0] || props.title",
+      "subtitle": "entities.dates[0] || '历史文件'",
+      "body": "summary",
+      "highlightWords": "visualNeed.mustShow"
+    },
     "bestFor": ["条约", "和约", "协定", "策论", "文件", "法令", "转让", "租借地", "利权", "档案"],
     "avoidFor": ["战争过程", "人物身份介绍", "抽象概念解释", "地理路线"],
     "visualMetaphor": "一张旧纸文件展开，展示标题、正文、高亮词和印章",
@@ -18,6 +35,21 @@
     "id": "QuoteReveal",
     "displayName": "引文揭示",
     "category": "quote",
+    "accepts": {
+      "visualKinds": ["quote", "document", "metaphor"],
+      "requiredEntities": [],
+      "requiredFields": ["quote", "source"],
+      "optionalFields": ["highlightWords"]
+    },
+    "rejectIf": {
+      "containsVisualKind": ["map_only", "person_only"],
+      "textTooAbstract": false
+    },
+    "propMapping": {
+      "quote": "quote || summary",
+      "source": "entities.documents[0] || '原文摘录'",
+      "highlightWords": "visualNeed.mustShow"
+    },
     "bestFor": ["引用", "原文", "名言", "他说", "写道", "圈点", "一行字", "犹如", "仿佛", "比喻"],
     "avoidFor": ["地理路线", "完整战争过程", "人物履历"],
     "visualMetaphor": "深色背景中逐步显现引文，重点词被高亮，来源压在画面下方",
@@ -33,6 +65,23 @@
     "id": "PortraitFocus",
     "displayName": "人物身份卡",
     "category": "person",
+    "accepts": {
+      "visualKinds": ["person"],
+      "requiredEntities": ["people"],
+      "requiredFields": ["name", "description"],
+      "optionalFields": ["roleTitle", "era", "keywords"]
+    },
+    "rejectIf": {
+      "missingAny": ["people"],
+      "containsVisualKind": ["document", "map_only"],
+      "textTooAbstract": true
+    },
+    "propMapping": {
+      "name": "entities.people[0]",
+      "roleTitle": "event.subject || '关键人物'",
+      "description": "summary",
+      "keywords": "visualNeed.mustShow"
+    },
     "bestFor": ["人物", "官员", "将领", "作者", "课长", "大臣", "太郎", "参谋", "负责人", "他"],
     "avoidFor": ["条约正文", "地理路线", "抽象概念"],
     "visualMetaphor": "人物剪影卡片，突出姓名、职务、时代和一句身份说明",
@@ -48,6 +97,21 @@
     "id": "ConceptDiagram",
     "displayName": "概念关系图",
     "category": "concept",
+    "accepts": {
+      "visualKinds": ["concept", "fallback"],
+      "requiredEntities": [],
+      "requiredFields": ["concept", "definition"],
+      "optionalFields": ["nodes", "keywords"]
+    },
+    "rejectIf": {
+      "containsVisualKind": ["person_only", "quote_only"],
+      "textTooAbstract": false
+    },
+    "propMapping": {
+      "concept": "entities.objects[0] || visualNeed.mustShow[0]",
+      "definition": "summary",
+      "nodes": "visualNeed.shouldShow"
+    },
     "bestFor": ["概念", "本质", "意味着", "关系", "结构", "利权", "势力范围", "铁路附属地", "控制", "机制"],
     "avoidFor": ["单句引用", "人物身份", "具体港口路线"],
     "visualMetaphor": "中心概念向外连接多个节点，用线条解释抽象关系",
@@ -63,6 +127,22 @@
     "id": "MetaphorVisual",
     "displayName": "隐喻可视化",
     "category": "metaphor",
+    "accepts": {
+      "visualKinds": ["metaphor"],
+      "requiredEntities": [],
+      "requiredFields": ["metaphor", "fromLabel", "toLabel", "objectLabel"],
+      "optionalFields": ["tone"]
+    },
+    "rejectIf": {
+      "containsVisualKind": ["document_only", "map_only"],
+      "textTooAbstract": false
+    },
+    "propMapping": {
+      "metaphor": "summary",
+      "fromLabel": "event.from || '来源'",
+      "toLabel": "event.to || '去向'",
+      "objectLabel": "event.object || visualNeed.mustShow[0]"
+    },
     "bestFor": ["像", "仿佛", "犹如", "好比", "怀表", "衣袋", "刀", "刃", "牛", "比喻"],
     "avoidFor": ["纯地名罗列", "人物履历", "条约正文"],
     "visualMetaphor": "一个对象从左侧主体移动到右侧主体，用图形解释文本隐喻",
@@ -79,6 +159,20 @@
     "id": "FootageScene",
     "displayName": "本地素材片段",
     "category": "footage",
+    "accepts": {
+      "visualKinds": ["document", "map", "atmosphere", "fallback"],
+      "requiredEntities": [],
+      "requiredFields": ["src", "title"],
+      "optionalFields": ["subtitle", "fit", "darken", "zoom"]
+    },
+    "rejectIf": {
+      "missingAsset": true
+    },
+    "propMapping": {
+      "src": "asset.path",
+      "title": "asset.title || visualNeed.mustShow[0]",
+      "subtitle": "match.reason"
+    },
     "bestFor": ["真实素材", "影视素材", "战场", "城市", "港口", "铁路", "文件实拍", "氛围"],
     "avoidFor": ["没有素材库匹配", "需要精确文字解释"],
     "visualMetaphor": "直接播放 public/footage 中的本地视频素材，并叠加标题与语义说明",
@@ -94,6 +188,22 @@
     "id": "AtlasMapFlyover",
     "displayName": "世界地图飞越",
     "category": "map",
+    "accepts": {
+      "visualKinds": ["map"],
+      "requiredEntities": ["locations"],
+      "requiredFields": ["title", "subtitle"],
+      "optionalFields": ["keywords", "visualFocus"]
+    },
+    "rejectIf": {
+      "missingAny": ["locations"],
+      "containsVisualKind": ["document_only", "quote_only"],
+      "textTooAbstract": true
+    },
+    "propMapping": {
+      "title": "entities.locations[0] || props.title",
+      "subtitle": "summary",
+      "keywords": "entities.locations"
+    },
     "bestFor": ["港", "铁路", "路线", "大陆", "关东州", "南满", "旅顺", "大连", "黄海", "东京", "霞关", "俄国", "日本", "满洲", "地图"],
     "avoidFor": ["条约原文", "人物身份", "单句引用"],
     "visualMetaphor": "真实世界地图纹理上出现路线和地理标签，表现地点关系和权益流向",
@@ -109,6 +219,23 @@
     "id": "MapRouteFlyover",
     "displayName": "路线地图飞越",
     "category": "map",
+    "accepts": {
+      "visualKinds": ["map"],
+      "requiredEntities": ["locations"],
+      "requiredFields": ["title", "subtitle", "visualFocus"],
+      "optionalFields": ["keywords"]
+    },
+    "rejectIf": {
+      "missingAny": ["locations"],
+      "containsVisualKind": ["document_only", "person_only"],
+      "textTooAbstract": true
+    },
+    "propMapping": {
+      "title": "entities.locations[0] || props.title",
+      "subtitle": "summary",
+      "visualFocus": "'route'",
+      "keywords": "entities.locations"
+    },
     "bestFor": ["路线", "铁路", "运输", "流向", "节点", "港口", "连接", "轴线"],
     "avoidFor": ["条约正文", "人物身份", "抽象定义"],
     "visualMetaphor": "简化地图上的路线被点亮，适合解释港口、铁路和利益轴线",
@@ -124,6 +251,20 @@
     "id": "HistoricalGlobeTexture1938",
     "displayName": "1938 历史地球",
     "category": "map",
+    "accepts": {
+      "visualKinds": ["map", "atmosphere"],
+      "requiredEntities": [],
+      "requiredFields": ["title", "subtitle"],
+      "optionalFields": ["showLabels"]
+    },
+    "rejectIf": {
+      "containsVisualKind": ["document_only", "quote_only"],
+      "textTooAbstract": false
+    },
+    "propMapping": {
+      "title": "visualNeed.mustShow[0] || props.title",
+      "subtitle": "summary"
+    },
     "bestFor": ["战争", "战役", "硝烟", "军", "参谋", "作战", "焦土", "铁锈", "占领", "东亚", "世界局势"],
     "avoidFor": ["单句引用", "条约正文", "人物卡片"],
     "visualMetaphor": "可旋转历史地球表现大范围地缘格局",
@@ -138,6 +279,20 @@
     "id": "PromptTextRotation",
     "displayName": "关键词轮播",
     "category": "concept",
+    "accepts": {
+      "visualKinds": ["concept", "fallback"],
+      "requiredEntities": [],
+      "requiredFields": ["keywords"],
+      "optionalFields": ["title"]
+    },
+    "rejectIf": {
+      "containsVisualKind": ["document_only", "person_only", "map_only"],
+      "textTooAbstract": false
+    },
+    "propMapping": {
+      "keywords": "visualNeed.mustShow",
+      "title": "summary"
+    },
     "bestFor": ["关键词", "概念", "总结", "递进", "转折", "并非", "而是", "关键"],
     "avoidFor": ["具体文件", "具体人物", "路线说明"],
     "visualMetaphor": "多个关键词轮流出现，适合做概念转场和抽象总结",
@@ -151,6 +306,17 @@
     "id": "NarratedScene",
     "displayName": "旁白兜底镜头",
     "category": "narration",
+    "accepts": {
+      "visualKinds": ["fallback", "atmosphere", "concept", "document", "map", "quote", "person", "metaphor"],
+      "requiredEntities": [],
+      "requiredFields": ["title", "body"],
+      "optionalFields": ["keywords"]
+    },
+    "rejectIf": {},
+    "propMapping": {
+      "title": "visualNeed.mustShow[0] || '旁白'",
+      "body": "summary"
+    },
     "bestFor": ["叙述", "铺垫", "过渡", "无法归类"],
     "avoidFor": [],
     "visualMetaphor": "深色旁白卡片承载文字，作为无法匹配模板时的稳定兜底",

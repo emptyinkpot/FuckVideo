@@ -22,6 +22,15 @@ export function attachAssetsToScenes(scenes, assets, options = {}) {
   return scenes.map((scene) => {
     const ranked = matchAssetsForScene(scene, list, options);
     const best = ranked.find((item) => !used.has(item.asset.id)) || ranked[0];
+    const assetCandidates = ranked.map((item) => materialCandidateFromAsset(item));
+    const decisionTrace = {
+      ...(scene.decisionTrace || {}),
+      candidateAssets: assetCandidates.map((item) => ({
+        id: item.id,
+        score: item.score,
+        reason: item.reason,
+      })),
+    };
     if (!best) {
       return {
         ...scene,
@@ -31,32 +40,58 @@ export function attachAssetsToScenes(scenes, assets, options = {}) {
           confidence: 0,
           reason: "没有匹配到足够相关的素材，使用模板镜头",
         },
+        visualCandidates: [...(scene.visualCandidates || []), ...assetCandidates],
+        decisionTrace: {
+          ...decisionTrace,
+          finalChoice: scene.decisionTrace?.finalChoice || {
+            type: "template",
+            id: scene.templateId,
+            reason: "没有匹配到足够相关的素材，使用模板镜头",
+          },
+        },
       };
     }
 
     used.add(best.asset.id);
     const useFootage = shouldPreferFootage(scene, best.score);
+    const visualLayer = useFootage
+      ? {
+          type: "footage",
+          clipId: best.asset.id,
+          path: best.asset.path,
+          title: best.asset.title,
+          confidence: best.score,
+          reason: best.reason,
+          fallbackTemplateId: scene.templateId,
+        }
+      : {
+          type: "template_with_footage_hint",
+          templateId: scene.templateId,
+          clipId: best.asset.id,
+          path: best.asset.path,
+          title: best.asset.title,
+          confidence: best.score,
+          reason: `主用模板，素材作备选：${best.reason}`,
+        };
     return {
       ...scene,
-      visualLayer: useFootage
-        ? {
-            type: "footage",
-            clipId: best.asset.id,
-            path: best.asset.path,
-            title: best.asset.title,
-            confidence: best.score,
-            reason: best.reason,
-            fallbackTemplateId: scene.templateId,
-          }
-        : {
-            type: "template_with_footage_hint",
-            templateId: scene.templateId,
-            clipId: best.asset.id,
-            path: best.asset.path,
-            title: best.asset.title,
-            confidence: best.score,
-            reason: `主用模板，素材作备选：${best.reason}`,
-          },
+      visualLayer,
+      visualCandidates: [...(scene.visualCandidates || []), ...assetCandidates],
+      decisionTrace: {
+        ...decisionTrace,
+        finalChoice: useFootage
+          ? {
+              type: "footage",
+              id: best.asset.id,
+              score: best.score,
+              reason: best.reason,
+            }
+          : scene.decisionTrace?.finalChoice || {
+              type: "template",
+              id: scene.templateId,
+              reason: "模板为主，素材作为备选提示",
+            },
+      },
     };
   });
 }
@@ -66,11 +101,20 @@ export function matchAssetsForScene(scene, assets, options = {}) {
   const limit = Number(options.limit ?? 5);
   const query = sceneQuery(scene);
   return assets
-    .map((asset) => ({
-      asset,
-      score: lexicalScore(query, asset, scene),
-      reason: buildReason(query, asset, scene),
-    }))
+    .map((asset) => {
+      const rejected = rejectAssetForScene(query, asset, scene);
+      if (rejected) {
+        return { asset, score: -1000, reason: rejected, rejected: true };
+      }
+      const score = lexicalScore(query, asset, scene);
+      return {
+        asset,
+        score,
+        reason: buildReason(query, asset, scene),
+        rejected: false,
+      };
+    })
+    .filter((item) => !item.rejected)
     .filter((item) => item.score >= minScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
@@ -93,8 +137,28 @@ export async function optionalEmbeddingRerank({ scene, candidates, embedText }) 
 function lexicalScore(query, asset, scene) {
   const assetBlob = assetText(asset);
   const tokens = tokenize(query);
+  const card = scene.semanticCard || {};
+  const entities = card.entities || {};
+  const visualNeed = card.visualNeed || {};
   let score = 0;
 
+  for (const group of [entities.documents, entities.people, entities.locations, entities.organizations, entities.objects]) {
+    for (const entity of group || []) {
+      if (!entity) continue;
+      if (assetBlob.includes(entity)) score += 22;
+      if ((asset.semantic?.entities || []).includes(entity)) score += 28;
+    }
+  }
+  for (const must of visualNeed.mustShow || []) {
+    if (assetBlob.includes(must)) score += 18;
+  }
+  for (const should of visualNeed.shouldShow || []) {
+    if (assetBlob.includes(should)) score += 8;
+  }
+  if (visualNeed.kind && (asset.kind === visualNeed.kind || asset.semantic?.kind === visualNeed.kind)) score += 18;
+  for (const object of asset.semantic?.visualObjects || []) {
+    if ((visualNeed.mustShow || []).some((must) => object.includes(must) || must.includes(object))) score += 12;
+  }
   for (const token of tokens) {
     if (assetBlob.includes(token)) score += token.length >= 3 ? 3 : 1;
   }
@@ -120,6 +184,18 @@ function shouldPreferFootage(scene, score) {
 
 function buildReason(query, asset, scene) {
   const hits = [];
+  const card = scene.semanticCard || {};
+  for (const entity of [
+    ...(card.entities?.documents || []),
+    ...(card.entities?.people || []),
+    ...(card.entities?.locations || []),
+    ...(card.entities?.objects || []),
+  ]) {
+    if (assetText(asset).includes(entity)) hits.push(`实体:${entity}`);
+  }
+  for (const must of card.visualNeed?.mustShow || []) {
+    if (assetText(asset).includes(must)) hits.push(`必须:${must}`);
+  }
   for (const tag of asset.tags || []) {
     if (query.includes(tag)) hits.push(tag);
   }
@@ -128,6 +204,7 @@ function buildReason(query, asset, scene) {
 }
 
 function sceneQuery(scene) {
+  const card = scene.semanticCard || {};
   return [
     scene.narrationText,
     scene.text,
@@ -137,15 +214,67 @@ function sceneQuery(scene) {
     ...(scene.props?.keywords || []),
     scene.props?.title,
     scene.props?.body,
+    card.summary,
+    card.event?.action,
+    ...(card.visualNeed?.mustShow || []),
+    ...(card.visualNeed?.shouldShow || []),
+    ...(card.searchQueries || []),
   ]
     .filter(Boolean)
     .join(" ");
 }
 
 function assetText(asset) {
-  return [asset.title, asset.description, ...(asset.tags || []), ...(asset.bestFor || []), ...(asset.mood || [])]
+  return [
+    asset.title,
+    asset.description,
+    asset.kind,
+    asset.era,
+    ...(asset.tags || []),
+    ...(asset.bestFor || []),
+    ...(asset.mood || []),
+    ...(asset.semantic?.entities || []),
+    ...(asset.semantic?.visualObjects || []),
+    ...(asset.semantic?.actions || []),
+    ...(asset.semantic?.mood || []),
+    ...(asset.semantic?.location || []),
+  ]
     .filter(Boolean)
     .join(" ");
+}
+
+function rejectAssetForScene(query, asset, scene) {
+  const blob = assetText(asset);
+  const visualNeed = scene.semanticCard?.visualNeed || {};
+  if (asset.copyright === "restricted" || asset.license === "restricted") return "版权受限";
+  for (const forbidden of visualNeed.mustNotShow || []) {
+    if (forbidden && blob.includes(forbidden)) return `命中禁止画面：${forbidden}`;
+  }
+  for (const avoid of asset.avoidFor || []) {
+    if (avoid && (query.includes(avoid) || avoid === scene.sceneType)) return `素材 avoidFor 命中：${avoid}`;
+  }
+  const kind = asset.kind || asset.semantic?.kind || "";
+  if (kind && visualNeed.kind && kind !== visualNeed.kind && !["atmosphere", "fallback"].includes(visualNeed.kind)) {
+    const compatible = visualNeed.kind === "map" && ["footage", "atmosphere"].includes(kind);
+    if (!compatible) return `素材类型 ${kind} 与需求 ${visualNeed.kind} 冲突`;
+  }
+  return "";
+}
+
+function materialCandidateFromAsset(item) {
+  return {
+    source: "footage",
+    materialId: item.asset.id,
+    id: item.asset.id,
+    path: item.asset.path,
+    title: item.asset.title,
+    score: item.score,
+    reason: item.reason,
+    mappedProps: {
+      src: item.asset.path,
+      title: item.asset.title,
+    },
+  };
 }
 
 function tokenize(text) {

@@ -287,17 +287,24 @@ function assertCaptionSceneLockstep(scenes, captions) {
   if (!Array.isArray(captions) || captions.length === 0) {
     return;
   }
-  if (scenes.length !== captions.length) {
-    throw new Error(`片段数量必须等于字幕数量：scenes=${scenes.length}, captions=${captions.length}`);
+  if (scenes.length < captions.length) {
+    throw new Error(`片段数量不能少于字幕数量：scenes=${scenes.length}, captions=${captions.length}`);
+  }
+  for (const scene of scenes) {
+    if (!String(scene.narrationText || scene.text || "").trim()) {
+      throw new Error(`片段 ${scene.id || scene.index + 1} 缺少文本。`);
+    }
   }
   for (let index = 0; index < captions.length; index += 1) {
-    const scene = scenes[index];
     const caption = captions[index];
-    if (Number(scene.audioStartMs) !== Number(caption.startMs) || Number(scene.audioEndMs) !== Number(caption.endMs)) {
-      throw new Error(`片段 ${index + 1} 与字幕时间不一致。`);
+    const group = scenes.filter((scene) => Number(scene.parentCaptionIndex || scene.captionIndex) === Number(caption.index || index + 1));
+    if (!group.length) {
+      throw new Error(`字幕 ${index + 1} 没有对应片段。`);
     }
-    if (!String(scene.narrationText || scene.text || "").trim()) {
-      throw new Error(`片段 ${index + 1} 缺少文本。`);
+    const first = group[0];
+    const last = group[group.length - 1];
+    if (Number(first.audioStartMs) !== Number(caption.startMs) || Number(last.audioEndMs) !== Number(caption.endMs)) {
+      throw new Error(`字幕 ${index + 1} 的片段时间没有覆盖父字幕。`);
     }
   }
 }

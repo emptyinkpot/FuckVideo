@@ -543,6 +543,37 @@
       background: #202020;
       font-size: 11px;
     }
+    .ttv-understanding {
+      display: grid;
+      gap: 6px;
+      border: 1px solid rgba(79,140,255,.22);
+      border-radius: 8px;
+      padding: 8px;
+      background: #171d2a;
+      font-size: 11px;
+      color: #d8d8d8;
+    }
+    .ttv-understanding-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: #f1f5f9;
+      font-weight: 700;
+    }
+    .ttv-understanding-grid {
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 4px 8px;
+      line-height: 1.4;
+    }
+    .ttv-understanding-key { color: #8f8f8f; }
+    .ttv-understanding-value { color: #d8d8d8; overflow-wrap: anywhere; }
+    .ttv-trace {
+      color: #8f8f8f;
+      border-top: 1px solid rgba(255,255,255,.07);
+      padding-top: 6px;
+      line-height: 1.45;
+    }
     .ttv-segment-strip {
       display: grid;
       gap: 6px;
@@ -1182,6 +1213,11 @@
           confidence: Number(visual.confidence || scene.visualLayer?.confidence || 0),
           reason: visual.reason || scene.visualLayer?.reason || scene.decisionReason || "",
         },
+        semanticCard: segment.semanticCard || scene.semanticCard || {},
+        visualContract: segment.visualContract || scene.visualContract || {},
+        visualGrounding: segment.visualGrounding || scene.visualGrounding || {},
+        visualCandidates: segment.visualCandidates || scene.visualCandidates || [],
+        decisionTrace: segment.decisionTrace || scene.decisionTrace || {},
         status: segment.status || (!scene.visualLayer ? "missing_visual" : "ok"),
         locked: Boolean(scene.locked),
       };
@@ -1393,6 +1429,7 @@
       <label class="ttv-label">视觉意图
         <textarea class="ttv-textarea" id="ttv-visual-intent">${escapeHtml(scene.visualIntent || "")}</textarea>
       </label>
+      ${renderSceneUnderstanding(scene)}
       <div class="ttv-grid">
         <label class="ttv-label">模板
           <select class="ttv-select" id="ttv-scene-template">
@@ -1417,6 +1454,57 @@
       </div>
       <div id="ttv-candidates">${renderCandidates()}</div>
     `;
+  }
+
+  function renderSceneUnderstanding(scene) {
+    const card = scene.semanticCard || {};
+    const entities = card.entities || {};
+    const need = card.visualNeed || scene.visualContract || {};
+    const grounding = scene.visualGrounding || {};
+    const trace = scene.decisionTrace || {};
+    const visualLayer = scene.visualLayer || {};
+    const finalChoice = trace.finalChoice || {};
+    return `
+      <div class="ttv-understanding">
+        <div class="ttv-understanding-title">
+          <span>片段理解</span>
+          <span>${escapeHtml(need.kind || "fallback")} · ${escapeHtml(grounding.hallucinationRisk || "risk?")}</span>
+        </div>
+        <div class="ttv-understanding-grid">
+          ${understandingRow("主体", firstNonEmpty([entities.documents, entities.people, entities.objects, entities.locations]))}
+          ${understandingRow("动作", card.event?.action || "explain")}
+          ${understandingRow("地点", joinList(entities.locations))}
+          ${understandingRow("文件", joinList(entities.documents))}
+          ${understandingRow("必须", joinList(need.mustShow))}
+          ${understandingRow("禁止", joinList(need.mustNotShow))}
+        </div>
+        <div class="ttv-trace">
+          当前画面：${escapeHtml(visualLayer.type || "template")} ${escapeHtml(visualLayer.clipId || scene.templateId || "")}
+          · 置信度 ${Math.round(Number(visualLayer.confidence || finalChoice.score || 0))}
+          <br />
+          原因：${escapeHtml(visualLayer.reason || finalChoice.reason || scene.decisionReason || "无")}
+        </div>
+      </div>
+    `;
+  }
+
+  function understandingRow(label, value) {
+    return `
+      <div class="ttv-understanding-key">${escapeHtml(label)}</div>
+      <div class="ttv-understanding-value">${escapeHtml(value || "无")}</div>
+    `;
+  }
+
+  function joinList(value) {
+    return Array.isArray(value) ? value.filter(Boolean).slice(0, 6).join("、") : String(value || "");
+  }
+
+  function firstNonEmpty(groups) {
+    for (const group of groups || []) {
+      const value = joinList(group);
+      if (value) return value;
+    }
+    return "";
   }
 
   function renderCandidates() {

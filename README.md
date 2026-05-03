@@ -43,7 +43,7 @@ Remotion Studio 模板预览与参数编辑
 - 用 `ffmpeg` 转成 Remotion Studio 更稳定识别的标准 MP3。
 - 根据音频时长计算视频时长。
 - 可选调用字幕接口生成 SRT。
-- 如果存在 SRT/captions，自动片段会直接按每条 caption 生成一个 scene：一段音频、一段文本、一个画面。
+- 如果存在 SRT/captions，自动片段会先按 caption 建立父时间轴，再把过长 caption 拆成 semantic micro-segments：一段音频、一段文本、一个画面。
 - 如果存在 `public/generated/asset-index.json`，自动片段会尝试匹配 `public/footage/` 下的素材。
 - 使用 `GeneratedTemplateVideo` 包装已有模板并叠加音频/字幕。
 - 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
@@ -206,10 +206,10 @@ remotion-project/
 
   scripts/
     text-to-video.mjs               命令行生成视频主链路
-    scene-planner.mjs               文本拆块、关键词提取、镜头模板匹配
+    scene-planner.mjs               caption/micro-segment 切分、语义卡、视觉合约、模板握手
     timeline-aligner.mjs            旧兼容：把已有 scenes 贴到音频真实时间轴
     asset-indexer.mjs               扫描 public/footage 生成素材索引草稿
-    asset-matcher.mjs               根据 sceneType、visualIntent、tags 匹配素材
+    asset-matcher.mjs               根据 semanticCard/visualContract 硬过滤、召回和解释素材候选
     scene-asset-planner.mjs         给已有 scenes JSON 补充 visualLayer 素材信息
     project-store.mjs               VideoProject 读写、scene patch、素材替换、props 转换
     export-video-project.mjs        project.json -> MultiSceneVideo props -> MP4
@@ -229,7 +229,7 @@ remotion-project/
       AutoSceneTemplates.tsx        人物、引文、概念、隐喻四类解释型镜头模板
       FootageScene.tsx              本地素材片段镜头模板
       sceneRegistry.tsx             自动片段 templateId -> Remotion 组件映射
-      template-manifest.json        模板语义说明书，供 planner 理解模板用途
+      template-manifest.json        模板握手说明书，供 planner 理解 accepts/rejectIf/propMapping
       NarratedVideo.tsx             通用旁白视频模板
       MapTemplates.tsx              地图飞越模板
       MotionTemplates.tsx           二维动态图形模板
@@ -973,13 +973,13 @@ POST /srt
 TTS 音频
   -> SRT/captions
   -> scripts/scene-planner.mjs 的 planScenesFromCaptions()
-  -> 每条 caption 生成一个 scene，并直接写入 fromFrame / durationInFrames / audioStartMs / audioEndMs
+  -> 每条 caption 生成一个或多个 semantic micro-segment，并写入 fromFrame / durationInFrames / audioStartMs / audioEndMs
   -> MultiSceneVideo 按音频真实时间切镜头
 ```
 
-也就是说，一站式生成时如果没有跳过字幕，`captions.length` 必须等于 `scenes.length`，且每个 scene 的 `audioStartMs/audioEndMs` 必须等于对应 caption 的 `startMs/endMs`。当前实现依赖 `/srt` 返回的句段时间戳；后续如果接本地 Whisper/faster-whisper，只需要让它输出同样的 captions/SRT 结构即可。
+也就是说，一站式生成时如果没有跳过字幕，`scenes.length` 必须大于或等于 `captions.length`。每个父 caption 至少要有一个 scene 覆盖；如果被切成多个 micro-segment，第一段的 `audioStartMs` 等于父 caption 的 `startMs`，最后一段的 `audioEndMs` 等于父 caption 的 `endMs`，中间时间按文本 token 比例估算，并写入 `estimatedTiming: true`。当前实现依赖 `/srt` 返回的句段时间戳；后续如果接本地 Whisper/faster-whisper，只需要让它输出同样的 captions/SRT 结构即可。
 
-生成脚本里有硬校验：有 captions 时如果 `scenes.length !== captions.length`，或任一 scene 缺少文本/音频起止时间不等于对应 caption，任务必须失败，不能继续输出错位项目。
+生成脚本里有硬校验：有 captions 时如果 `scenes.length < captions.length`，任一 caption 没有对应 scene，父 caption 时间没有被 scene 覆盖，或任一 scene 缺少文本，任务必须失败，不能继续输出错位项目。
 
 ## 13. Web 任务 API
 
@@ -1501,6 +1501,22 @@ function findExplorerTabs() {
 .ttv-storyboard-panel .ttv-textarea {
   min-height: 76px;
 }
+
+.ttv-understanding {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(79,140,255,.22);
+  border-radius: 8px;
+  padding: 8px;
+  background: #171d2a;
+  font-size: 11px;
+}
+
+.ttv-understanding-grid {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 4px 8px;
+}
 ```
 
 左侧片段页签只包含：
@@ -1509,6 +1525,8 @@ function findExplorerTabs() {
 - 片段列表
 - 当前片段旁白 / 字幕
 - 当前片段视觉意图
+- 当前片段理解：主体、动作、地点、文件、必须展示、禁止展示
+- 当前画面解释：模板/素材、置信度、命中原因
 - 当前片段画面 / 模板
 - 当前片段类型
 - 开始 / 结束毫秒
@@ -2400,9 +2418,10 @@ ffprobe 读时长
 
 ```text
 读取 captions/SRT
-每条 caption 直接调用 planScenesFromCaptions()
-用 caption start/end 直接计算 fromFrame 和 durationInFrames
-每个 scene 只使用当前 caption 文本做 visualIntent 和素材匹配
+每条 caption 调用 planScenesFromCaptions()
+过长 caption 继续拆成 semantic micro-segments
+用 caption 或父 caption 内估算的 start/end 计算 fromFrame 和 durationInFrames
+每个 scene 只使用当前 micro-segment 文本做 semanticCard、visualIntent 和素材匹配
 没有 captions 时才使用文本估算时长
 ```
 
@@ -2680,6 +2699,7 @@ http://127.0.0.1:3037
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
 - 自动片段系统使用 `MultiSceneVideo`，可以把长文拆成一段话绑定一个画面的片段时间轴。
 - 自动片段系统会在有 captions/SRT 时使用音频真实时间轴对齐片段。
+- 自动片段系统会给每个片段写入 `semanticCard`、`visualContract`、`visualGrounding`、`visualCandidates` 和 `decisionTrace`。
 - 素材检索系统可以扫描 `public/footage/`，并把匹配到的画面写入 scene/segment 的 `visualLayer`/`visual`。
 - TTS 音频会统一转成标准 MP3。
 - 可选 SRT 字幕。
@@ -2702,12 +2722,13 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```text
 文本 + TTS 音频
   -> scripts/scene-planner.mjs 拆句
-  -> semanticBlocks
-  -> visualBeats
-  -> template-manifest.json 召回候选模板
-  -> captions/SRT 存在时直接生成一 caption 一 scene
-  -> manifest 打分与模板轮换
-  -> asset-index.json 可选检索本地素材
+  -> captions/SRT 存在时建立父 caption 时间轴
+  -> 过长 caption 拆成 semantic micro-segments
+  -> SegmentSemanticCard
+  -> Visual Contract / Evidence Mode
+  -> template-manifest.json 执行模板握手
+  -> asset-index.json 执行素材硬过滤和语义召回
+  -> visualCandidates + decisionTrace
   -> scenes JSON
   -> MultiSceneVideo
   -> Remotion Sequence 按时间轴拼接多个模板
@@ -2779,6 +2800,20 @@ type TimelineScene = {
   sceneType: string;
   templateId: string;
   props: Record<string, unknown>;
+  semanticCard: SegmentSemanticCard;
+  visualContract: {
+    kind: string;
+    mustShow: string[];
+    shouldShow: string[];
+    mustNotShow: string[];
+    evidenceMode: "explicit_text" | "asset_match" | "template_abstraction";
+    allowedSources: string[];
+  };
+  visualGrounding: {
+    source: "explicit_text" | "asset_match" | "template_abstraction";
+    evidence: string[];
+    hallucinationRisk: "low" | "medium" | "high";
+  };
   visualLayer: {
     type: "template" | "footage" | "template_with_footage_hint";
     clipId?: string;
@@ -2788,8 +2823,26 @@ type TimelineScene = {
     reason?: string;
     confidence?: number;
   };
+  visualCandidates: VisualCandidate[];
+  decisionTrace: DecisionTrace;
   alternatives: MaterialCandidate[];
   locked: boolean;
+};
+
+type VisualCandidate = {
+  source: "template" | "footage";
+  templateId?: string;
+  materialId?: string;
+  score: number;
+  reason: string | string[];
+  mappedProps?: Record<string, unknown>;
+};
+
+type DecisionTrace = {
+  rejectedTemplates: { id: string; reason: string }[];
+  candidateTemplates: { id: string; score: number; reason: string[] }[];
+  candidateAssets?: { id: string; score: number; reason: string }[];
+  finalChoice: { type: "template" | "footage"; id: string; score?: number; reason: string; mappedProps?: Record<string, unknown> };
 };
 ```
 
@@ -2808,7 +2861,7 @@ http://127.0.0.1:3057/MultiSceneVideo
 生成完成后，Studio 插件会自动加载项目 props 并切到 `MultiSceneVideo`。`/video-project/:id` 仍保留为备用调试页面，但它不是主工作流。当前内嵌编辑闭环：
 
 - 右侧浮层：文案生成、生成模式、TTS 指令、生成进度、刷新预览、打开当前成片。
-- 左侧 `片段` 页签：片段列表、当前片段属性、画面候选。
+- 左侧 `片段` 页签：片段列表、当前片段属性、片段理解、画面候选。
 - 中央画布：Remotion Studio 原生 `MultiSceneVideo` 预览。
 - 底部原生时间线：原生播放头和刻度 + 紧凑片段条，不暴露旁白/素材/镜头/字幕多轨。
 - 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定片段、重配画面、替换画面、总导出。
@@ -2870,9 +2923,52 @@ type CommonSceneProps = {
 - `QuoteReveal` 使用 `body/highlightWords/source`。
 - `ConceptDiagram` 使用 `title/body/keywords` 生成节点关系。
 
-### 24.2 镜头语言结构
+### 24.2 片段语义合约
 
-planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视觉意图：
+planner 输出的 scene 不再只是 `{ templateId, props }`，而是完整的可执行片段合约。当前实现路径是：
+
+```text
+Caption Segment
+  -> Semantic Card
+  -> Visual Contract
+  -> Template/Asset Handshake
+  -> candidates + decisionTrace
+  -> Studio 左侧片段理解面板
+```
+
+`semanticCard` 是调度器理解片段的主结构，`visualContract` 是模板和素材必须遵守的画面契约，`visualGrounding` 用来约束证据来源，`decisionTrace` 用来解释为什么选中或拒绝某个模板/素材。任何新增模板、素材检索或 AI 重配逻辑都必须优先复用这几个字段，不要在前端或新脚本里重新猜画面。
+
+核心结构：
+
+```ts
+type SegmentSemanticCard = {
+  summary: string;
+  entities: {
+    people: string[];
+    locations: string[];
+    organizations: string[];
+    documents: string[];
+    objects: string[];
+    dates: string[];
+  };
+  event: {
+    action: string;
+    subject?: string;
+    object?: string;
+    from?: string;
+    to?: string;
+  };
+  visualNeed: {
+    kind: "document" | "map" | "person" | "quote" | "concept" | "metaphor" | "atmosphere" | "fallback";
+    mustShow: string[];
+    shouldShow: string[];
+    mustNotShow: string[];
+  };
+  searchQueries: string[];
+};
+```
+
+示例 scene：
 
 ```json
 {
@@ -2880,15 +2976,56 @@ planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视�
   "sceneType": "document_evidence",
   "narrationText": "这“牛”，便是被《朴茨茅斯和约》悄然易手的关东州租借地与南满铁路。",
   "visualIntent": "用文件/条约视觉呈现证据，突出关键措辞：朴茨茅斯和约、关东州、南满铁路",
-  "visualIntentData": {
-    "type": "document_evidence",
-    "action": "show_evidence",
-    "evidenceType": "document",
-    "highlightWords": ["朴茨茅斯和约", "关东州", "南满铁路"]
+  "semanticCard": {
+    "summary": "《朴茨茅斯和约》悄然易手关东州租借地与南满铁路",
+    "entities": {
+      "people": [],
+      "locations": ["关东州", "南满铁路"],
+      "organizations": [],
+      "documents": ["朴茨茅斯和约"],
+      "objects": ["租借地", "铁路"],
+      "dates": []
+    },
+    "event": {
+      "action": "transfer",
+      "object": "租借地"
+    },
+    "visualNeed": {
+      "kind": "document",
+      "mustShow": ["朴茨茅斯和约"],
+      "shouldShow": ["关东州", "南满铁路", "租借地"],
+      "mustNotShow": ["战场爆炸", "现代城市", "现代办公室", "炮火"]
+    },
+    "searchQueries": ["朴茨茅斯和约 关东州 南满铁路", "document 朴茨茅斯和约 关东州 南满铁路"]
+  },
+  "visualContract": {
+    "kind": "document",
+    "mustShow": ["朴茨茅斯和约"],
+    "shouldShow": ["关东州", "南满铁路", "租借地"],
+    "mustNotShow": ["战场爆炸", "现代城市", "现代办公室", "炮火"],
+    "evidenceMode": "explicit_text",
+    "allowedSources": ["template", "asset_match"]
+  },
+  "visualGrounding": {
+    "source": "explicit_text",
+    "evidence": ["朴茨茅斯和约", "关东州", "南满铁路"],
+    "hallucinationRisk": "low"
   },
   "templateId": "DocumentReveal",
   "durationSec": 6,
-  "decisionReason": "历史文件揭示: 一张旧纸文件展开，展示标题、正文、高亮词和印章",
+  "decisionTrace": {
+    "rejectedTemplates": [
+      { "id": "PortraitFocus", "reason": "缺少必需实体：people" }
+    ],
+    "candidateTemplates": [
+      { "id": "DocumentReveal", "score": 84, "reason": ["画面类型=document", "文档实体=朴茨茅斯和约"] }
+    ],
+    "finalChoice": {
+      "type": "template",
+      "id": "DocumentReveal",
+      "reason": "画面类型=document；文档实体=朴茨茅斯和约"
+    }
+  },
   "props": {
     "title": "朴茨茅斯和约",
     "body": "关东州租借地与南满铁路权益转让",
@@ -2897,16 +3034,25 @@ planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视�
 }
 ```
 
-`visualIntent` 给人看，`visualIntentData` 给机器继续匹配模板或素材。比如隐喻镜头会写出 `action: "transfer"`、`from: "俄国"`、`to: "日本"`；地图镜头会写出 `action: "route"` 或 `action: "locate"`。
+`visualIntent` 给人看，`visualIntentData` 是旧的轻量机器字段，仍然保留兼容；新逻辑必须优先读 `semanticCard.visualNeed` 和 `visualContract`。Evidence Mode 的硬规则：
+
+- 画面主体只能来自文案明确实体、已匹配素材、或模板能抽象表达的概念。
+- 如果人物实体不存在，`PortraitFocus` 会被拒绝，不能生造真实肖像。
+- 如果 `mustNotShow` 命中素材描述、标签或 semantic 字段，素材会被硬过滤。
+- `FootageScene` 不由模板轮换直接选择，只能由素材检索阶段在有 `asset.path` 时启用。
+- 前端只能展示和微调这些结构，不要在 UI 层用关键词重新推断模板。
 
 ### 24.3 模板轮换策略
 
-`scene-planner.mjs` 当前实现了确定性轮换和平滑：
+`scene-planner.mjs` 当前实现了确定性轮换、模板握手和平滑：
 
 - 从 `template-manifest.json` 读取全部模板。
-- 根据 `bestFor`、`avoidFor`、`sceneRole`、`category`、当前 `sceneType` 计算分数。
+- 每个模板在 manifest 里有 `accepts`、`rejectIf`、`propMapping`。这是模板握手协议，不只是说明文字。
+- 根据 `semanticCard.visualNeed.kind`、实体组、`bestFor`、`avoidFor`、`sceneRole`、`category`、当前 `sceneType` 计算分数。
+- 先执行拒绝条件：必需实体缺失、画面类型冲突、素材阶段专用模板等直接淘汰。
 - 连续镜头如果命中同一个模板，会优先选择分数接近但不同的候选模板。
 - 同类别镜头连续出现会扣分，避免全片只用文件或只用地图。
+- 每个 scene 都写入 `visualCandidates` 和 `decisionTrace`，方便前端显示“为什么这么配”。
 - 长历史叙事默认偏向这类节奏：
 
 ```text
@@ -2934,9 +3080,11 @@ establishing map -> portrait/person -> document evidence -> quote -> concept exp
 TTS -> SRT/captions -> planScenesFromCaptions -> scenes[fromFrame,durationInFrames,audioStartMs,audioEndMs]
 ```
 
-`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `planScenesFromCaptions()`，每条 caption 直接成为一个 scene。scene 的时间来自 caption，scene 的语义文本优先来自原始文案：当原始句子数和 caption 数不一致时，用 caption 文本在原文中找锚点切片，避免 ASR 错字污染画面匹配。禁止再用旁白文本长度把多个 captions 分组到旧 scenes；那会造成画面和声音错位。只有在跳过字幕或字幕接口失败时，才使用文本拆句估算并按音频总时长拉伸。
+`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `planScenesFromCaptions()`。caption 仍是父时间轴，但 planner 会继续做 semantic micro-segment：如果 caption 里超过 32 个有效汉字，或同时出现多个实体、地点、文件名、人物名、隐喻、转折词，就尝试切成更小片段。每个 micro-segment 都有 `parentCaptionId`、`parentCaptionIndex` 和 `estimatedTiming`，时间按文本 token 比例分配在父 caption 内。这样仍满足“一段话、一段音频、一个画面”，但不会把一句里三件事塞进一个画面。
 
-素材匹配也必须发生在这个 caption-derived scene 之后：`asset-matcher.mjs` 的 query 只能包含当前 scene 的 `narrationText/text/visualIntent/keywords`，不能用整段文案或相邻片段的文本参与当前片段匹配。
+scene 的时间来自 caption 或父 caption 内的 micro-segment 分配，scene 的语义文本优先来自原始文案：当原始句子数和 caption 数不一致时，用 caption 文本在原文中找锚点切片，避免 ASR 错字污染画面匹配。禁止再用旁白文本长度把多个 captions 分组到旧 scenes；那会造成画面和声音错位。只有在跳过字幕或字幕接口失败时，才使用文本拆句估算并按音频总时长拉伸。
+
+素材匹配也必须发生在这个 caption-derived scene 之后：`asset-matcher.mjs` 的 query 只能包含当前 scene 的 `narrationText/text/visualIntent/keywords/semanticCard`，不能用整段文案或相邻片段的文本参与当前片段匹配。
 
 独立多镜头命令也支持同样的对齐：
 
@@ -3008,13 +3156,16 @@ scene 匹配素材后会多出 `visualLayer`：
 
 `sceneRegistry.tsx` 看到 `visualLayer.type === "footage"` 时会直接渲染 `FootageScene`。如果是 `template_with_footage_hint`，当前仍主用模板，同时把匹配素材保留在 scene 里，后续可以让具体模板把素材当背景。
 
-目前素材匹配使用本地标签/描述打分：
+目前素材匹配使用三阶段本地召回：
 
 ```text
-sceneType + visualIntent + keywords
-  -> tags / description / bestFor / avoidFor
-  -> top match
-  -> visualLayer
+第一阶段：硬过滤
+  -> visualNeed.mustNotShow / asset.avoidFor / copyright restricted / kind 冲突
+第二阶段：语义召回
+  -> entities / visualNeed.mustShow / searchQueries / tags / description / bestFor
+第三阶段：握手评分
+  -> 实体命中 > 必须展示命中 > 视觉对象命中 > mood/tag 命中
+  -> visualLayer + visualCandidates + decisionTrace.candidateAssets
 ```
 
 `asset-matcher.mjs` 已保留 `optionalEmbeddingRerank()` 接口。素材库少于几百条时，先用标签和描述更稳；素材库变大后，可以接 OpenAI、DashScope 或本地 embedding 做 rerank。
