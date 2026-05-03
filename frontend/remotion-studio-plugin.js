@@ -311,9 +311,6 @@
     }
     .ttv-storyboard-panel.open { display: grid; grid-template-rows: auto 1fr; }
     .ttv-generator-launcher {
-      position: fixed;
-      top: 42px;
-      right: 18px;
       z-index: 2147483000;
       height: 34px;
       border: 1px solid rgba(255,255,255,.14);
@@ -324,6 +321,18 @@
       font: 600 13px Inter, "Microsoft YaHei", system-ui, sans-serif;
       cursor: pointer;
       box-shadow: 0 14px 34px rgba(0,0,0,.28);
+    }
+    .ttv-generator-launcher.docked {
+      position: static;
+      height: 34px;
+      margin-left: 8px;
+      box-shadow: none;
+      flex: 0 0 auto;
+    }
+    .ttv-generator-launcher.floating {
+      position: fixed;
+      top: 42px;
+      right: 18px;
     }
     body.ttv-generator-open .ttv-generator-launcher { display: none; }
     .ttv-generator-panel {
@@ -917,6 +926,33 @@
     }
     workbar.classList.add("docked");
     workbar.classList.remove("floating");
+  }
+
+  function findNativeRenderButton() {
+    const candidates = Array.from(document.querySelectorAll("button, [role='button']")).filter((el) => {
+      if (workbar.contains(el) || generatorLauncher.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el)) return false;
+      const text = normalize(el.textContent);
+      return text === "render" || text === "渲染";
+    });
+    return candidates.find((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }) || candidates[0] || null;
+  }
+
+  function ensureGeneratorLauncherDocked() {
+    const renderButton = findNativeRenderButton();
+    if (!renderButton?.parentElement) {
+      if (generatorLauncher.parentElement !== document.body) document.body.appendChild(generatorLauncher);
+      generatorLauncher.classList.remove("docked");
+      generatorLauncher.classList.add("floating");
+      return;
+    }
+    if (generatorLauncher.parentElement !== renderButton.parentElement || renderButton.nextElementSibling !== generatorLauncher) {
+      renderButton.insertAdjacentElement("afterend", generatorLauncher);
+    }
+    generatorLauncher.classList.add("docked");
+    generatorLauncher.classList.remove("floating");
   }
 
   function normalize(value) {
@@ -1522,6 +1558,7 @@
   restoreProgress();
   translateStudioUi();
   ensureWorkbarDocked();
+  ensureGeneratorLauncherDocked();
   ensureDocked();
   renderWorkbar();
   renderProject();
@@ -1530,6 +1567,7 @@
     window.requestAnimationFrame(() => {
       translateStudioUi();
       ensureWorkbarDocked();
+      ensureGeneratorLauncherDocked();
       ensureDocked();
     });
   });

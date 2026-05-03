@@ -54,7 +54,7 @@ Remotion Studio 模板预览与参数编辑
 - `npm run dev:video` 会启动 Remotion Studio、生成视频 API、Studio 代理。
 - 访问 `http://127.0.0.1:3057`。
 - 代理会把 `frontend/remotion-studio-plugin.js` 注入 Studio 页面。
-- 页面右侧会出现 `生成视频` 按钮，点击后打开右侧生成控制台；控制台打开时按钮自动隐藏。
+- Remotion 原生 `渲染` 按钮旁边会出现 `生成视频` 按钮，点击后打开右侧生成控制台；控制台打开时按钮自动隐藏。
 - Remotion Studio 左侧栏 `合成列表 / 素材` 旁边会出现 `分镜` 页签。
 - 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动镜头规划 -> `MultiSceneVideo` -> MP4。
 - 插件也保留“单模板”模式：文本 -> 千问 TTS -> 选定 Remotion 模板 -> MP4。
@@ -1292,7 +1292,7 @@ frontend/remotion-studio-plugin.js
 
 插件做了五件事：
 
-- 在页面右侧加 `生成视频` 按钮，打开右侧生成控制台；控制台打开时隐藏启动按钮。
+- 在 Remotion 原生 `渲染` 按钮旁边加 `生成视频` 按钮，打开右侧生成控制台；控制台打开时隐藏启动按钮。
 - 在 Remotion Studio 左侧栏 `合成列表 / 素材` 旁边加 `分镜` 页签。
 - 右侧生成控制台负责文案输入、模式选择、TTS 指令、任务提交、进度日志和刷新预览；总导出只保留顶部工作栏一个主入口。
 - 左侧分镜页签只负责分镜列表、当前镜头编辑、锁定、素材重配和素材替换。
@@ -1340,13 +1340,23 @@ aside.ttv-generator-panel
 
 ```css
 .ttv-generator-launcher {
-  position: fixed;
-  top: 42px;
-  right: 18px;
   z-index: 2147483000;
   height: 34px;
   padding: 0 12px;
   border-radius: 9px;
+}
+
+.ttv-generator-launcher.docked {
+  position: static;
+  height: 34px;
+  margin-left: 8px;
+  box-shadow: none;
+}
+
+.ttv-generator-launcher.floating {
+  position: fixed;
+  top: 42px;
+  right: 18px;
 }
 
 .ttv-generator-panel {
@@ -1435,6 +1445,7 @@ localStorage["ttv.lastProgress"] = JSON.stringify({ status, log, at });
 规则：
 
 - `生成视频` 按钮只负责打开右侧控制台。
+- `生成视频` 按钮必须优先由 `ensureGeneratorLauncherDocked()` 插入 Remotion 原生 `渲染 / Render` 按钮后面；只有找不到原生渲染按钮时才使用 `.ttv-generator-launcher.floating` 降级到右上角。
 - 右侧控制台默认打开，用户关闭后写入 `ttv.generatorPanel=closed`。
 - 生成进度和日志必须常驻右侧控制台，不放进左侧分镜。
 - 每次轮询 `GET /api/jobs/:id` 后都要更新 `ttv.lastProgress`，页面跳转到 `/MultiSceneVideo` 后仍能恢复上一轮状态。
@@ -2065,7 +2076,7 @@ async function switchProject(projectId) {
 - 顶部项目栏不能 `left: 50% + transform` 居中悬浮，否则会压住 Remotion 原生顶栏和右侧按钮。
 - 顶部项目栏不能同时写死 `min-width` 和依赖右侧控制台的 `max-width: calc(100vw - 460px)`，窄屏会互相打架。
 - 顶部项目栏默认必须 dock 到 Remotion 原生 `Help / 帮助` 后面；悬浮只允许作为找不到原生菜单时的 fallback。
-- 右侧生成控制台不能让 `生成视频` 启动按钮继续漂在画面中央边缘；控制台打开时启动按钮必须隐藏。
+- 右侧生成控制台不能让 `生成视频` 启动按钮继续漂在画面中央边缘；启动按钮必须优先并列在 Remotion 原生 `渲染` 按钮旁边，控制台打开时必须隐藏。
 - 左侧分镜不能完全依赖 Remotion explorer 是否可见；如果原生左栏在窄屏下消失，必须出现 `button.ttv-storyboard-launcher` 作为 fallback。
 - 左侧分镜不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 分镜列表 -> 时间线 -> 当前分镜编辑器。
 - 左侧双按钮不能在窄栏里用普通 flex 横排硬挤，必须用 `grid-template-columns: 1fr 1fr` 或上下堆叠。
@@ -2509,7 +2520,7 @@ http://127.0.0.1:3057
 确认：
 
 - Remotion Studio 能打开。
-- 右侧有“生成视频”按钮，控制台打开时该按钮隐藏。
+- Remotion 原生“渲染”按钮旁边有“生成视频”按钮，控制台打开时该按钮隐藏。
 - 点击后右侧出现 `一站式生成视频` 控制台，宽度约 390px。
 - 左侧 `合成列表 / 素材` 旁边有 `分镜` 页签。
 - 点击 `分镜` 后左侧只显示分镜列表和当前镜头编辑，不显示生成表单。
@@ -2620,7 +2631,7 @@ http://127.0.0.1:3037
 当前工程状态：
 
 - Remotion Studio 可运行。
-- 生成视频扩展已集成到 Studio 页面：右侧浮层是生成控制台，左侧 explorer 是分镜页签。
+- 生成视频扩展已集成到 Studio 页面：原生“渲染”按钮旁边是生成入口，右侧浮层是生成控制台，左侧 explorer 是分镜页签。
 - 右侧 Remotion 原生参数栏保持给 `schema/defaultProps` 编辑使用，不承载本项目分镜 UI。
 - 30 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
