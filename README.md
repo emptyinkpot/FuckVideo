@@ -8,6 +8,7 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 Remotion Studio 模板预览与参数编辑
   + 右上角“生成视频”扩展
   + 千问 TTS 旁白生成
+  + 自动镜头规划
   + 现有 Remotion 模板复用
   + 自动音频格式标准化
   + 可选字幕文件
@@ -26,7 +27,7 @@ Remotion Studio 模板预览与参数编辑
 
 - `src/Root.tsx` 注册全部 Remotion compositions。
 - 每个 composition 都有 `schema` 和 `defaultProps`。
-- Remotion Studio 中 23 个合成都能显示 props 编辑区。
+- Remotion Studio 中 25 个合成都能显示 props 编辑区。
 - 多数模板参数会真实影响画面，不是只挂一个空 schema。
 
 第二层是文本生成视频链路：
@@ -38,6 +39,7 @@ Remotion Studio 模板预览与参数编辑
 - 根据音频时长计算视频时长。
 - 可选调用字幕接口生成 SRT。
 - 使用 `GeneratedTemplateVideo` 包装已有模板并叠加音频/字幕。
+- 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
 - 调用 Remotion CLI 渲染 MP4。
 
 第三层是 Studio 内嵌扩展：
@@ -76,10 +78,26 @@ ffprobe -version
 
 ## 3. 安装依赖
 
-进入项目根目录：
+本仓库地址：
+
+```console
+https://github.com/emptyinkpot/FuckVideo
+```
+
+仓库包含大素材，必须安装 Git LFS：
+
+```console
+git lfs install
+git clone https://github.com/emptyinkpot/FuckVideo.git
+cd FuckVideo
+git lfs pull
+```
+
+如果你已经在本机已有目录，例如：
 
 ```console
 cd /d "E:\My Project\remotion-project"
+git lfs pull
 ```
 
 安装依赖：
@@ -169,6 +187,9 @@ remotion-project/
 
   scripts/
     text-to-video.mjs               命令行生成视频主链路
+    scene-planner.mjs               文本拆块、关键词提取、镜头模板匹配
+    text-to-scenes-video.mjs        只生成/渲染多镜头视频，不调用 TTS
+    text-to-scenes-tts-video.mjs    一站式：TTS + 自动镜头 + Remotion 渲染
     video-ui-server.mjs             本地任务 API 与静态页面服务
     studio-plugin-proxy.mjs         代理 Remotion Studio 并注入插件脚本
     studio-with-video-ui.mjs        一键启动 Studio + API + 插件代理
@@ -178,6 +199,9 @@ remotion-project/
     index.ts                        Remotion root 入口
     templates/
       GeneratedTemplateVideo.tsx    生成视频包装器：现有模板 + 音频 + 字幕
+      MultiSceneVideo.tsx           多镜头视频容器：Sequence 时间轴拼接
+      DocumentReveal.tsx            条约/文件/档案类镜头模板
+      sceneRegistry.tsx             自动镜头 templateId -> Remotion 组件映射
       NarratedVideo.tsx             通用旁白视频模板
       MapTemplates.tsx              地图飞越模板
       MotionTemplates.tsx           二维动态图形模板
@@ -200,6 +224,10 @@ remotion-project/
     geojson/                        历史地球 GeoJSON 数据
     maps/                           地图纹理
 
+  asset-source/
+    historical-basemaps/            历史底图源数据、SVG、GeoJSON、示例素材
+    natural-earth/                  Natural Earth 原始下载与解压素材
+
   .runtime/
     text-to-video/
       jobs/                         Web 任务临时文本
@@ -207,6 +235,15 @@ remotion-project/
 
   out/                              渲染出的 MP4
 ```
+
+素材边界：
+
+- `public/maps/`、`public/geojson/`、`public/historical-maps/` 是运行时直接读取的公开素材。
+- `asset-source/` 是工程素材源文件，也已经纳入仓库。
+- `asset-source/natural-earth/NE1_LR_LC_SR_W.zip` 和 `asset-source/natural-earth/natural-earth/NE1_LR_LC_SR_W.tif` 走 Git LFS。
+- `public/generated/` 当前包含已生成示例；新运行任务也会继续往这里写 MP3、SRT、props、scenes。
+- `.runtime/` 是本机运行状态和 raw audio 缓存，不作为复刻所需源码。
+- `out/` 是渲染产物目录，不作为源码必需项。
 
 ## 6. 核心架构
 
@@ -242,7 +279,7 @@ Remotion Studio 页面
 out/text-to-video-*.mp4
 ```
 
-生成视频时，真正负责渲染的是：
+单模板生成时，真正负责渲染的是：
 
 ```text
 src/templates/GeneratedTemplateVideo.tsx
@@ -253,6 +290,24 @@ src/templates/GeneratedTemplateVideo.tsx
 - TTS 音频
 - 可选字幕
 - 由音频时长决定的视频时长
+
+自动镜头生成时，任务 API 会调用：
+
+```text
+scripts/text-to-scenes-tts-video.mjs
+```
+
+它会执行：
+
+```text
+文本
+  -> 千问 TTS 生成旁白
+  -> ffmpeg 标准化 MP3
+  -> 可选 SRT
+  -> scene-planner 生成 scenes
+  -> MultiSceneVideo 按 scenes 生成 Remotion 时间轴
+  -> remotion render 输出 MP4
+```
 
 ## 7. Remotion Composition 系统
 
@@ -265,9 +320,9 @@ src/Root.tsx
 当前合成总数：
 
 ```text
-23 个 Composition
-23 个 schema
-23 个 defaultProps
+25 个 Composition
+25 个 schema
+25 个 defaultProps
 ```
 
 也就是说，每个合成都能在 Remotion Studio 里显示可编辑 props 面板。
@@ -300,6 +355,32 @@ src/Root.tsx
 - `captions`
 - `durationSeconds`
 - `theme`
+
+`DocumentReveal`
+
+用途：历史文件、条约、策论、档案类镜头。自动镜头系统遇到“条约/和约/协定/策论/转让/租借地”等文本时会优先使用它。
+
+主要参数：
+
+- `title`
+- `subtitle`
+- `body`
+- `sealText`
+- `highlightWords`
+- `tone`
+
+`MultiSceneVideo`
+
+用途：一站式自动镜头视频的主合成。它不代表单个模板，而是根据 `scenes` 数组用 Remotion `Sequence` 串联多个镜头。
+
+主要参数：
+
+- `title`
+- `scenes`
+- `audioSrc`
+- `captions`
+- `showCaptions`
+- `showSceneLabels`
 
 ### 7.2 动态图形模板
 
@@ -499,6 +580,8 @@ src/Root.tsx
 7. 增加 `<Composition>` 注册。
 8. 如果希望被“生成视频扩展”调用，还要加入：
    - `src/templates/GeneratedTemplateVideo.tsx` 的 `ExistingTemplateId`
+   - `src/templates/sceneRegistry.tsx` 的 `AutoSceneTemplateId` 和 `renderSceneTemplate`
+   - `scripts/scene-planner.mjs` 的模板匹配规则
    - `templates` 映射
    - `templateOptions`
    - `frontend/remotion-studio-plugin.js` 的模板下拉
@@ -582,6 +665,57 @@ npm run text-to-video -- --text "短文本" --json=true
 
 默认配置在 `scripts/text-to-video.mjs` 顶部的 `defaults` 中。
 
+## 9.1 一站式自动镜头生成命令行
+
+主脚本：
+
+```text
+scripts/text-to-scenes-tts-video.mjs
+```
+
+基础命令：
+
+```console
+npm run text-to-scenes-tts-video -- --text-file input.txt --title "南满铁路的开端" --output out/auto-scenes-tts-video.mp4 --skip-srt=true
+```
+
+直接传文本：
+
+```console
+npm run text-to-scenes-tts-video -- --text "条约上用词谨慎，所谓转让遮住了更复杂的权力关系。" --title "自动镜头测试" --output out/auto.mp4 --skip-srt=true
+```
+
+只生成音频、镜头规划和 props，不渲染：
+
+```console
+npm run text-to-scenes-tts-video -- --text-file input.txt --no-render --skip-srt=true
+```
+
+成功后会产生：
+
+```text
+public/generated/tts-*.mp3
+public/generated/scenes-*.json
+public/generated/props-scenes-tts-*.json
+out/*.mp4
+```
+
+常用参数：
+
+```text
+--text             直接传入文本
+--text-file        从文本文件读取
+--title            视频标题
+--instruction      TTS 风格指令
+--language         语言，默认 Chinese
+--voice            音色，默认 my-clone
+--max-chars        每个镜头块的目标最大字符数，默认 130
+--skip-srt         是否跳过字幕
+--no-render        只生成音频/镜头/props，不渲染视频
+--output           输出 MP4 路径
+--json             是否输出 TEXT_TO_VIDEO_RESULT
+```
+
 ## 10. 千问 TTS 接入方式
 
 默认 TTS API：
@@ -589,6 +723,11 @@ npm run text-to-video -- --text "短文本" --json=true
 ```text
 https://<private-tts-relay>/api/qwen3-tts
 ```
+
+这是当前工程可用的服务地址。复刻工程时，你必须满足二选一：
+
+- 继续使用兼容这个合约的服务。
+- 修改 `scripts/text-to-video.mjs` 和 `scripts/text-to-scenes-tts-video.mjs` 顶部 `defaults.apiBase`。
 
 默认音色：
 
@@ -763,10 +902,18 @@ Content-Type: application/json
   "title": "标题",
   "subtitle": "副标题",
   "instruction": "标准播音风格，吐字清晰，语速平稳，停顿自然",
+  "mode": "auto-scenes",
   "template": "AtlasMapFlyover",
   "theme": "historical",
   "skipSrt": true
 }
+```
+
+`mode` 可选：
+
+```text
+auto-scenes       默认。一站式自动镜头：TTS -> scene-planner -> MultiSceneVideo。
+single-template   旧链路。TTS -> GeneratedTemplateVideo -> 选中的单个模板。
 ```
 
 响应：
@@ -853,6 +1000,7 @@ frontend/remotion-studio-plugin.js
 扩展包含这些字段：
 
 - 文案
+- 生成模式
 - 标题
 - 副标题
 - 视频模板
@@ -860,18 +1008,67 @@ frontend/remotion-studio-plugin.js
 - 视觉参数
 - 字幕选项
 
-点击“生成当前模板视频”后：
+默认点击“一站式生成视频”后：
 
 1. 插件 `POST /api/jobs`。
-2. 本地任务 API 启动 `scripts/text-to-video.mjs`。
-3. 前端每 2 秒轮询 `GET /api/jobs/:id`。
-4. 成功后显示“打开视频”和“下载视频”。
+2. 本地任务 API 启动 `scripts/text-to-scenes-tts-video.mjs`。
+3. 脚本生成 TTS、自动镜头 scenes、`MultiSceneVideo` props 和 MP4。
+4. 前端每 2 秒轮询 `GET /api/jobs/:id`。
+5. 成功后显示“打开视频”和“下载视频”。
+
+如果把“生成模式”改成“单模板”，则任务 API 会启动旧链路 `scripts/text-to-video.mjs`。
+
+## 15.1 一站式自动镜头入口验证
+
+启动：
+
+```console
+npm run dev:video
+```
+
+打开：
+
+```text
+http://127.0.0.1:3057
+```
+
+确认右上角“生成视频”面板里有：
+
+```text
+生成模式
+自动镜头：文本 -> 语音 -> 镜头 -> 成片
+一站式生成视频
+```
+
+也可以直接验证 API：
+
+```powershell
+$body = @{
+  text = "条约上用词谨慎，所谓转让遮住了更复杂的权力关系。南满铁路成为新的利益轴线。"
+  title = "一站式自动镜头测试"
+  instruction = "标准播音风格，吐字清晰，语速平稳，停顿自然"
+  mode = "auto-scenes"
+  skipSrt = $true
+} | ConvertTo-Json -Compress
+
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3037/api/jobs" -ContentType "application/json" -Body $body
+```
+
+任务成功日志中应看到：
+
+```text
+[1/6] 正在生成千问 TTS 旁白音频...
+[4/6] 正在规划自动镜头...
+[5/6] 正在渲染 Remotion 自动镜头视频...
+[6/6] 已完成。
+```
 
 ## 16. 当前可选择模板
 
 生成视频扩展可以选择：
 
 ```text
+DocumentReveal                历史文件揭示
 SinoJapaneseWarDemo          中日战争历史地球
 HistoricalGlobeTexture1938   1938 历史地球纹理
 AtlasMapFlyover              世界地图飞越
@@ -896,6 +1093,8 @@ PromptAnimatedShapes         提示词动态图形
 
 注意：`GeneratedTemplateVideo` 包装这些模板时，主要控制的是模板选择、音频、字幕和视频时长。每个单独模板的细颗粒 props 编辑是在 Remotion Studio 合成详情里完成。
 
+自动镜头模式不使用这个下拉选择的单一模板，而是由 `scripts/scene-planner.mjs` 根据文本内容自动选择多个镜头模板。
+
 ## 17. 从零复现近似工程的步骤
 
 如果要从一个空 Remotion 项目复现类似工程，按这个顺序做：
@@ -917,6 +1116,9 @@ src/templates/PromptMotionExamples.tsx
 src/templates/EarthGlobeTemplate.tsx
 src/templates/NarratedVideo.tsx
 src/templates/GeneratedTemplateVideo.tsx
+src/templates/MultiSceneVideo.tsx
+src/templates/DocumentReveal.tsx
+src/templates/sceneRegistry.tsx
 ```
 
 4. 在 `src/Root.tsx` 注册所有 Composition。
@@ -943,7 +1145,17 @@ ffprobe 读时长
 调用 Remotion CLI render
 ```
 
-7. 写 `scripts/video-ui-server.mjs`：
+7. 写 `scripts/scene-planner.mjs` 和 `scripts/text-to-scenes-tts-video.mjs`：
+
+```text
+分句
+提取关键词
+匹配模板
+生成 scenes JSON
+把 TTS 音频、字幕和 scenes 送入 MultiSceneVideo
+```
+
+8. 写 `scripts/video-ui-server.mjs`：
 
 ```text
 GET /video-generator
@@ -953,7 +1165,7 @@ GET /api/jobs/:id
 GET /files/:id
 ```
 
-8. 写 `frontend/remotion-studio-plugin.js`：
+9. 写 `frontend/remotion-studio-plugin.js`：
 
 ```text
 生成视频按钮
@@ -964,14 +1176,14 @@ GET /files/:id
 Studio 中文化替换
 ```
 
-9. 写 `scripts/studio-plugin-proxy.mjs`：
+10. 写 `scripts/studio-plugin-proxy.mjs`：
 
 ```text
 代理 Remotion Studio
 注入 studio-plugin.js
 ```
 
-10. 写 `scripts/studio-with-video-ui.mjs`：
+11. 写 `scripts/studio-with-video-ui.mjs`：
 
 ```text
 同时启动 video-ui-server
@@ -979,13 +1191,16 @@ Studio 中文化替换
 启动 studio-plugin-proxy
 ```
 
-11. 在 `package.json` 增加：
+12. 在 `package.json` 增加：
 
 ```json
 {
   "scripts": {
     "dev": "remotion studio",
     "dev:video": "node scripts/studio-with-video-ui.mjs",
+    "plan-scenes": "node scripts/scene-planner.mjs",
+    "text-to-scenes-video": "node scripts/text-to-scenes-video.mjs",
+    "text-to-scenes-tts-video": "node scripts/text-to-scenes-tts-video.mjs",
     "text-to-video": "node scripts/text-to-video.mjs",
     "video-ui": "node scripts/video-ui-server.mjs",
     "lint": "eslint src && tsc"
@@ -993,7 +1208,7 @@ Studio 中文化替换
 }
 ```
 
-12. 建立素材目录：
+13. 建立素材目录：
 
 ```text
 public/generated/
@@ -1004,7 +1219,7 @@ public/geojson/
 out/
 ```
 
-13. 跑验证：
+14. 跑验证：
 
 ```console
 npm run lint
@@ -1026,7 +1241,7 @@ npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
 
-预期能看到 23 个合成。
+预期能看到 25 个合成。
 
 schema 覆盖验证：
 
@@ -1042,9 +1257,9 @@ $root = Get-Content -Raw src\Root.tsx
 当前应为：
 
 ```text
-CompositionTags : 23
-SchemaProps     : 23
-DefaultProps    : 23
+CompositionTags : 25
+SchemaProps     : 25
+DefaultProps    : 25
 ```
 
 运行态验证：
@@ -1160,6 +1375,7 @@ http://127.0.0.1:3037
 - 文案
 - 标题
 - 副标题
+- 生成模式
 - 模板 ID
 - 语音指令
 - 字幕选项
