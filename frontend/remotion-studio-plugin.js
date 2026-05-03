@@ -103,13 +103,12 @@
   style.textContent = `
     .ttv-workbar {
       position: fixed;
-      top: 8px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: 42px;
+      left: clamp(84px, 22vw, 304px);
+      right: 126px;
       z-index: 2147482999;
-      height: 48px;
-      min-width: 520px;
-      max-width: calc(100vw - 460px);
+      height: 40px;
+      min-width: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -122,15 +121,17 @@
       box-shadow: 0 18px 50px rgba(0,0,0,.34);
       backdrop-filter: blur(14px);
       font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
-      transition: height .16s ease, opacity .16s ease, transform .16s ease;
+      transition: height .16s ease, opacity .16s ease, left .16s ease, right .16s ease;
+    }
+    body.ttv-generator-open .ttv-workbar {
+      right: 426px;
     }
     .ttv-workbar.compact {
-      height: 32px;
-      min-width: 360px;
+      height: 30px;
       opacity: .86;
     }
     .ttv-workbar.compact:hover {
-      height: 48px;
+      height: 40px;
       opacity: 1;
     }
     .ttv-workbar-left,
@@ -153,6 +154,7 @@
     }
     .ttv-project-button {
       max-width: 240px;
+      min-width: 0;
       height: 30px;
       border: 1px solid rgba(255,255,255,.12);
       border-radius: 8px;
@@ -281,7 +283,7 @@
     .ttv-storyboard-panel.open { display: grid; grid-template-rows: auto 1fr auto; }
     .ttv-generator-launcher {
       position: fixed;
-      top: 78px;
+      top: 42px;
       right: 18px;
       z-index: 2147483000;
       height: 34px;
@@ -294,12 +296,13 @@
       cursor: pointer;
       box-shadow: 0 14px 34px rgba(0,0,0,.28);
     }
+    body.ttv-generator-open .ttv-generator-launcher { display: none; }
     .ttv-generator-panel {
       position: fixed;
       top: 58px;
       right: 18px;
       bottom: 18px;
-      width: 390px;
+      width: clamp(340px, 28vw, 390px);
       z-index: 2147483001;
       display: none;
       grid-template-rows: auto 1fr auto;
@@ -375,6 +378,11 @@
     .ttv-storyboard-panel .ttv-textarea { min-height: 76px; }
     .ttv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .ttv-row { display: flex; gap: 8px; align-items: center; }
+    .ttv-row-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
     .ttv-actions {
       padding: 12px;
       border-top: 1px solid rgba(255,255,255,.1);
@@ -425,6 +433,21 @@
       background: #111;
     }
     .ttv-scene-list { display: grid; gap: 6px; }
+    .ttv-project-shell {
+      display: grid;
+      gap: 10px;
+      min-height: 0;
+    }
+    .ttv-scene-list.compact {
+      max-height: min(220px, 30vh);
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .ttv-scene-editor {
+      display: grid;
+      gap: 10px;
+      min-height: 0;
+    }
     .ttv-scene {
       border: 1px solid rgba(255,255,255,.1);
       border-radius: 8px;
@@ -459,9 +482,17 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
       color: #aaa;
       font-size: 11px;
       font-weight: 750;
+    }
+    .ttv-timeline-head span:last-child {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
     }
     .ttv-timebar {
       position: relative;
@@ -503,10 +534,9 @@
       position: absolute;
       top: 3px;
       height: 22px;
-      min-width: 12px;
       border: 1px solid rgba(255,255,255,.15);
       border-radius: 5px;
-      padding: 0 6px;
+      padding: 0 5px;
       color: #e5e7eb;
       font-size: 10px;
       line-height: 20px;
@@ -521,6 +551,10 @@
     .ttv-clip.subtitle { background: #332c18; border-color: #7c6a2a; }
     .ttv-clip.audio { background: #173326; border-color: #2d8a61; }
     .ttv-clip.selected { box-shadow: 0 0 0 2px rgba(79,140,255,.72); }
+    .ttv-clip.dense {
+      padding: 0;
+      color: transparent;
+    }
     .ttv-trim {
       position: absolute;
       top: 0;
@@ -531,6 +565,76 @@
     }
     .ttv-trim.left { left: 0; }
     .ttv-trim.right { right: 0; }
+    .ttv-storyboard-launcher {
+      display: none;
+      position: fixed;
+      left: 12px;
+      top: 84px;
+      z-index: 2147483000;
+      height: 32px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      padding: 0 11px;
+      background: #1f2937;
+      color: white;
+      font: 700 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
+      box-shadow: 0 14px 34px rgba(0,0,0,.28);
+      cursor: pointer;
+    }
+    body.ttv-storyboard-undocked .ttv-storyboard-launcher { display: inline-flex; align-items: center; }
+    body.ttv-storyboard-undocked .ttv-storyboard-panel.open {
+      position: fixed;
+      left: 12px;
+      top: 122px;
+      bottom: 18px;
+      width: min(340px, calc(100vw - 24px));
+      z-index: 2147483001;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 12px;
+      box-shadow: 0 24px 70px rgba(0,0,0,.46);
+    }
+    @media (max-width: 1180px) {
+      .ttv-workbar {
+        left: 252px;
+      }
+      body.ttv-generator-open .ttv-workbar {
+        right: 374px;
+      }
+      .ttv-workbar-status {
+        display: none;
+      }
+    }
+    @media (max-width: 1060px) {
+      .ttv-workbar {
+        left: 252px;
+        right: 118px;
+      }
+      body.ttv-generator-open .ttv-workbar {
+        right: 18px;
+      }
+      body.ttv-generator-open .ttv-generator-panel {
+        top: 88px;
+        right: 12px;
+        bottom: 12px;
+        width: min(360px, calc(100vw - 24px));
+      }
+      .ttv-workbar-button#ttv-workbar-compact {
+        display: none;
+      }
+    }
+    @media (max-width: 760px) {
+      .ttv-workbar {
+        left: 12px;
+        right: 12px;
+      }
+      .ttv-brand,
+      .ttv-workbar-status {
+        display: none;
+      }
+      .ttv-project-button {
+        max-width: 180px;
+      }
+    }
   `;
   document.head.appendChild(style);
 
@@ -628,6 +732,13 @@
   `;
   document.body.appendChild(generatorPanel);
 
+  const storyboardLauncher = document.createElement("button");
+  storyboardLauncher.className = "ttv-storyboard-launcher";
+  storyboardLauncher.type = "button";
+  storyboardLauncher.textContent = "分镜";
+  storyboardLauncher.onclick = () => setStoryboardOpen(true);
+  document.body.appendChild(storyboardLauncher);
+
   const storyboardPanel = document.createElement("section");
   storyboardPanel.className = "ttv-storyboard-panel";
   storyboardPanel.innerHTML = `
@@ -659,6 +770,7 @@
 
   function setGeneratorOpen(open) {
     generatorPanel.classList.toggle("open", open);
+    document.body.classList.toggle("ttv-generator-open", open);
     localStorage.setItem(generatorPanelStorageKey, open ? "open" : "closed");
   }
 
@@ -767,9 +879,16 @@
 
   function ensureDocked() {
     const tabs = findExplorerTabs();
-    if (!tabs) return;
+    if (!tabs) {
+      setStoryboardUndocked(true);
+      return;
+    }
     const root = tabs.parentElement?.parentElement;
-    if (!root) return;
+    if (!root) {
+      setStoryboardUndocked(true);
+      return;
+    }
+    setStoryboardUndocked(false);
     if (!tabs.contains(sideTab)) {
       tabs.appendChild(sideTab);
     }
@@ -783,6 +902,15 @@
       root.appendChild(storyboardPanel);
     }
     syncStoryboardVisibility(root);
+  }
+
+  function setStoryboardUndocked(undocked) {
+    document.body.classList.toggle("ttv-storyboard-undocked", undocked);
+    if (undocked && storyboardPanel.parentElement !== document.body) {
+      document.body.appendChild(storyboardPanel);
+    }
+    sideTab.classList.toggle("active", state.storyboardOpen);
+    storyboardPanel.classList.toggle("open", state.storyboardOpen);
   }
 
   function syncStoryboardVisibility(root) {
@@ -924,24 +1052,28 @@
     const scene = selectedScene();
     g("#ttv-open-video").href = project.videoUrl ? `${API}${project.videoUrl}` : "#";
     wrap.innerHTML = `
-      <div class="ttv-row">
-        <button class="ttv-button" id="ttv-new-draft" type="button">清空当前草稿</button>
-        <button class="ttv-button" id="ttv-lock" type="button">${scene?.locked ? "解除锁定" : "锁定分镜"}</button>
+      <div class="ttv-project-shell">
+        <div class="ttv-row-actions">
+          <button class="ttv-button" id="ttv-new-draft" type="button">清空草稿</button>
+          <button class="ttv-button" id="ttv-lock" type="button">${scene?.locked ? "解除锁定" : "锁定分镜"}</button>
+        </div>
+        <div class="ttv-scene-list compact">
+          ${project.scenes
+            .map(
+              (item, index) => `
+                <button class="ttv-scene ${item.id === state.selectedSceneId ? "active" : ""}" data-scene="${item.id}" type="button">
+                  ${index + 1}. ${escapeHtml(item.subtitle || item.voiceText).slice(0, 70)}
+                  <div class="ttv-pill">${escapeHtml(item.templateId)} · ${Math.round((item.endMs - item.startMs) / 100) / 10}s${item.locked ? " · 已锁定" : ""}</div>
+                </button>
+              `,
+            )
+            .join("")}
+        </div>
+        ${renderTimeline(project)}
+        <div class="ttv-scene-editor">
+          ${scene ? renderSceneEditor(scene) : ""}
+        </div>
       </div>
-      <div class="ttv-scene-list">
-        ${project.scenes
-          .map(
-            (item, index) => `
-              <button class="ttv-scene ${item.id === state.selectedSceneId ? "active" : ""}" data-scene="${item.id}" type="button">
-                ${index + 1}. ${escapeHtml(item.subtitle || item.voiceText).slice(0, 70)}
-                <div class="ttv-pill">${escapeHtml(item.templateId)} · ${Math.round((item.endMs - item.startMs) / 100) / 10}s${item.locked ? " · 已锁定" : ""}</div>
-              </button>
-            `,
-          )
-          .join("")}
-      </div>
-      ${renderTimeline(project)}
-      ${scene ? renderSceneEditor(scene) : ""}
     `;
     for (const button of wrap.querySelectorAll("[data-scene]")) {
       button.onclick = () => {
@@ -1000,13 +1132,14 @@
 
   function renderClip(clip, durationMs) {
     const left = clamp((Number(clip.startMs || 0) / durationMs) * 100, 0, 100);
-    const width = Math.max(3, clamp(((Number(clip.endMs || 0) - Number(clip.startMs || 0)) / durationMs) * 100, 0, 100 - left));
+    const width = Math.max(2, clamp(((Number(clip.endMs || 0) - Number(clip.startMs || 0)) / durationMs) * 100, 0, 100 - left));
     const sceneId = clip.sceneId || (clip.type === "scene" ? clip.id : "");
     const selected = sceneId && sceneId === state.selectedSceneId;
     const draggable = clip.type === "scene" && !clip.locked;
+    const dense = width < 7;
     return `
       <div
-        class="ttv-clip ${escapeHtml(clip.type)} ${selected ? "selected" : ""}"
+        class="ttv-clip ${escapeHtml(clip.type)} ${selected ? "selected" : ""} ${dense ? "dense" : ""}"
         data-clip="${escapeHtml(clip.id)}"
         data-scene="${escapeHtml(sceneId)}"
         data-type="${escapeHtml(clip.type)}"
@@ -1015,7 +1148,7 @@
         style="left:${left}%;width:${width}%"
       >
         ${clip.type === "scene" && !clip.locked ? `<span class="ttv-trim left" data-trim="left" data-scene="${escapeHtml(sceneId)}"></span>` : ""}
-        ${escapeHtml(clip.title || clip.text || clip.type)}
+        ${dense ? "" : escapeHtml(clip.title || clip.text || clip.type)}
         ${clip.type === "scene" && !clip.locked ? `<span class="ttv-trim right" data-trim="right" data-scene="${escapeHtml(sceneId)}"></span>` : ""}
       </div>
     `;

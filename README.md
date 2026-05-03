@@ -54,7 +54,7 @@ Remotion Studio 模板预览与参数编辑
 - `npm run dev:video` 会启动 Remotion Studio、生成视频 API、Studio 代理。
 - 访问 `http://127.0.0.1:3057`。
 - 代理会把 `frontend/remotion-studio-plugin.js` 注入 Studio 页面。
-- 页面右上角会出现 `生成视频` 按钮，点击后打开右侧生成控制台。
+- 页面右侧会出现 `生成视频` 按钮，点击后打开右侧生成控制台；控制台打开时按钮自动隐藏。
 - Remotion Studio 左侧栏 `合成列表 / 素材` 旁边会出现 `分镜` 页签。
 - 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动镜头规划 -> `MultiSceneVideo` -> MP4。
 - 插件也保留“单模板”模式：文本 -> 千问 TTS -> 选定 Remotion 模板 -> MP4。
@@ -1292,7 +1292,7 @@ frontend/remotion-studio-plugin.js
 
 插件做了五件事：
 
-- 在页面右上角加 `生成视频` 按钮，打开右侧生成控制台。
+- 在页面右侧加 `生成视频` 按钮，打开右侧生成控制台；控制台打开时隐藏启动按钮。
 - 在 Remotion Studio 左侧栏 `合成列表 / 素材` 旁边加 `分镜` 页签。
 - 右侧生成控制台负责文案输入、模式选择、TTS 指令、任务提交、进度日志、刷新预览和总导出。
 - 左侧分镜页签只负责分镜列表、当前镜头编辑、锁定、素材重配和素材替换。
@@ -2003,21 +2003,23 @@ button#ttv-workbar-export
 ```css
 .ttv-workbar {
   position: fixed;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  height: 48px;
-  min-width: 520px;
-  max-width: calc(100vw - 460px);
+  top: 42px;
+  left: clamp(84px, 22vw, 304px);
+  right: 126px;
+  height: 40px;
+  min-width: 0;
   padding: 0 10px;
   border-radius: 13px;
   background: rgba(15,17,21,.94);
   z-index: 2147482999;
 }
 
+body.ttv-generator-open .ttv-workbar {
+  right: 426px;
+}
+
 .ttv-workbar.compact {
-  height: 32px;
-  min-width: 360px;
+  height: 30px;
   opacity: .86;
 }
 ```
@@ -2030,6 +2032,8 @@ button#ttv-workbar-export
 - `+` 和菜单里的 `+ 新建项目` 调用 `POST /api/projects`，只创建空工作空间。
 - `导出` 调用 `POST /api/projects/:id/export`。
 - `收纳` 写入 `localStorage["ttv.workbar"] = "collapsed" | "expanded"`。
+- 顶部栏不再居中压住 Remotion 原生菜单，而是从 Studio 左侧工作区后方开始，右侧给 `生成视频` 按钮或生成控制台让位。
+- 右侧生成控制台打开时，`body.ttv-generator-open` 会压缩顶部栏右边界；窄屏下生成控制台改为更小的 dock 面板。
 
 项目切换逻辑：
 
@@ -2044,6 +2048,17 @@ async function switchProject(projectId) {
 ```
 
 这保证“切项目 = 切整个视频工作空间”，而不是只换一个下拉值。
+
+#### 15.8.1.1 布局审查硬规则
+
+这次布局审查发现过的错误以后不能回退：
+
+- 顶部项目栏不能 `left: 50% + transform` 居中悬浮，否则会压住 Remotion 原生顶栏和右侧按钮。
+- 顶部项目栏不能同时写死 `min-width` 和依赖右侧控制台的 `max-width: calc(100vw - 460px)`，窄屏会互相打架。
+- 右侧生成控制台不能让 `生成视频` 启动按钮继续漂在画面中央边缘；控制台打开时启动按钮必须隐藏。
+- 左侧分镜不能完全依赖 Remotion explorer 是否可见；如果原生左栏在窄屏下消失，必须出现 `button.ttv-storyboard-launcher` 作为 fallback。
+- 左侧分镜不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 分镜列表 -> 时间线 -> 当前分镜编辑器。
+- 左侧双按钮不能在窄栏里用普通 flex 横排硬挤，必须用 `grid-template-columns: 1fr 1fr` 或上下堆叠。
 
 #### 15.8.2 多轨道时间线
 
@@ -2065,6 +2080,9 @@ subtitle  字幕片段
 左侧分镜页签会渲染：
 
 ```text
+div.ttv-project-shell
+div.ttv-row-actions
+div.ttv-scene-list.compact
 div.ttv-timeline
 div.ttv-timebar
 div.ttv-track
@@ -2082,6 +2100,16 @@ span.ttv-trim.left/right
   padding: 8px;
   border-radius: 10px;
   background: #121212;
+}
+
+.ttv-project-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.ttv-scene-list.compact {
+  max-height: min(220px, 30vh);
+  overflow: auto;
 }
 
 .ttv-timebar {
@@ -2107,6 +2135,11 @@ span.ttv-trim.left/right
   border-radius: 5px;
   font-size: 10px;
 }
+
+.ttv-clip.dense {
+  padding: 0;
+  color: transparent;
+}
 ```
 
 当前已实现的剪辑交互：
@@ -2116,6 +2149,8 @@ span.ttv-trim.left/right
 - 拖动 `scene` 轨道 clip 可重排镜头，落点后调用 `POST /api/projects/:id/reorder`。
 - 拖动镜头 clip 左右裁剪手柄会修改 `startMs/endMs`，松手后调用 `PATCH /api/projects/:id/scenes/:sceneId` 保存。
 - 已锁定分镜不允许裁剪和拖拽。
+- 原生 Remotion 左侧栏不可用时，`body.ttv-storyboard-undocked` 会把分镜面板挂到 `document.body`，并显示左侧 fallback 按钮。
+- 短 clip 宽度不足 `7%` 时使用 `.dense` 隐藏文本，避免小屏时间线互相压字。
 
 这不是完整剪映时间线，但已经把数据层从 `scenes[]` 升级为 `tracks/clips`。后续加波形、吸附、快捷键、撤销重做时必须复用这个结构。
 
@@ -2164,7 +2199,7 @@ npm run dev:video
 http://127.0.0.1:3057
 ```
 
-确认右上角“生成视频”面板里有：
+确认右侧“生成视频”面板里有：
 
 ```text
 生成模式
@@ -2343,7 +2378,7 @@ GET /files/:id
 12. 写 `frontend/remotion-studio-plugin.js` 和 `frontend/video-project.html`：
 
 ```text
-右上角生成视频按钮
+右侧生成视频按钮
 右侧固定生成控制台
 左侧 explorer 分镜 tab
 提交任务 POST /api/jobs
@@ -2463,7 +2498,7 @@ http://127.0.0.1:3057
 确认：
 
 - Remotion Studio 能打开。
-- 右上角有“生成视频”按钮。
+- 右侧有“生成视频”按钮，控制台打开时该按钮隐藏。
 - 点击后右侧出现 `一站式生成视频` 控制台，宽度约 390px。
 - 左侧 `合成列表 / 素材` 旁边有 `分镜` 页签。
 - 点击 `分镜` 后左侧只显示分镜列表和当前镜头编辑，不显示生成表单。
@@ -2946,7 +2981,7 @@ npm run dev:video
 http://127.0.0.1:3057
 ```
 
-右上角点 `生成视频` 会打开右侧生成控制台。默认生成模式是 `自动镜头`，流程是文本 -> 语音 -> 镜头 -> 成片；如果只想套一个固定模板，把 `生成模式` 切到 `单模板`。生成完成后左侧 `分镜` 页签会载入项目，用来继续改镜头。
+右侧点 `生成视频` 会打开右侧生成控制台。默认生成模式是 `自动镜头`，流程是文本 -> 语音 -> 镜头 -> 成片；如果只想套一个固定模板，把 `生成模式` 切到 `单模板`。生成完成后左侧 `分镜` 页签会载入项目，用来继续改镜头。
 
 如果已有旁白音频和字幕，可以把它们传给多镜头视频：
 
