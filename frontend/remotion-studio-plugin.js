@@ -324,12 +324,39 @@
       grid-column: 1 / -1;
       order: 999;
       box-sizing: border-box;
-      padding: 0 10px 8px;
+      padding: 0 10px 6px;
     }
     .ttv-native-timeline-dock.docked .ttv-timeline {
-      border-radius: 8px;
-      border-color: rgba(255,255,255,.08);
+      gap: 3px;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
       box-shadow: none;
+    }
+    .ttv-native-timeline-dock.docked .ttv-timeline-head,
+    .ttv-native-timeline-dock.docked .ttv-timebar {
+      display: none;
+    }
+    .ttv-native-timeline-dock.docked .ttv-track {
+      grid-template-columns: 34px 1fr;
+      gap: 5px;
+    }
+    .ttv-native-timeline-dock.docked .ttv-track-name {
+      font-size: 9px;
+      opacity: .72;
+    }
+    .ttv-native-timeline-dock.docked .ttv-track-lane {
+      height: 20px;
+      border-radius: 4px;
+      background: rgba(255,255,255,.045);
+    }
+    .ttv-native-timeline-dock.docked .ttv-clip {
+      top: 2px;
+      height: 16px;
+      line-height: 16px;
+      border-radius: 4px;
+      font-size: 9px;
     }
     .ttv-native-timeline-dock.floating {
       position: fixed;
