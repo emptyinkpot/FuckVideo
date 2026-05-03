@@ -6,7 +6,8 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 
 ```text
 Remotion Studio 模板预览与参数编辑
-  + 右侧栏“分镜”扩展页签
+  + 右侧“生成视频”控制台
+  + 左侧“分镜”扩展页签
   + 千问 TTS 旁白生成
   + 自动镜头规划
   + 现有 Remotion 模板复用
@@ -19,7 +20,7 @@ Remotion Studio 模板预览与参数编辑
   + 一键渲染 MP4
 ```
 
-它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，在右侧栏 `参数 / 渲染` 旁边注入 `分镜` 页签；中央画布仍然使用 Remotion Studio 原生预览屏幕。生成成功后，插件会把项目转换成 `MultiSceneVideo` props，写入 Remotion 的 input props override，并切到 `MultiSceneVideo` composition 预览。
+它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，右侧用浮层控制台负责“生成视频”，左侧在 `合成列表 / 素材` 旁边注入 `分镜` 页签负责镜头微调；中央画布仍然使用 Remotion Studio 原生预览屏幕。生成成功后，插件会把项目转换成 `MultiSceneVideo` props，写入 Remotion 的 input props override，并切到 `MultiSceneVideo` composition 预览。
 
 本文档按“给一个不了解项目的人复现出近似工程”的标准编写，包含运行环境、目录结构、端口、数据流、模板系统、参数系统、API 合约、排障和验证方式。
 
@@ -48,21 +49,23 @@ Remotion Studio 模板预览与参数编辑
 - 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
 - 调用 Remotion CLI 渲染 MP4。
 
-第三层是 Studio 内嵌分镜扩展：
+第三层是 Studio 内嵌前端扩展：
 
 - `npm run dev:video` 会启动 Remotion Studio、生成视频 API、Studio 代理。
 - 访问 `http://127.0.0.1:3057`。
 - 代理会把 `frontend/remotion-studio-plugin.js` 注入 Studio 页面。
-- Remotion Studio 右侧栏 `参数 / 渲染` 旁边会出现 `分镜` 页签。
+- 页面右上角会出现 `生成视频` 按钮，点击后打开右侧生成控制台。
+- Remotion Studio 左侧栏 `合成列表 / 素材` 旁边会出现 `分镜` 页签。
 - 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动镜头规划 -> `MultiSceneVideo` -> MP4。
 - 插件也保留“单模板”模式：文本 -> 千问 TTS -> 选定 Remotion 模板 -> MP4。
 - 插件提交任务到 `http://127.0.0.1:3037/api/jobs`。
 - 生成完成后会保存 `.runtime/video-projects/<id>.json`。
-- 生成完成后自动把项目加载到 Remotion Studio 中央预览，继续在 `分镜` 页签里改分镜、字幕、素材和导出。
+- 生成完成后自动把项目加载到 Remotion Studio 中央预览，并打开左侧 `分镜` 页签。
 
 第四层是项目编辑能力：
 
-- 内嵌在 Remotion Studio 右侧栏，不另起一个主控制台。
+- 分镜编辑内嵌在 Remotion Studio 左侧栏，不另起一个主控制台。
+- 生成控制台保持在右侧，和分镜编辑分离。
 - 中央区域复用 Remotion Studio 原生 composition 预览。
 - 支持保存字幕/旁白、修改视觉意图、修改模板、修改时间、锁定分镜、重配素材、替换素材、总导出。
 - `/video-project/:id` 独立页面仍保留为备用调试入口，但主工作流不再依赖它。
@@ -1065,7 +1068,7 @@ failed
 }
 ```
 
-`projectUrl` 是备用独立编辑页。Studio 主工作流使用 `projectId` 调 `GET /api/projects/:id/props`，然后把项目加载到右侧栏 `分镜` 页签和中央 `MultiSceneVideo` 预览。
+`projectUrl` 是备用独立编辑页。Studio 主工作流使用 `projectId` 调 `GET /api/projects/:id/props`，然后把项目加载到左侧 `分镜` 页签和中央 `MultiSceneVideo` 预览。
 
 ### 13.3 获取视频文件
 
@@ -1101,7 +1104,7 @@ GET /api/projects/:id
 GET /api/projects/:id/props
 ```
 
-这个接口供 Studio 内嵌 `分镜` 页签刷新中央预览使用。
+这个接口供 Studio 内嵌前端刷新中央预览使用：右侧生成控制台触发刷新，左侧分镜提供项目编辑数据。
 
 更新单个分镜：
 
@@ -1220,18 +1223,81 @@ Remotion 官方 Studio 当前没有稳定的插件 API，所以本项目使用�
 frontend/remotion-studio-plugin.js
 ```
 
-插件做了三件事：
+插件做了五件事：
 
-- 在 Remotion Studio 右侧栏 `参数 / 渲染` 旁边加 `分镜` 页签。
-- 在 `分镜` 页签内完成文案生成、分镜列表、当前分镜编辑、素材重配和总导出。
+- 在页面右上角加 `生成视频` 按钮，打开右侧生成控制台。
+- 在 Remotion Studio 左侧栏 `合成列表 / 素材` 旁边加 `分镜` 页签。
+- 右侧生成控制台负责文案输入、模式选择、TTS 指令、任务提交、进度日志、刷新预览和总导出。
+- 左侧分镜页签只负责分镜列表、当前镜头编辑、锁定、素材重配和素材替换。
 - 生成成功后调用 `GET /api/projects/:id/props`，把项目写入 Remotion input props override，并切到 `/MultiSceneVideo`，复用中央预览屏幕。
 - 用 MutationObserver 把常见 Remotion Studio 英文 UI 替换成中文。
 
 中文化是运行时替换，不改 `node_modules`。这样升级 Remotion 时更安全。
 
-## 15. 分镜扩展 UI
+## 15. 前端交互与像素规格
 
-扩展包含这些字段：
+当前前端全部集中在：
+
+```text
+frontend/remotion-studio-plugin.js
+```
+
+它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。复刻时应保持三个工作区分离：
+
+```text
+左侧 Remotion explorer sidebar
+  -> 原生 合成列表 / 素材
+  -> 注入 分镜 tab
+
+中央 Remotion preview canvas
+  -> 原生 MultiSceneVideo / 当前 composition 预览
+
+右侧 floating generator console
+  -> 生成视频控制台
+  -> 进度日志
+  -> 刷新预览 / 总导出
+```
+
+### 15.1 右侧生成视频控制台
+
+右侧控制台由两个 DOM 节点组成：
+
+```text
+button.ttv-generator-launcher
+aside.ttv-generator-panel
+```
+
+定位和尺寸必须保持：
+
+```css
+.ttv-generator-launcher {
+  position: fixed;
+  top: 78px;
+  right: 18px;
+  z-index: 2147483000;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+}
+
+.ttv-generator-panel {
+  position: fixed;
+  top: 58px;
+  right: 18px;
+  bottom: 18px;
+  width: 390px;
+  z-index: 2147483001;
+  display: none;
+  grid-template-rows: auto 1fr auto;
+  border-radius: 14px;
+}
+
+.ttv-generator-panel.open {
+  display: grid;
+}
+```
+
+右侧控制台字段：
 
 - 文案
 - 生成模式
@@ -1241,6 +1307,222 @@ frontend/remotion-studio-plugin.js
 - 语音指令
 - 视觉参数
 - 字幕选项
+- 生成进度
+- 轮询日志
+- 生成初版项目
+- 刷新 Studio 预览
+- 总导出
+- 打开当前成片
+
+字段高度和排版：
+
+```css
+.ttv-generator-head {
+  height: 48px;
+  padding: 0 12px 0 14px;
+}
+
+.ttv-body {
+  padding: 12px;
+  gap: 10px;
+}
+
+.ttv-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ttv-input,
+.ttv-select {
+  height: 32px;
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.ttv-textarea {
+  min-height: 112px;
+  padding: 8px 10px;
+  line-height: 1.55;
+}
+
+.ttv-button {
+  height: 32px;
+  border-radius: 8px;
+}
+
+.ttv-log {
+  max-height: 128px;
+  padding: 8px;
+  border-radius: 8px;
+}
+```
+
+交互状态：
+
+```js
+localStorage["ttv.generatorPanel"] = "open" | "closed";
+localStorage["ttv.lastProgress"] = JSON.stringify({ status, log, at });
+```
+
+规则：
+
+- `生成视频` 按钮只负责打开右侧控制台。
+- 右侧控制台默认打开，用户关闭后写入 `ttv.generatorPanel=closed`。
+- 生成进度和日志必须常驻右侧控制台，不放进左侧分镜。
+- 每次轮询 `GET /api/jobs/:id` 后都要更新 `ttv.lastProgress`，页面跳转到 `/MultiSceneVideo` 后仍能恢复上一轮状态。
+
+### 15.2 左侧分镜页签
+
+左侧分镜由两个 DOM 节点组成：
+
+```text
+button.ttv-side-tab
+section.ttv-storyboard-panel
+```
+
+它必须插入 Remotion Studio 左侧 explorer tabs，也就是 `Compositions / Assets` 或中文化后的 `合成列表 / 素材` 那一行。查找逻辑是：
+
+```js
+function findExplorerTabs() {
+  for (const el of document.querySelectorAll("div")) {
+    const buttons = Array.from(el.children).filter((child) => child.getAttribute("role") === "button");
+    const labels = buttons.map((button) => normalize(button.textContent));
+    const hasCompositions = labels.some((label) => label.includes("compositions") || label.includes("合成列表"));
+    const hasAssets = labels.some((label) => label.includes("assets") || label.includes("素材"));
+    if (hasCompositions && hasAssets) return el;
+  }
+}
+```
+
+左侧分镜页签尺寸：
+
+```css
+.ttv-side-tab {
+  flex: 1;
+  height: 40px;
+  padding: 4px 12px;
+  border-top: 2px solid transparent;
+}
+
+.ttv-side-tab.active {
+  border-top-color: #0f62fe;
+}
+
+.ttv-storyboard-panel {
+  display: none;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  grid-template-rows: auto 1fr auto;
+}
+
+.ttv-storyboard-panel.open {
+  display: grid;
+}
+
+.ttv-storyboard-panel .ttv-textarea {
+  min-height: 76px;
+}
+```
+
+左侧分镜只包含：
+
+- 当前项目提示
+- 分镜列表
+- 当前分镜旁白 / 字幕
+- 当前分镜视觉意图
+- 当前分镜模板
+- 当前分镜类型
+- 开始 / 结束毫秒
+- 保存分镜
+- 锁定 / 解除锁定
+- 重配素材
+- 替换为候选素材
+- 打开生成控制台
+
+左侧分镜不能包含：
+
+- 文案大输入框
+- 生成模式选择
+- TTS 指令
+- 生成按钮
+- 生成进度日志
+
+交互状态：
+
+```js
+localStorage["ttv.storyboardPanel"] = "storyboard" | "native";
+localStorage["ttv.lastProjectId"] = projectId;
+```
+
+规则：
+
+- 点击 `分镜` 时隐藏左侧原生 explorer 内容，只显示 `ttv-storyboard-panel`。
+- 点击 `合成列表` 或 `素材` 时恢复 Remotion 原生左侧内容。
+- 右侧 Remotion 原生参数栏不应该被 `分镜` 占用。
+- 旧版本如果写过 `localStorage["remotion.sidebarPanel"]="storyboard"`，启动时必须改回 `input-props`，避免污染右侧原生栏。
+
+### 15.3 中央预览复用
+
+中央区域不自建播放器。预览只通过 Remotion Studio 原生 composition canvas 完成。
+
+生成成功或点击 `刷新 Studio 预览` 后：
+
+```text
+GET /api/projects/:id/props
+  -> localStorage["remotion_inputPropsOverride" + window.location.origin] = JSON.stringify(props)
+  -> location.href = "/MultiSceneVideo" 或 location.reload()
+```
+
+这会让 Remotion 的 `getInputProps()` 返回项目 props，从而让 `MultiSceneVideo` 在中央画布展示最新项目。
+
+切换左侧分镜时，如果当前页面已经有 `window.remotion_setFrame`，可以把预览跳到该镜头开始帧：
+
+```js
+const frame = Math.round((scene.startMs / 1000) * 30);
+window.remotion_setFrame(frame, "MultiSceneVideo", 0);
+```
+
+### 15.4 前端 API 链接
+
+页面入口：
+
+```text
+http://127.0.0.1:3057                         带插件注入的 Remotion Studio
+http://127.0.0.1:3057/MultiSceneVideo         自动分镜主预览 composition
+http://127.0.0.1:3037/video-generator         备用独立生成页面
+http://127.0.0.1:3037/video-project/:id       备用独立项目编辑页
+http://127.0.0.1:3037/studio-plugin.js        Studio 注入脚本
+```
+
+右侧生成控制台：
+
+```http
+POST http://127.0.0.1:3037/api/jobs
+GET  http://127.0.0.1:3037/api/jobs/:id
+```
+
+左侧分镜编辑：
+
+```http
+GET   http://127.0.0.1:3037/api/projects/:id
+PATCH http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId
+POST  http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId/lock
+POST  http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId/rematch-material
+POST  http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId/replace-material
+```
+
+中央预览和总导出：
+
+```http
+GET  http://127.0.0.1:3037/api/projects/:id/props
+POST http://127.0.0.1:3037/api/projects/:id/export
+GET  http://127.0.0.1:3037/project-files/:id
+GET  http://127.0.0.1:3037/files/:id
+```
+
+### 15.5 任务流程
 
 默认点击“一站式生成视频”后：
 
@@ -1251,11 +1533,33 @@ frontend/remotion-studio-plugin.js
 5. 成功后保存 `.runtime/video-projects/<id>.json`。
 6. 插件拉取 `GET /api/projects/:id/props`。
 7. 插件把 props 写入 `remotion_inputPropsOverride<studio-origin>`，并切换到 `/MultiSceneVideo`。
-8. 中央预览屏幕显示自动分镜视频，右侧 `分镜` 页签继续编辑项目。
+8. 中央预览屏幕显示自动分镜视频。
+9. 左侧自动打开 `分镜` 页签继续编辑项目。
+10. 右侧继续保留生成进度日志和导出控制。
 
 如果把“生成模式”改成“单模板”，则任务 API 会启动旧链路 `scripts/text-to-video.mjs`。
 
-## 15.1 一站式自动镜头入口验证
+### 15.6 前端扩展原则
+
+后续扩展必须优先复用已有模块：
+
+- 新生成入口复用右侧 `ttv-generator-panel`，不要再新建第二套控制台。
+- 新分镜操作复用左侧 `ttv-storyboard-panel`，不要把镜头编辑塞回右侧。
+- 新预览能力复用 Remotion Studio 中央画布和 `MultiSceneVideo`，不要自建 `<video>` 预览替代主预览。
+- 新项目数据能力复用 `.runtime/video-projects/<id>.json` 和 `project-store.mjs`，不要另建平行 project store。
+- 新素材能力复用 `asset-indexer.mjs`、`asset-matcher.mjs`、`visualLayer` 和 `alternatives`，不要把素材路径散落在前端本地状态。
+- 新导出能力复用 `export-video-project.mjs` 和 `projectToMultiSceneProps()`，不要在前端拼 Remotion render 参数。
+- 新模板能力复用 `template-manifest.json`、`scene-planner.mjs` 和 `sceneRegistry.tsx`，不要让前端硬编码模板语义。
+- 新状态持久化优先使用现有 localStorage key 命名空间 `ttv.*`，不要写入 Remotion 自有 key，除非明确是 `remotion_inputPropsOverride<origin>`。
+
+前端边界：
+
+- 右侧负责“生成和任务状态”。
+- 左侧负责“项目和分镜编辑”。
+- 中央负责“Remotion 原生预览”。
+- 右侧 Remotion 原生参数栏属于 Remotion，不放本项目 UI。
+
+## 16. 一站式自动镜头入口验证
 
 启动：
 
@@ -1273,8 +1577,9 @@ http://127.0.0.1:3057
 
 ```text
 生成模式
-自动镜头：文本 -> 语音 -> 镜头 -> 成片
-一站式生成视频
+自动镜头
+生成初版项目
+生成进度
 ```
 
 也可以直接验证 API：
@@ -1300,7 +1605,7 @@ Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3037/api/jobs" -ContentTyp
 [6/6] 已完成。
 ```
 
-## 16. 当前可选择模板
+## 17. 当前可选择模板
 
 生成视频扩展可以选择：
 
@@ -1337,7 +1642,7 @@ PromptAnimatedShapes         提示词动态图形
 
 自动镜头模式不使用这个下拉选择的单一模板，而是由 `scripts/scene-planner.mjs` 根据文本内容自动选择多个镜头模板。
 
-## 17. 从零复现近似工程的步骤
+## 18. 从零复现近似工程的步骤
 
 如果要从一个空 Remotion 项目复现类似工程，按这个顺序做：
 
@@ -1447,13 +1752,17 @@ GET /files/:id
 12. 写 `frontend/remotion-studio-plugin.js` 和 `frontend/video-project.html`：
 
 ```text
-生成视频按钮
-抽屉表单
-提交任务
-轮询状态
-展示下载链接
-展示编辑项目入口
-项目编辑器：分镜列表 / 预览 / 属性面板 / 时间线
+右上角生成视频按钮
+右侧固定生成控制台
+左侧 explorer 分镜 tab
+提交任务 POST /api/jobs
+每 2 秒轮询 GET /api/jobs/:id
+生成进度持久化到 ttv.lastProgress
+项目 ID 持久化到 ttv.lastProjectId
+GET /api/projects/:id/props 写入 Remotion input props override
+中央 Remotion Studio 预览 MultiSceneVideo
+左侧分镜列表 / 当前分镜属性 / 素材候选
+备用项目编辑器 frontend/video-project.html
 Studio 中文化替换
 ```
 
@@ -1513,7 +1822,7 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 npm run dev:video
 ```
 
-## 18. 验证方式
+## 19. 验证方式
 
 代码验证：
 
@@ -1564,12 +1873,15 @@ http://127.0.0.1:3057
 
 - Remotion Studio 能打开。
 - 右上角有“生成视频”按钮。
+- 点击后右侧出现 `一站式生成视频` 控制台，宽度约 390px。
+- 左侧 `合成列表 / 素材` 旁边有 `分镜` 页签。
+- 点击 `分镜` 后左侧只显示分镜列表和当前镜头编辑，不显示生成表单。
 - 选择任意合成，右侧能看到 props 编辑区。
 - 生成视频任务能进入运行状态。
 
-## 19. 常见问题
+## 20. 常见问题
 
-### 19.1 Studio 里提示没有可编辑参数
+### 20.1 Studio 里提示没有可编辑参数
 
 原因通常是 `<Composition>` 没有传 `schema`。
 
@@ -1585,7 +1897,7 @@ http://127.0.0.1:3057
 Make the props of this composition interactively editable by adding a schema prop to the <Composition> component.
 ```
 
-### 19.2 `UnsupportedInputFormatError`
+### 20.2 `UnsupportedInputFormatError`
 
 通常是音频格式不被 Remotion Studio 的 mediabunny 识别。
 
@@ -1603,7 +1915,7 @@ Make the props of this composition interactively editable by adding a schema pro
 ffprobe public\generated\tts-xxxx.mp3
 ```
 
-### 19.3 `Unexpected token '<'`
+### 20.3 `Unexpected token '<'`
 
 说明某个接口返回了 HTML 错误页，而不是 JSON。
 
@@ -1614,7 +1926,7 @@ ffprobe public\generated\tts-xxxx.mp3
 - 代理是否返回 502/404。
 - `postJson()` 报错里剥离出的文本。
 
-### 19.4 端口被占用
+### 20.4 端口被占用
 
 默认端口：
 
@@ -1636,7 +1948,7 @@ Get-NetTCPConnection -LocalPort 3000,3037,3057
 Stop-Process -Id <PID> -Force
 ```
 
-### 19.5 生成任务成功但页面打不开视频
+### 20.5 生成任务成功但页面打不开视频
 
 检查：
 
@@ -1644,7 +1956,7 @@ Stop-Process -Id <PID> -Force
 - `GET /api/jobs/:id` 是否返回 `result.videoUrl`。
 - `GET /files/:id` 是否返回 `video/mp4`。
 
-## 20. 安全注意
+## 21. 安全注意
 
 不要把 API Key 写进前端文件。
 
@@ -1666,12 +1978,13 @@ http://127.0.0.1:3037
 - 语音指令
 - 字幕选项
 
-## 21. 当前状态
+## 22. 当前状态
 
 当前工程状态：
 
 - Remotion Studio 可运行。
-- 生成视频扩展已集成到 Studio 页面。
+- 生成视频扩展已集成到 Studio 页面：右侧浮层是生成控制台，左侧 explorer 是分镜页签。
+- 右侧 Remotion 原生参数栏保持给 `schema/defaultProps` 编辑使用，不承载本项目分镜 UI。
 - 30 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
 - 自动镜头系统使用 `MultiSceneVideo`，可以把长文拆成多镜头时间轴。
@@ -1689,7 +2002,7 @@ npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
 
-## 22. 自动镜头系统
+## 23. 自动镜头系统
 
 自动镜头系统解决的是“长文案如何变成有镜头切换的视频”，而不是只给整段文本套一个模板。
 
@@ -1724,7 +2037,7 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 - `src/templates/MultiSceneVideo.tsx`：多镜头容器，使用 Remotion `Sequence` 拼接时间轴。
 - `src/templates/template-manifest.json`：模板说明书，记录每个模板的适用场景、避免场景、视觉隐喻、必需 props、时长范围和镜头角色。
 
-### 22.1 模板说明书
+### 23.1 模板说明书
 
 `template-manifest.json` 是 planner 理解模板库的根，不再只看模板名猜用途。每个模板至少包含：
 
@@ -1746,7 +2059,7 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 }
 ```
 
-## 23. 可编辑项目系统
+## 24. 可编辑项目系统
 
 自动生成不再只是一次性 MP4。任务完成后会生成一个可编辑 `VideoProject`：
 
@@ -1795,7 +2108,7 @@ type TimelineScene = {
 http://127.0.0.1:3037/video-project/:id
 ```
 
-主入口现在是 Remotion Studio 右侧栏的 `分镜` 页签：
+主入口现在是 Remotion Studio：
 
 ```text
 http://127.0.0.1:3057/MultiSceneVideo
@@ -1803,10 +2116,11 @@ http://127.0.0.1:3057/MultiSceneVideo
 
 生成完成后，Studio 插件会自动加载项目 props 并切到 `MultiSceneVideo`。`/video-project/:id` 仍保留为备用调试页面，但它不是主工作流。当前内嵌编辑闭环：
 
-- 右侧栏：文案生成、分镜列表、当前分镜属性、素材候选。
+- 右侧浮层：文案生成、生成模式、TTS 指令、生成进度、刷新预览、总导出。
+- 左侧 `分镜` 页签：分镜列表、当前分镜属性、素材候选。
 - 中央画布：Remotion Studio 原生 `MultiSceneVideo` 预览。
 - 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定分镜、重配素材、替换素材、总导出。
-- 修改分镜后点击“刷新 Studio 预览”，插件会重新写入 Remotion input props override 并刷新 Studio。
+- 修改分镜后点击右侧控制台的“刷新 Studio 预览”，插件会重新写入 Remotion input props override 并刷新 Studio。
 
 核心文件：
 
@@ -1841,7 +2155,7 @@ VideoProject
   -> out/video-project-*.mp4
 ```
 
-### 22.2 统一 props
+### 24.1 统一 props
 
 自动镜头模板统一吃一组通用字段，再由 `sceneRegistry.tsx` 适配到具体模板：
 
@@ -1864,7 +2178,7 @@ type CommonSceneProps = {
 - `QuoteReveal` 使用 `body/highlightWords/source`。
 - `ConceptDiagram` 使用 `title/body/keywords` 生成节点关系。
 
-### 22.3 镜头语言结构
+### 24.2 镜头语言结构
 
 planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视觉意图：
 
@@ -1893,7 +2207,7 @@ planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视�
 
 `visualIntent` 给人看，`visualIntentData` 给机器继续匹配模板或素材。比如隐喻镜头会写出 `action: "transfer"`、`from: "俄国"`、`to: "日本"`；地图镜头会写出 `action: "route"` 或 `action: "locate"`。
 
-### 22.4 模板轮换策略
+### 24.3 模板轮换策略
 
 `scene-planner.mjs` 当前实现了确定性轮换和平滑：
 
@@ -1920,7 +2234,7 @@ establishing map -> portrait/person -> document evidence -> quote -> concept exp
 其他文本 -> narration_bridge -> NarratedScene 候选
 ```
 
-### 22.5 音频驱动时间轴
+### 24.4 音频驱动时间轴
 
 图文错位的根因是只用文本长度估算镜头时长。当前一站式链路改成：
 
@@ -1936,7 +2250,7 @@ TTS -> SRT/captions -> timeline-aligner -> scenes[fromFrame,durationInFrames]
 npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-xxxx.mp3 --captions-file public/generated/tts-xxxx.srt --output out/aligned.mp4
 ```
 
-### 22.6 素材检索系统
+### 24.5 素材检索系统
 
 素材检索系统解决“讲到战争、条约、港口、铁路时能不能调本地素材”的问题。当前实现是本地素材库优先，不引入外部素材搜索。
 
@@ -2041,7 +2355,7 @@ npm run dev:video
 http://127.0.0.1:3057
 ```
 
-右上角点“生成视频”，默认就是“自动镜头：文本 -> 语音 -> 镜头 -> 成片”。如果只想套一个固定模板，把“生成模式”切到“单模板”。
+右上角点 `生成视频` 会打开右侧生成控制台。默认生成模式是 `自动镜头`，流程是文本 -> 语音 -> 镜头 -> 成片；如果只想套一个固定模板，把 `生成模式` 切到 `单模板`。生成完成后左侧 `分镜` 页签会载入项目，用来继续改镜头。
 
 如果已有旁白音频和字幕，可以把它们传给多镜头视频：
 
