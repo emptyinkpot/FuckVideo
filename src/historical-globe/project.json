@@ -1,6 +1,7 @@
 {
   "name": "historical-globe-engine",
   "displayName": "Historical Globe Engine",
+  "repository": "https://github.com/emptyinkpot/FuckVideo",
   "description": "A programmable Remotion historical globe video engine built from GeoJSON, d3-geo orthographic projection, and frame-driven animation.",
   "root": "src/historical-globe",
   "status": "engine-prototype",

@@ -1,5 +1,7 @@
 # Remotion 视频工作台与文本生成视频系统
 
+GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
+
 这是一个本地 Remotion 工程，核心能力是：
 
 ```text

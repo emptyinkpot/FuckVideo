@@ -1,0 +1,11 @@
+{
+  "title": "素材格式验证",
+  "subtitle": "Qwen TTS 旁白 + Remotion 动画渲染",
+  "bodyText": "素材面板格式修复验证。后续生成只应该暴露标准 MP3，不再把原始 WAV 放进 public。",
+  "templateId": "SinoJapaneseWarDemo",
+  "audioSrc": "generated/tts-20260503065711.mp3",
+  "captions": [],
+  "durationSeconds": 11,
+  "showCaptions": false,
+  "theme": "historical"
+}

@@ -6,16 +6,15 @@ dist
 # Ignore the output video from Git but not videos you import into src/.
 out
 
-# Local runtime state and generated media.
+# Local runtime state.
 .runtime/
-public/generated/
 remotion-studio.*.log
 *.log
 __pycache__/
 *.pyc
 
-# Large source downloads used while preparing public assets.
-asset-source/
+# Do not vendor nested Git metadata from downloaded source repositories.
+asset-source/**/.git/
 
 # Local visual/debug artifacts.
 screenshots/

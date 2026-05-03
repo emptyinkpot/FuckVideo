@@ -1,0 +1,11 @@
+{
+  "title": "音频格式修复",
+  "subtitle": "Qwen TTS 旁白 + Remotion 动画渲染",
+  "bodyText": "音频格式修复测试。这个文件应该可以在 Remotion 工作台和导出视频里正常播放。",
+  "templateId": "AtlasMapFlyover",
+  "audioSrc": "generated/tts-20260503065257.mp3",
+  "captions": [],
+  "durationSeconds": 9,
+  "showCaptions": false,
+  "theme": "historical"
+}

@@ -1,0 +1,16 @@
+{
+  "title": "字幕联动测试",
+  "subtitle": "音频生成后请求 SRT",
+  "bodyText": "这是字幕对齐测试。视频会读取旁白音频，并显示当前字幕。",
+  "audioSrc": "generated/tts-20260503060805.mp3",
+  "captions": [
+    {
+      "index": 1,
+      "startMs": 30,
+      "endMs": 5970,
+      "text": "这是字幕对齐测试视频，会读取旁白音频并显示当前字幕。"
+    }
+  ],
+  "durationSeconds": 8,
+  "theme": "historical"
+}

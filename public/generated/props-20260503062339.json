@@ -1,0 +1,11 @@
+{
+  "title": "模板联动测试",
+  "subtitle": "AtlasMapFlyover + TTS",
+  "bodyText": "这是现有模板联动测试。画面使用 Remotion 已有的世界地图飞越模板，旁白由 Qwen TTS 生成。",
+  "templateId": "AtlasMapFlyover",
+  "audioSrc": "generated/tts-20260503062339.mp3",
+  "captions": [],
+  "durationSeconds": 10,
+  "showCaptions": false,
+  "theme": "historical"
+}

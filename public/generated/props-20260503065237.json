@@ -1,0 +1,11 @@
+{
+  "title": "音频格式测试",
+  "subtitle": "Qwen TTS 旁白 + Remotion 动画渲染",
+  "bodyText": "音频格式修复测试。这个文件应该被转换为标准 MP3，供 Remotion 工作台预览。",
+  "templateId": "SinoJapaneseWarDemo",
+  "audioSrc": "generated/tts-20260503065237.mp3",
+  "captions": [],
+  "durationSeconds": 10,
+  "showCaptions": false,
+  "theme": "historical"
+}

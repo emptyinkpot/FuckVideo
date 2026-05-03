@@ -1,0 +1,11 @@
+{
+  "title": "最终验证",
+  "subtitle": "Qwen TTS 旁白 + Remotion 动画渲染",
+  "bodyText": "最终验证。生成链路只暴露 MP3，素材和合成列表都不应该再因为媒体格式报错。",
+  "templateId": "SinoJapaneseWarDemo",
+  "audioSrc": "generated/tts-20260503070737.mp3",
+  "captions": [],
+  "durationSeconds": 10,
+  "showCaptions": false,
+  "theme": "historical"
+}

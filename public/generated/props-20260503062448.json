@@ -1,0 +1,11 @@
+{
+  "title": "模板选择",
+  "subtitle": "AtlasMapFlyover",
+  "bodyText": "前端模板选择测试。",
+  "templateId": "SinoJapaneseWarDemo",
+  "audioSrc": "generated/tts-20260503062448.mp3",
+  "captions": [],
+  "durationSeconds": 5,
+  "showCaptions": false,
+  "theme": "historical"
+}

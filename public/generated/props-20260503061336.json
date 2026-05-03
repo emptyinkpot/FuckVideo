@@ -1,0 +1,9 @@
+{
+  "title": "前端联动测试",
+  "subtitle": "浏览器任务接口",
+  "bodyText": "这是前端任务测试。系统会生成旁白并渲染视频。",
+  "audioSrc": "generated/tts-20260503061336.mp3",
+  "captions": [],
+  "durationSeconds": 7,
+  "theme": "historical"
+}
