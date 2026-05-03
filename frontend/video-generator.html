@@ -259,7 +259,7 @@
       <header>
         <div>
           <h1>文本生成视频</h1>
-          <p class="sub">输入文案，调用 Qwen TTS 生成旁白，再用 Remotion 渲染视频。</p>
+          <p class="sub">输入文案，一站式生成旁白、自动镜头时间轴，并用 Remotion 渲染视频。</p>
         </div>
         <span class="pill" id="connection">Remotion 模板生成台</span>
       </header>
@@ -277,22 +277,26 @@
           <div class="section">
             <div class="grid">
               <label>
+                生成模式
+                <select id="mode">
+                  <option value="auto-scenes">自动镜头：文本 → 语音 → 镜头 → 成片</option>
+                  <option value="single-template">单模板：文本 → 语音 → 当前模板</option>
+                </select>
+              </label>
+              <label>
                 标题
                 <input id="title" value="南满铁路的开端" />
               </label>
+            </div>
+            <div class="grid">
               <label>
                 副标题
                 <input id="subtitle" value="文本生成旁白与历史地图视频" />
               </label>
-            </div>
-            <label>
-              语音指令
-              <input id="instruction" value="标准播音风格，吐字清晰，语速平稳，停顿自然" />
-            </label>
-            <div class="grid">
               <label>
                 Remotion 模板
                 <select id="template">
+                  <option value="DocumentReveal">历史文件揭示</option>
                   <option value="SinoJapaneseWarDemo">中日战争历史地球</option>
                   <option value="HistoricalGlobeTexture1938">1938 历史地球纹理</option>
                   <option value="AtlasMapFlyover">世界地图飞越</option>
@@ -315,6 +319,13 @@
                   <option value="PromptAnimatedShapes">提示词动态图形</option>
                 </select>
               </label>
+            </div>
+            <p class="sub" id="modeNote">自动镜头模式会忽略“Remotion 模板”，系统会按文案语义自动选择多个镜头模板。</p>
+            <label>
+              语音指令
+              <input id="instruction" value="标准播音风格，吐字清晰，语速平稳，停顿自然" />
+            </label>
+            <div class="grid">
               <label>
                 视觉风格
                 <select id="theme">
@@ -334,7 +345,7 @@
 
           <div class="section">
             <div class="actions">
-              <button class="primary" id="generate">生成视频</button>
+              <button class="primary" id="generate">一站式生成视频</button>
               <button id="reset">重置</button>
             </div>
           </div>
@@ -409,6 +420,7 @@
               title: $("#title").value.trim(),
               subtitle: $("#subtitle").value.trim(),
               instruction: $("#instruction").value.trim(),
+              mode: $("#mode").value,
               template: $("#template").value,
               theme: $("#theme").value,
               skipSrt: $("#skipSrt").value === "true",
@@ -460,12 +472,21 @@
       }
 
       $("#text").addEventListener("input", count);
+      $("#mode").addEventListener("change", () => {
+        const auto = $("#mode").value === "auto-scenes";
+        $("#template").disabled = auto;
+        $("#modeNote").textContent = auto
+          ? "自动镜头模式会忽略“Remotion 模板”，系统会按文案语义自动选择多个镜头模板。"
+          : "单模板模式会使用下方选中的 Remotion 模板，适合固定视觉风格。";
+        $("#generate").textContent = auto ? "一站式生成视频" : "生成当前模板视频";
+      });
       $("#generate").addEventListener("click", createJob);
       $("#reset").addEventListener("click", () => {
         $("#text").value = "";
         count();
       });
       count();
+      $("#mode").dispatchEvent(new Event("change"));
     </script>
   </body>
 </html>

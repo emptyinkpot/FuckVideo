@@ -85,6 +85,7 @@ function createJob(body) {
       title: String(body.title || "一键文本生成视频和语音").trim(),
       subtitle: String(body.subtitle || "Qwen TTS 旁白 + Remotion 动画渲染").trim(),
       instruction: String(body.instruction || "标准播音风格，吐字清晰，语速平稳，停顿自然").trim(),
+      mode: body.mode === "single-template" ? "single-template" : "auto-scenes",
       template: String(body.template || "SinoJapaneseWarDemo").trim(),
       skipSrt: Boolean(body.skipSrt),
       theme: body.theme === "clean" ? "clean" : "historical",
@@ -107,24 +108,23 @@ function runJob(job) {
     const outputPath = path.join(projectRoot, "out", `text-to-video-${job.id}.mp4`);
     await writeFile(textPath, job.input.text, "utf8");
 
+    const isAutoScenes = job.input.mode === "auto-scenes";
+    const script = isAutoScenes ? "text-to-scenes-tts-video.mjs" : "text-to-video.mjs";
     const args = [
-      path.join(projectRoot, "scripts", "text-to-video.mjs"),
+      path.join(projectRoot, "scripts", script),
       "--text-file",
       textPath,
       "--title",
       job.input.title,
-      "--subtitle",
-      job.input.subtitle,
       "--instruction",
       job.input.instruction,
-      "--template",
-      job.input.template,
       "--output",
       outputPath,
-      "--theme",
-      job.input.theme,
       "--json=true",
     ];
+    if (!isAutoScenes) {
+      args.push("--subtitle", job.input.subtitle, "--template", job.input.template, "--theme", job.input.theme);
+    }
     if (job.input.skipSrt) {
       args.push("--skip-srt=true");
     }
@@ -158,11 +158,12 @@ function handleLog(job, text) {
       job.result = JSON.parse(line.slice("TEXT_TO_VIDEO_RESULT ".length));
       continue;
     }
-    if (line.includes("[1/5]")) job.progress = "生成旁白音频";
-    if (line.includes("[2/5]")) job.progress = "读取音频时长";
-    if (line.includes("[3/5]")) job.progress = "生成字幕";
-    if (line.includes("[4/5]")) job.progress = "渲染视频";
-    if (line.includes("[5/5]")) job.progress = "收尾";
+    if (line.includes("[1/5]") || line.includes("[1/6]")) job.progress = "生成旁白音频";
+    if (line.includes("[2/5]") || line.includes("[2/6]")) job.progress = "读取音频时长";
+    if (line.includes("[3/5]") || line.includes("[3/6]")) job.progress = "生成字幕";
+    if (line.includes("[4/6]")) job.progress = "规划自动镜头";
+    if (line.includes("[4/5]") || line.includes("[5/6]")) job.progress = "渲染视频";
+    if (line.includes("[5/5]") || line.includes("[6/6]")) job.progress = "收尾";
   }
   job.logs = job.logs.slice(-80);
   job.updatedAt = Date.now();

@@ -1,6 +1,7 @@
 (function () {
   const API = "http://127.0.0.1:3037";
   const templates = [
+    ["DocumentReveal", "历史文件揭示"],
     ["SinoJapaneseWarDemo", "中日战争历史地球"],
     ["HistoricalGlobeTexture1938", "1938 历史地球纹理"],
     ["AtlasMapFlyover", "世界地图飞越"],
@@ -248,6 +249,12 @@
       color: #9f9f9f;
       font: 11px/1.5 Consolas, monospace;
     }
+    .ttv-note {
+      color: #8f8f8f;
+      font-size: 11px;
+      line-height: 1.45;
+      margin-top: -2px;
+    }
   `;
   document.head.appendChild(style);
 
@@ -261,7 +268,7 @@
   panel.className = "ttv-panel";
   panel.innerHTML = `
     <div class="ttv-head">
-      <span>生成视频扩展</span>
+      <span>一站式生成视频</span>
       <button class="ttv-close" type="button">×</button>
     </div>
     <div class="ttv-body">
@@ -269,18 +276,27 @@
         <textarea class="ttv-textarea" id="ttv-text">旅顺港的海风吹进东京霞关，战争的尾声并没有带来平静。新的铁路和港口，正在改变东亚的权力地图。</textarea>
       </label>
       <div class="ttv-grid">
+        <label class="ttv-label">生成模式
+          <select class="ttv-select" id="ttv-mode">
+            <option value="auto-scenes">自动镜头：文本 → 语音 → 镜头 → 成片</option>
+            <option value="single-template">单模板：文本 → 语音 → 当前模板</option>
+          </select>
+        </label>
         <label class="ttv-label">标题
           <input class="ttv-input" id="ttv-title" value="南满铁路的开端" />
         </label>
+      </div>
+      <div class="ttv-grid">
         <label class="ttv-label">副标题
                 <input class="ttv-input" id="ttv-subtitle" value="Remotion 模板 + 千问语音" />
         </label>
-      </div>
         <label class="ttv-label">视频模板
         <select class="ttv-select" id="ttv-template">
           ${templates.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}
         </select>
       </label>
+      </div>
+      <div class="ttv-note" id="ttv-mode-note">自动镜头模式会忽略“视频模板”，系统会按文案语义自动选择 DocumentReveal、地图、历史地球等镜头。</div>
       <label class="ttv-label">语音指令
         <input class="ttv-input" id="ttv-instruction" value="标准播音风格，吐字清晰，语速平稳，停顿自然" />
       </label>
@@ -298,11 +314,11 @@
           </select>
         </label>
       </div>
-      <div class="ttv-status" id="ttv-status">选择模板后提交，生成结果会落到项目 out/ 目录。</div>
+      <div class="ttv-status" id="ttv-status">默认是一站式自动镜头生成，结果会落到项目 out/ 目录。</div>
       <pre class="ttv-log" id="ttv-log">等待任务。</pre>
     </div>
     <div class="ttv-actions">
-      <button class="ttv-primary" id="ttv-generate" type="button">生成当前模板视频</button>
+      <button class="ttv-primary" id="ttv-generate" type="button">一站式生成视频</button>
       <div class="ttv-links" id="ttv-links">
         <a class="ttv-link" id="ttv-open" target="_blank" rel="noreferrer">打开视频</a>
         <a class="ttv-link" id="ttv-download" download>下载视频</a>
@@ -320,6 +336,15 @@
 
   launcher.onclick = () => panel.classList.add("open");
   $(".ttv-close").onclick = () => panel.classList.remove("open");
+  $("#ttv-mode").onchange = () => {
+    const auto = $("#ttv-mode").value === "auto-scenes";
+    $("#ttv-template").disabled = auto;
+    $("#ttv-mode-note").textContent = auto
+      ? "自动镜头模式会忽略“视频模板”，系统会按文案语义自动选择 DocumentReveal、地图、历史地球等镜头。"
+      : "单模板模式会使用下方选中的 Remotion 模板，适合固定视觉风格。";
+    $("#ttv-generate").textContent = auto ? "一站式生成视频" : "生成当前模板视频";
+  };
+  $("#ttv-mode").onchange();
 
   $("#ttv-generate").onclick = async () => {
     const text = $("#ttv-text").value.trim();
@@ -340,6 +365,7 @@
           title: $("#ttv-title").value.trim(),
           subtitle: $("#ttv-subtitle").value.trim(),
           instruction: $("#ttv-instruction").value.trim(),
+          mode: $("#ttv-mode").value,
           template: $("#ttv-template").value,
           theme: $("#ttv-theme").value,
           skipSrt: $("#ttv-srt").value === "true",

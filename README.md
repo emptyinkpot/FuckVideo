@@ -46,6 +46,8 @@ Remotion Studio 模板预览与参数编辑
 - 访问 `http://127.0.0.1:3057`。
 - 代理会把 `frontend/remotion-studio-plugin.js` 注入 Studio 页面。
 - 页面右上角出现“生成视频”按钮。
+- 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动镜头规划 -> `MultiSceneVideo` -> MP4。
+- 插件也保留“单模板”模式：文本 -> 千问 TTS -> 选定 Remotion 模板 -> MP4。
 - 插件提交任务到 `http://127.0.0.1:3037/api/jobs`。
 
 ## 2. 运行环境
@@ -1226,6 +1228,26 @@ npm run plan-scenes -- --text-file input.txt --output public/generated/scenes-de
 ```console
 npm run text-to-scenes-video -- --text-file input.txt --title "南满铁路的开端" --output out/auto-scenes-video.mp4
 ```
+
+一站式生成多镜头视频和旁白：
+
+```console
+npm run text-to-scenes-tts-video -- --text-file input.txt --title "南满铁路的开端" --output out/auto-scenes-tts-video.mp4
+```
+
+Studio 插件入口：
+
+```console
+npm run dev:video
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:3057
+```
+
+右上角点“生成视频”，默认就是“自动镜头：文本 -> 语音 -> 镜头 -> 成片”。如果只想套一个固定模板，把“生成模式”切到“单模板”。
 
 如果已有旁白音频和字幕，可以把它们传给多镜头视频：
 
