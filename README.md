@@ -1086,6 +1086,42 @@ GET /files/:id
 .runtime/video-projects/<projectId>.json
 ```
 
+列出最近项目：
+
+```http
+GET /api/projects
+```
+
+返回：
+
+```json
+[
+  {
+    "id": "project-id",
+    "title": "南满铁路",
+    "updatedAt": 1798776000000,
+    "createdAt": 1798772000000,
+    "sceneCount": 19,
+    "videoUrl": "/project-files/project-id"
+  }
+]
+```
+
+这个接口供 Studio 顶部项目切换器使用，数据来源是 `.runtime/video-projects/*.json`，按 `updatedAt` 倒序排列。
+
+新建空项目：
+
+```http
+POST /api/projects
+Content-Type: application/json
+
+{
+  "title": "未命名视频项目"
+}
+```
+
+返回完整 `VideoProject`。空项目只建立工作空间，不会自动生成镜头；生成内容仍走右侧 `生成视频` 控制台的 `POST /api/jobs`。
+
 项目页面：
 
 ```http
@@ -1097,6 +1133,37 @@ GET /video-project/:id
 ```http
 GET /api/projects/:id
 ```
+
+返回的项目对象会带多轨道时间线视图：
+
+```ts
+type TrackType = "audio" | "scene" | "subtitle" | "material";
+
+type TimelineTrack = {
+  id: string;
+  type: TrackType;
+  name: string;
+  clips: TimelineClip[];
+};
+
+type TimelineClip = {
+  id: string;
+  trackId: string;
+  type: TrackType;
+  startMs: number;
+  endMs: number;
+  sourceStartMs?: number;
+  sourceEndMs?: number;
+  title: string;
+  text?: string;
+  src?: string;
+  templateId?: string;
+  sceneId?: string;
+  locked?: boolean;
+};
+```
+
+`tracks` 由服务端 `projectToTracks(project)` 根据 `audioSrc / scenes / captions / visualLayer` 计算，前端不重复推导时间线。
 
 把项目转换成 Remotion `MultiSceneVideo` props：
 
@@ -1505,6 +1572,13 @@ POST http://127.0.0.1:3037/api/jobs
 GET  http://127.0.0.1:3037/api/jobs/:id
 ```
 
+顶部项目工作栏：
+
+```http
+GET  http://127.0.0.1:3037/api/projects
+POST http://127.0.0.1:3037/api/projects
+```
+
 左侧分镜编辑：
 
 ```http
@@ -1789,7 +1863,7 @@ PATCH /api/projects/:id/scenes/:sceneId
 POST  /api/projects/:id/scenes/:sceneId/lock
 POST  /api/projects/:id/scenes/:sceneId/rematch-material
 POST  /api/projects/:id/scenes/:sceneId/replace-material
-POST  /api/projects/:id/reorder-scenes
+POST  /api/projects/:id/reorder
 POST  /api/projects/:id/export
 ```
 
@@ -1891,6 +1965,190 @@ SinoJapaneseWarDemo
 - 不占用 Remotion 原生右侧 props 面板承载项目分镜。
 - 不自建主预览播放器替代 Remotion Studio 画布。
 - 不创建第二套 project store 或第二套素材匹配状态。
+
+### 15.8 IDE 项目工作流与剪辑时间线
+
+新一层工作台能力已经落在 `frontend/remotion-studio-plugin.js`，不是新建入口页。它把产品从“一次性生成工具”推进到“IDE 式多项目视频工作台”：
+
+```text
+顶部 VideoLab 工作栏
+  -> 项目切换 / 新建项目 / 收纳 / 导出
+
+左侧 分镜 页签
+  -> 分镜列表 / 当前分镜属性 / 素材候选 / 多轨道时间线
+
+中央 Remotion Studio 预览
+  -> 仍然复用 MultiSceneVideo composition
+
+右侧 生成视频 控制台
+  -> 文案输入 / 任务进度 / 刷新预览 / 总导出
+```
+
+#### 15.8.1 顶部项目工作栏
+
+DOM：
+
+```text
+div.ttv-workbar
+button#ttv-project-toggle
+div#ttv-project-menu
+button#ttv-create-project
+button#ttv-quick-create
+button#ttv-workbar-compact
+button#ttv-workbar-export
+```
+
+像素规格：
+
+```css
+.ttv-workbar {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 48px;
+  min-width: 520px;
+  max-width: calc(100vw - 460px);
+  padding: 0 10px;
+  border-radius: 13px;
+  background: rgba(15,17,21,.94);
+  z-index: 2147482999;
+}
+
+.ttv-workbar.compact {
+  height: 32px;
+  min-width: 360px;
+  opacity: .86;
+}
+```
+
+交互：
+
+- 点击项目名展开最近项目菜单。
+- 最近项目来自 `GET /api/projects`，数据源是 `.runtime/video-projects/*.json`。
+- 点击项目调用 `GET /api/projects/:id`，再调用 `GET /api/projects/:id/props` 写入 Remotion input props override。
+- `+` 和菜单里的 `+ 新建项目` 调用 `POST /api/projects`，只创建空工作空间。
+- `导出` 调用 `POST /api/projects/:id/export`。
+- `收纳` 写入 `localStorage["ttv.workbar"] = "collapsed" | "expanded"`。
+
+项目切换逻辑：
+
+```js
+async function switchProject(projectId) {
+  const project = await loadProject(projectId);
+  if (project.scenes?.length) {
+    setStoryboardOpen(true);
+    await applyProjectToStudioPreview(projectId);
+  }
+}
+```
+
+这保证“切项目 = 切整个视频工作空间”，而不是只换一个下拉值。
+
+#### 15.8.2 多轨道时间线
+
+服务端在 `scripts/project-store.mjs` 中提供：
+
+```js
+projectToTracks(project)
+```
+
+返回四类轨道：
+
+```text
+audio     旁白音频
+material  素材片段
+scene     镜头片段
+subtitle  字幕片段
+```
+
+左侧分镜页签会渲染：
+
+```text
+div.ttv-timeline
+div.ttv-timebar
+div.ttv-track
+div.ttv-track-lane
+div.ttv-clip
+span.ttv-trim.left/right
+```
+
+像素规格：
+
+```css
+.ttv-timeline {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #121212;
+}
+
+.ttv-timebar {
+  height: 22px;
+  border-radius: 6px;
+}
+
+.ttv-track {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 6px;
+}
+
+.ttv-track-lane {
+  position: relative;
+  height: 28px;
+}
+
+.ttv-clip {
+  position: absolute;
+  top: 3px;
+  height: 22px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+```
+
+当前已实现的剪辑交互：
+
+- 点击时间条移动播放头。
+- 点击镜头 clip 选中分镜，并把中央 Remotion 预览跳到该镜头开始帧。
+- 拖动 `scene` 轨道 clip 可重排镜头，落点后调用 `POST /api/projects/:id/reorder`。
+- 拖动镜头 clip 左右裁剪手柄会修改 `startMs/endMs`，松手后调用 `PATCH /api/projects/:id/scenes/:sceneId` 保存。
+- 已锁定分镜不允许裁剪和拖拽。
+
+这不是完整剪映时间线，但已经把数据层从 `scenes[]` 升级为 `tracks/clips`。后续加波形、吸附、快捷键、撤销重做时必须复用这个结构。
+
+#### 15.8.3 关于 React / Tailwind / dnd-kit / wavesurfer
+
+建议里的 React/Tailwind 组件、Zustand store、`dnd-kit` 和 `wavesurfer.js` 是后续“独立专业编辑器”路线的合适技术栈，但当前主前端是运行时注入到 Remotion Studio 的单文件 vanilla 插件：
+
+```text
+frontend/remotion-studio-plugin.js
+```
+
+所以当前源码没有引入一套平行 React 编辑器，也没有安装未使用依赖。等未来需要独立编辑器时，落地方式应该是：
+
+```text
+src/editor/store/useTimelineStore.ts
+src/editor/components/TopBar.tsx
+src/editor/components/TimelineEditor.tsx
+src/editor/components/SceneList.tsx
+src/editor/components/Inspector.tsx
+```
+
+但这些 React 组件必须复用现有后端和数据模型：
+
+- `GET /api/projects`
+- `POST /api/projects`
+- `GET /api/projects/:id`
+- `PATCH /api/projects/:id/scenes/:sceneId`
+- `POST /api/projects/:id/reorder`
+- `POST /api/projects/:id/export`
+- `tracks/clips`
+- `projectToMultiSceneProps(project)`
+
+禁止 React 编辑器重新定义一套 project JSON、素材候选结构或导出链路。
 
 ## 16. 一站式自动镜头入口验证
 

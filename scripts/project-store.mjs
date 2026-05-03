@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { attachAssetsToScenes, loadAssetIndex, matchAssetsForScene } from "./asset-matcher.mjs";
@@ -7,6 +7,55 @@ import { attachAssetsToScenes, loadAssetIndex, matchAssetsForScene } from "./ass
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const projectRoot = path.resolve(__dirname, "..");
 export const projectsRoot = path.join(projectRoot, ".runtime", "video-projects");
+
+export async function listProjects() {
+  await mkdir(projectsRoot, { recursive: true });
+  const files = await readdir(projectsRoot, { withFileTypes: true });
+  const projects = [];
+  for (const file of files) {
+    if (!file.isFile() || !file.name.endsWith(".json")) continue;
+    try {
+      const project = JSON.parse(await readFile(path.join(projectsRoot, file.name), "utf8"));
+      projects.push({
+        id: project.id,
+        title: project.title || "未命名项目",
+        updatedAt: Number(project.updatedAt || project.source?.createdAt || 0),
+        createdAt: Number(project.source?.createdAt || project.updatedAt || 0),
+        sceneCount: Array.isArray(project.scenes) ? project.scenes.length : 0,
+        videoUrl: project.source?.videoFile ? `/project-files/${encodeURIComponent(project.id)}` : project.source?.videoUrl || "",
+      });
+    } catch {
+      // Ignore partially written or manually edited invalid project files.
+    }
+  }
+  return projects.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export async function createBlankProject(input = {}) {
+  const id = `project-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const now = Date.now();
+  const title = String(input.title || "未命名视频项目").trim() || "未命名视频项目";
+  const project = {
+    id,
+    title,
+    audioSrc: "",
+    captions: [],
+    scenes: [],
+    assets: loadAssetIndex(),
+    history: [],
+    source: {
+      jobId: "",
+      text: "",
+      propsPath: "",
+      scenesPath: "",
+      videoFile: "",
+      videoUrl: "",
+      createdAt: now,
+    },
+    updatedAt: now,
+  };
+  return saveProject(project);
+}
 
 export async function createProjectFromJob(job) {
   const result = job.result || {};
@@ -91,6 +140,90 @@ export function projectToMultiSceneProps(project) {
     showSceneLabels: false,
     scenes,
   };
+}
+
+export function projectToTracks(project) {
+  const scenes = Array.isArray(project.scenes) ? project.scenes : [];
+  const captions = Array.isArray(project.captions) ? project.captions : [];
+  const durationMs = Math.max(
+    0,
+    ...scenes.map((scene) => Number(scene.endMs || 0)),
+    ...captions.map((caption) => Number(caption.endMs || 0)),
+  );
+  return [
+    {
+      id: "audio",
+      type: "audio",
+      name: "旁白",
+      clips: project.audioSrc
+        ? [
+            {
+              id: "main-audio",
+              trackId: "audio",
+              type: "audio",
+              startMs: 0,
+              endMs: durationMs,
+              src: project.audioSrc,
+              title: "旁白音频",
+              locked: true,
+            },
+          ]
+        : [],
+    },
+    {
+      id: "material",
+      type: "material",
+      name: "素材",
+      clips: scenes
+        .filter((scene) => scene.visualLayer?.path)
+        .map((scene) => ({
+          id: `${scene.id}-material`,
+          trackId: "material",
+          type: "material",
+          startMs: Number(scene.startMs || 0),
+          endMs: Number(scene.endMs || 0),
+          sourceStartMs: Number(scene.visualLayer?.startMs || 0),
+          sourceEndMs: Number(scene.visualLayer?.endMs || 0),
+          src: scene.visualLayer.path,
+          title: scene.visualLayer.title || scene.props?.title || scene.subtitle || "素材片段",
+          sceneId: scene.id,
+          locked: Boolean(scene.locked),
+        })),
+    },
+    {
+      id: "scene",
+      type: "scene",
+      name: "镜头",
+      clips: scenes.map((scene) => ({
+        id: scene.id,
+        trackId: "scene",
+        type: "scene",
+        startMs: Number(scene.startMs || 0),
+        endMs: Number(scene.endMs || 0),
+        title: scene.props?.title || scene.subtitle || scene.sceneType || "镜头",
+        text: scene.voiceText || scene.subtitle || "",
+        templateId: scene.templateId,
+        props: scene.props || {},
+        sceneId: scene.id,
+        locked: Boolean(scene.locked),
+      })),
+    },
+    {
+      id: "subtitle",
+      type: "subtitle",
+      name: "字幕",
+      clips: captions.map((caption) => ({
+        id: `caption-${caption.index}`,
+        trackId: "subtitle",
+        type: "subtitle",
+        startMs: Number(caption.startMs || 0),
+        endMs: Number(caption.endMs || 0),
+        title: caption.text || "字幕",
+        text: caption.text || "",
+        locked: true,
+      })),
+    },
+  ];
 }
 
 export function patchScene(project, sceneId, patch) {

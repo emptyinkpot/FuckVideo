@@ -6,10 +6,13 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  createBlankProject,
   createProjectFromJob,
+  listProjects,
   loadProject,
   patchScene,
   projectToMultiSceneProps,
+  projectToTracks,
   rematchScene,
   reorderScenes,
   replaceSceneMaterial,
@@ -63,6 +66,16 @@ const server = createServer(async (req, res) => {
         return sendJson(res, { success: false, error: "任务不存在" }, 404);
       }
       return sendJson(res, { success: true, data: publicJob(job) });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/projects") {
+      return sendJson(res, { success: true, data: await listProjects() });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/projects") {
+      const body = await readJson(req);
+      const project = await createBlankProject(body);
+      return sendJson(res, { success: true, data: publicProject(project) });
     }
 
     if (url.pathname.startsWith("/api/projects/")) {
@@ -294,8 +307,12 @@ function publicJob(job) {
 }
 
 function publicProject(project) {
+  const tracks = projectToTracks(project);
+  const durationMs = Math.max(0, ...tracks.flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0))));
   return {
     ...project,
+    durationMs,
+    tracks,
     videoUrl: project.source?.videoFile ? `/project-files/${encodeURIComponent(project.id)}` : project.source?.videoUrl || "",
   };
 }

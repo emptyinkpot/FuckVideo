@@ -79,6 +79,7 @@
   const storyboardPanelStorageKey = "ttv.storyboardPanel";
   const generatorPanelStorageKey = "ttv.generatorPanel";
   const progressStorageKey = "ttv.lastProgress";
+  const workbarStorageKey = "ttv.workbar";
 
   if (localStorage.getItem("remotion.sidebarPanel") === "storyboard") {
     localStorage.setItem("remotion.sidebarPanel", "input-props");
@@ -89,12 +90,168 @@
     jobId: "",
     timer: 0,
     project: null,
+    projects: [],
     selectedSceneId: "",
     candidates: [],
+    workbarCollapsed: localStorage.getItem(workbarStorageKey) === "collapsed",
+    projectMenuOpen: false,
+    playheadMs: 0,
+    timelineDragSceneId: "",
   };
 
   const style = document.createElement("style");
   style.textContent = `
+    .ttv-workbar {
+      position: fixed;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2147482999;
+      height: 48px;
+      min-width: 520px;
+      max-width: calc(100vw - 460px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 13px;
+      background: rgba(15,17,21,.94);
+      color: #e5e7eb;
+      box-shadow: 0 18px 50px rgba(0,0,0,.34);
+      backdrop-filter: blur(14px);
+      font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+      transition: height .16s ease, opacity .16s ease, transform .16s ease;
+    }
+    .ttv-workbar.compact {
+      height: 32px;
+      min-width: 360px;
+      opacity: .86;
+    }
+    .ttv-workbar.compact:hover {
+      height: 48px;
+      opacity: 1;
+    }
+    .ttv-workbar-left,
+    .ttv-workbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .ttv-brand {
+      font-size: 13px;
+      font-weight: 820;
+      color: white;
+      padding: 0 4px;
+      white-space: nowrap;
+    }
+    .ttv-project-switcher {
+      position: relative;
+      min-width: 0;
+    }
+    .ttv-project-button {
+      max-width: 240px;
+      height: 30px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px;
+      background: #171b24;
+      color: #f5f5f5;
+      padding: 0 10px;
+      font: 700 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ttv-project-menu {
+      position: absolute;
+      top: 38px;
+      left: 0;
+      width: 280px;
+      max-height: 360px;
+      display: none;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      background: #161a22;
+      box-shadow: 0 18px 54px rgba(0,0,0,.42);
+      overflow: hidden;
+      color: #e5e7eb;
+    }
+    .ttv-project-menu.open { display: block; }
+    .ttv-menu-head {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      color: #9ca3af;
+      font-size: 11px;
+      border-bottom: 1px solid rgba(255,255,255,.09);
+    }
+    .ttv-project-list {
+      max-height: 236px;
+      overflow: auto;
+      padding: 6px;
+    }
+    .ttv-project-item {
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #d1d5db;
+      padding: 8px;
+      text-align: left;
+      cursor: pointer;
+      font: 12px/1.35 Inter, "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .ttv-project-item:hover,
+    .ttv-project-item.active {
+      background: #1f2937;
+      color: white;
+    }
+    .ttv-project-meta {
+      margin-top: 3px;
+      color: #8b949e;
+      font-size: 10px;
+    }
+    .ttv-menu-action {
+      width: 100%;
+      height: 34px;
+      border: 0;
+      border-top: 1px solid rgba(255,255,255,.09);
+      background: transparent;
+      color: #e5e7eb;
+      text-align: left;
+      padding: 0 12px;
+      cursor: pointer;
+      font: 700 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .ttv-menu-action:hover { background: #1f2937; }
+    .ttv-workbar-button {
+      height: 30px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px;
+      background: #171b24;
+      color: #e5e7eb;
+      padding: 0 10px;
+      cursor: pointer;
+      font: 750 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
+      white-space: nowrap;
+    }
+    .ttv-workbar-button.primary {
+      border-color: transparent;
+      background: #4f8cff;
+      color: white;
+    }
+    .ttv-workbar-status {
+      color: #9ca3af;
+      font-size: 11px;
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .ttv-side-tab {
       border: 0;
       flex: 1;
@@ -290,8 +447,116 @@
       background: #202020;
       font-size: 11px;
     }
+    .ttv-timeline {
+      display: grid;
+      gap: 7px;
+      padding: 8px;
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 10px;
+      background: #121212;
+    }
+    .ttv-timeline-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #aaa;
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .ttv-timebar {
+      position: relative;
+      height: 22px;
+      border-radius: 6px;
+      background: #1f1f1f;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .ttv-playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #4f8cff;
+      box-shadow: 0 0 0 1px rgba(79,140,255,.25);
+    }
+    .ttv-track {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 6px;
+      align-items: center;
+    }
+    .ttv-track-name {
+      color: #858585;
+      font-size: 10px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .ttv-track-lane {
+      position: relative;
+      height: 28px;
+      border-radius: 6px;
+      background: #1b1b1b;
+      overflow: hidden;
+    }
+    .ttv-clip {
+      position: absolute;
+      top: 3px;
+      height: 22px;
+      min-width: 12px;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 5px;
+      padding: 0 6px;
+      color: #e5e7eb;
+      font-size: 10px;
+      line-height: 20px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: grab;
+      user-select: none;
+    }
+    .ttv-clip.scene { background: #22304a; border-color: #4f8cff; }
+    .ttv-clip.material { background: #263347; border-color: #40506a; }
+    .ttv-clip.subtitle { background: #332c18; border-color: #7c6a2a; }
+    .ttv-clip.audio { background: #173326; border-color: #2d8a61; }
+    .ttv-clip.selected { box-shadow: 0 0 0 2px rgba(79,140,255,.72); }
+    .ttv-trim {
+      position: absolute;
+      top: 0;
+      width: 6px;
+      height: 100%;
+      background: rgba(255,255,255,.16);
+      cursor: ew-resize;
+    }
+    .ttv-trim.left { left: 0; }
+    .ttv-trim.right { right: 0; }
   `;
   document.head.appendChild(style);
+
+  const workbar = document.createElement("div");
+  workbar.className = "ttv-workbar";
+  workbar.innerHTML = `
+    <div class="ttv-workbar-left">
+      <div class="ttv-brand">VideoLab</div>
+      <div class="ttv-project-switcher">
+        <button class="ttv-project-button" id="ttv-project-toggle" type="button">未载入项目 ▼</button>
+        <div class="ttv-project-menu" id="ttv-project-menu">
+          <div class="ttv-menu-head">最近项目</div>
+          <div class="ttv-project-list" id="ttv-project-list"></div>
+          <button class="ttv-menu-action" id="ttv-create-project" type="button">+ 新建项目</button>
+          <button class="ttv-menu-action" id="ttv-reload-projects" type="button">刷新项目列表</button>
+        </div>
+      </div>
+      <button class="ttv-workbar-button" id="ttv-quick-create" type="button">+</button>
+    </div>
+    <div class="ttv-workbar-right">
+      <div class="ttv-workbar-status" id="ttv-workbar-status">自动保存</div>
+      <button class="ttv-workbar-button" id="ttv-workbar-compact" type="button">收纳</button>
+      <button class="ttv-workbar-button primary" id="ttv-workbar-export" type="button">导出</button>
+    </div>
+  `;
+  document.body.appendChild(workbar);
 
   const generatorLauncher = document.createElement("button");
   generatorLauncher.className = "ttv-generator-launcher";
@@ -390,6 +655,7 @@
 
   const g = (selector) => generatorPanel.querySelector(selector);
   const s = (selector) => storyboardPanel.querySelector(selector);
+  const w = (selector) => workbar.querySelector(selector);
 
   function setGeneratorOpen(open) {
     generatorPanel.classList.toggle("open", open);
@@ -400,6 +666,29 @@
   g("#ttv-close-generator").onclick = () => setGeneratorOpen(false);
   s("#ttv-open-generator").onclick = () => setGeneratorOpen(true);
   setGeneratorOpen(localStorage.getItem(generatorPanelStorageKey) !== "closed");
+
+  w("#ttv-project-toggle").onclick = async () => {
+    state.projectMenuOpen = !state.projectMenuOpen;
+    if (state.projectMenuOpen) {
+      await loadProjects().catch((error) => setStatus(error.message || String(error)));
+    }
+    renderWorkbar();
+  };
+  w("#ttv-create-project").onclick = () => createProject().catch((error) => setStatus(error.message || String(error)));
+  w("#ttv-quick-create").onclick = () => createProject().catch((error) => setStatus(error.message || String(error)));
+  w("#ttv-reload-projects").onclick = () => loadProjects().catch((error) => setStatus(error.message || String(error)));
+  w("#ttv-workbar-export").onclick = () => exportCurrentProject().catch((error) => setStatus(error.message || String(error)));
+  w("#ttv-workbar-compact").onclick = () => {
+    state.workbarCollapsed = !state.workbarCollapsed;
+    localStorage.setItem(workbarStorageKey, state.workbarCollapsed ? "collapsed" : "expanded");
+    renderWorkbar();
+  };
+  document.addEventListener("click", (event) => {
+    if (!workbar.contains(event.target) && state.projectMenuOpen) {
+      state.projectMenuOpen = false;
+      renderWorkbar();
+    }
+  });
 
   function setStatus(text) {
     g("#ttv-status").textContent = text;
@@ -518,6 +807,80 @@
     return payload.data;
   }
 
+  async function loadProjects() {
+    state.projects = await fetchJson(`${API}/api/projects`);
+    renderWorkbar();
+    return state.projects;
+  }
+
+  function currentProjectMeta() {
+    return state.projects.find((project) => project.id === state.project?.id) || null;
+  }
+
+  function renderWorkbar() {
+    workbar.classList.toggle("compact", state.workbarCollapsed);
+    const current = currentProjectMeta();
+    const title = state.project?.title || current?.title || "未载入项目";
+    w("#ttv-project-toggle").textContent = `${title} ▼`;
+    w("#ttv-project-menu").classList.toggle("open", state.projectMenuOpen);
+    w("#ttv-workbar-status").textContent = state.project?.id
+      ? `${state.project.scenes?.length || 0} 镜头 · 自动保存`
+      : "未载入项目";
+    w("#ttv-workbar-compact").textContent = state.workbarCollapsed ? "展开" : "收纳";
+    w("#ttv-project-list").innerHTML = state.projects.length
+      ? state.projects
+          .map(
+            (project) => `
+              <button class="ttv-project-item ${project.id === state.project?.id ? "active" : ""}" data-project="${escapeHtml(project.id)}" type="button">
+                ${project.id === state.project?.id ? "✓ " : ""}${escapeHtml(project.title || "未命名项目")}
+                <div class="ttv-project-meta">${project.sceneCount || 0} 镜头 · ${formatTime(project.updatedAt)}</div>
+              </button>
+            `,
+          )
+          .join("")
+      : `<div class="ttv-project-meta" style="padding:8px;">还没有项目。点“新建项目”或用右侧生成控制台生成。</div>`;
+    for (const button of workbar.querySelectorAll("[data-project]")) {
+      button.onclick = () => switchProject(button.dataset.project);
+    }
+  }
+
+  async function switchProject(projectId) {
+    if (!projectId) return;
+    state.projectMenuOpen = false;
+    const project = await loadProject(projectId);
+    if (project?.scenes?.length) {
+      setStoryboardOpen(true);
+      await applyProjectToStudioPreview(projectId);
+    } else {
+      setStatus("已切换到空项目。可以用右侧控制台生成内容，或继续选择已有项目。");
+      setStoryboardOpen(true);
+    }
+  }
+
+  async function createProject() {
+    const title = window.prompt("新项目名称", "未命名视频项目") || "";
+    const project = await fetchJson(`${API}/api/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    await loadProjects();
+    await switchProject(project.id);
+  }
+
+  async function exportCurrentProject() {
+    if (!state.project?.id) {
+      setStatus("还没有可导出的项目。");
+      return;
+    }
+    setStatus("正在总导出。");
+    state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/export`, { method: "POST" });
+    await loadProjects();
+    setStatus("导出完成。");
+    renderProject();
+    renderWorkbar();
+  }
+
   function selectedScene() {
     return state.project?.scenes.find((scene) => scene.id === state.selectedSceneId) || state.project?.scenes[0] || null;
   }
@@ -526,7 +889,9 @@
     state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(projectId)}`);
     state.selectedSceneId = selectedScene()?.id || "";
     localStorage.setItem("ttv.lastProjectId", projectId);
+    state.playheadMs = selectedScene()?.startMs || 0;
     renderProject();
+    renderWorkbar();
     return state.project;
   }
 
@@ -575,12 +940,14 @@
           )
           .join("")}
       </div>
+      ${renderTimeline(project)}
       ${scene ? renderSceneEditor(scene) : ""}
     `;
     for (const button of wrap.querySelectorAll("[data-scene]")) {
       button.onclick = () => {
         state.selectedSceneId = button.dataset.scene;
         state.candidates = [];
+        state.playheadMs = selectedScene()?.startMs || 0;
         renderProject();
         const next = selectedScene();
         if (next) seekPreview(next);
@@ -593,6 +960,174 @@
       renderProject();
     };
     if (scene) bindSceneEditor(scene);
+    bindTimeline(project);
+  }
+
+  function renderTimeline(project) {
+    const tracks = project.tracks || [];
+    const durationMs = Math.max(Number(project.durationMs || 0), ...tracks.flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0))));
+    if (!durationMs) {
+      return `<div class="ttv-timeline"><div class="ttv-status">时间线会在项目生成旁白和分镜后显示。</div></div>`;
+    }
+    const playheadLeft = clamp((state.playheadMs / durationMs) * 100, 0, 100);
+    return `
+      <div class="ttv-timeline">
+        <div class="ttv-timeline-head">
+          <span>剪辑时间线</span>
+          <span>${Math.round(durationMs / 100) / 10}s · 拖镜头排序 / 拉边裁剪</span>
+        </div>
+        <div class="ttv-timebar" data-timebar="true">
+          <div class="ttv-playhead" style="left:${playheadLeft}%"></div>
+        </div>
+        ${tracks
+          .filter((track) => ["audio", "material", "scene", "subtitle"].includes(track.type))
+          .map((track) => renderTrack(track, durationMs))
+          .join("")}
+      </div>
+    `;
+  }
+
+  function renderTrack(track, durationMs) {
+    return `
+      <div class="ttv-track" data-track="${escapeHtml(track.id)}">
+        <div class="ttv-track-name">${escapeHtml(track.name || track.type)}</div>
+        <div class="ttv-track-lane" data-lane="${escapeHtml(track.id)}">
+          ${track.clips.map((clip) => renderClip(clip, durationMs)).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderClip(clip, durationMs) {
+    const left = clamp((Number(clip.startMs || 0) / durationMs) * 100, 0, 100);
+    const width = Math.max(3, clamp(((Number(clip.endMs || 0) - Number(clip.startMs || 0)) / durationMs) * 100, 0, 100 - left));
+    const sceneId = clip.sceneId || (clip.type === "scene" ? clip.id : "");
+    const selected = sceneId && sceneId === state.selectedSceneId;
+    const draggable = clip.type === "scene" && !clip.locked;
+    return `
+      <div
+        class="ttv-clip ${escapeHtml(clip.type)} ${selected ? "selected" : ""}"
+        data-clip="${escapeHtml(clip.id)}"
+        data-scene="${escapeHtml(sceneId)}"
+        data-type="${escapeHtml(clip.type)}"
+        draggable="${draggable ? "true" : "false"}"
+        title="${escapeHtml(clip.title || clip.text || clip.type)}"
+        style="left:${left}%;width:${width}%"
+      >
+        ${clip.type === "scene" && !clip.locked ? `<span class="ttv-trim left" data-trim="left" data-scene="${escapeHtml(sceneId)}"></span>` : ""}
+        ${escapeHtml(clip.title || clip.text || clip.type)}
+        ${clip.type === "scene" && !clip.locked ? `<span class="ttv-trim right" data-trim="right" data-scene="${escapeHtml(sceneId)}"></span>` : ""}
+      </div>
+    `;
+  }
+
+  function bindTimeline(project) {
+    const timeline = s(".ttv-timeline");
+    if (!timeline) return;
+    const durationMs = Math.max(Number(project.durationMs || 0), ...((project.tracks || []).flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0)))));
+    for (const el of timeline.querySelectorAll("[data-scene]")) {
+      el.onclick = (event) => {
+        const trim = event.target.closest("[data-trim]");
+        if (trim) return;
+        const sceneId = el.dataset.scene;
+        if (!sceneId) return;
+        const scene = project.scenes.find((item) => item.id === sceneId);
+        if (!scene) return;
+        state.selectedSceneId = sceneId;
+        state.playheadMs = scene.startMs || 0;
+        state.candidates = [];
+        renderProject();
+        seekPreview(scene);
+      };
+    }
+    for (const lane of timeline.querySelectorAll("[data-lane='scene']")) {
+      lane.ondragover = (event) => event.preventDefault();
+      lane.ondrop = async (event) => {
+        event.preventDefault();
+        const dragged = state.timelineDragSceneId;
+        if (!dragged) return;
+        const rect = lane.getBoundingClientRect();
+        const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+        const scenes = [...project.scenes];
+        const from = scenes.findIndex((scene) => scene.id === dragged);
+        if (from < 0) return;
+        const to = Math.max(0, Math.min(scenes.length - 1, Math.floor(ratio * scenes.length)));
+        const [item] = scenes.splice(from, 1);
+        scenes.splice(to, 0, item);
+        state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(project.id)}/reorder`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sceneIds: scenes.map((scene) => scene.id) }),
+        });
+        state.timelineDragSceneId = "";
+        await loadProjects();
+        setStatus("镜头顺序已更新。需要看画面时点“刷新 Studio 预览”。");
+        renderProject();
+      };
+    }
+    for (const clip of timeline.querySelectorAll(".ttv-clip.scene")) {
+      clip.ondragstart = () => {
+        state.timelineDragSceneId = clip.dataset.scene || "";
+      };
+      clip.ondragend = () => {
+        state.timelineDragSceneId = "";
+      };
+    }
+    const timebar = timeline.querySelector("[data-timebar]");
+    if (timebar) {
+      timebar.onclick = (event) => {
+        const rect = timebar.getBoundingClientRect();
+        const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+        state.playheadMs = ratio * durationMs;
+        const scene = project.scenes.find((item) => state.playheadMs >= item.startMs && state.playheadMs <= item.endMs);
+        if (scene) {
+          state.selectedSceneId = scene.id;
+          seekPreview(scene);
+        }
+        renderProject();
+      };
+    }
+    for (const trim of timeline.querySelectorAll("[data-trim]")) {
+      trim.onmousedown = (event) => startTrim(event, project, trim.dataset.scene, trim.dataset.trim);
+    }
+  }
+
+  function startTrim(event, project, sceneId, side) {
+    event.preventDefault();
+    event.stopPropagation();
+    const scene = project.scenes.find((item) => item.id === sceneId);
+    if (!scene || scene.locked) return;
+    const lane = event.currentTarget.closest(".ttv-track-lane");
+    const rect = lane.getBoundingClientRect();
+    const durationMs = Math.max(Number(project.durationMs || 0), ...((project.tracks || []).flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0)))));
+    const onMove = (moveEvent) => {
+      const ratio = clamp((moveEvent.clientX - rect.left) / rect.width, 0, 1);
+      const nextMs = Math.round(ratio * durationMs);
+      state.playheadMs = nextMs;
+      if (side === "left") {
+        s("#ttv-start-ms").value = Math.min(nextMs, Number(s("#ttv-end-ms").value) - 300);
+      } else {
+        s("#ttv-end-ms").value = Math.max(nextMs, Number(s("#ttv-start-ms").value) + 300);
+      }
+    };
+    const onUp = async () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      const patch = {
+        startMs: Number(s("#ttv-start-ms").value),
+        endMs: Number(s("#ttv-end-ms").value),
+      };
+      state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(project.id)}/scenes/${encodeURIComponent(scene.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patch }),
+      });
+      await loadProjects();
+      setStatus("片段裁剪已保存。需要看画面时点“刷新 Studio 预览”。");
+      renderProject();
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   }
 
   function renderSceneEditor(scene) {
@@ -709,6 +1244,21 @@
       .replace(/"/g, "&quot;");
   }
 
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
+  }
+
+  function formatTime(value) {
+    const date = new Date(Number(value || 0));
+    if (!Number.isFinite(date.getTime()) || date.getTime() <= 0) return "未知时间";
+    return date.toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   g("#ttv-mode").onchange = () => {
     const auto = g("#ttv-mode").value === "auto-scenes";
     g("#ttv-template").disabled = auto;
@@ -758,14 +1308,7 @@
   };
 
   g("#ttv-export").onclick = async () => {
-    if (!state.project?.id) {
-      setStatus("还没有可导出的项目。");
-      return;
-    }
-    setStatus("正在总导出。");
-    state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/export`, { method: "POST" });
-    setStatus("导出完成。");
-    renderProject();
+    await exportCurrentProject();
   };
 
   async function poll() {
@@ -779,6 +1322,7 @@
         g("#ttv-generate").disabled = false;
         if (job.result?.projectId) {
           const project = await loadProject(job.result.projectId);
+          await loadProjects().catch(() => {});
           if (project.scenes?.length) {
             setStoryboardOpen(true);
             await applyProjectToStudioPreview(job.result.projectId);
@@ -803,7 +1347,9 @@
   restoreProgress();
   translateStudioUi();
   ensureDocked();
+  renderWorkbar();
   renderProject();
+  loadProjects().catch((error) => setStatus(error.message || String(error)));
   const observer = new MutationObserver(() => {
     window.requestAnimationFrame(() => {
       translateStudioUi();

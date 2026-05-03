@@ -56,7 +56,11 @@
     "exportVideoProject": "scripts/export-video-project.mjs",
     "videoProjectEditor": "frontend/video-project.html",
     "studioVideoPlugin": "frontend/remotion-studio-plugin.js",
-    "studioStoryboardTab": "frontend/remotion-studio-plugin.js#right-sidebar-storyboard-tab",
+    "studioWorkbar": "frontend/remotion-studio-plugin.js#ttv-workbar",
+    "studioStoryboardTab": "frontend/remotion-studio-plugin.js#left-explorer-storyboard-tab",
+    "studioTimeline": "frontend/remotion-studio-plugin.js#ttv-timeline",
+    "projectListApi": "GET /api/projects",
+    "createProjectApi": "POST /api/projects",
     "projectPropsApi": "GET /api/projects/:id/props"
   },
   "historyDataFlow": {
@@ -168,7 +172,9 @@
     "project-to-remotion-export",
     "project-operation-history",
     "studio-integrated-video-generation",
-    "studio-right-sidebar-storyboard-tab",
+    "studio-top-project-workbar",
+    "studio-left-explorer-storyboard-tab",
+    "studio-compact-multitrack-timeline",
     "studio-native-preview-input-props-loading"
   ],
   "mainConfigFields": {
