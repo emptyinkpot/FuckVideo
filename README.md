@@ -1984,10 +1984,13 @@ SinoJapaneseWarDemo
   -> 项目切换 / 新建项目 / 收纳 / 导出
 
 左侧 分镜 页签
-  -> 分镜列表 / 当前分镜属性 / 素材候选 / 多轨道时间线
+  -> 分镜列表 / 当前分镜属性 / 素材候选
 
 中央 Remotion Studio 预览
   -> 仍然复用 MultiSceneVideo composition
+
+底部 Remotion 原生时间线
+  -> 多轨道剪辑时间线 / 拖镜头排序 / 拉边裁剪
 
 右侧 生成视频 控制台
   -> 文案输入 / 任务进度 / 刷新预览 / 打开当前成片
@@ -2078,9 +2081,9 @@ async function switchProject(projectId) {
 - 顶部项目栏默认必须 dock 到 Remotion 原生 `Help / 帮助` 后面；悬浮只允许作为找不到原生菜单时的 fallback。
 - 右侧生成控制台不能让 `生成视频` 启动按钮继续漂在画面中央边缘；启动按钮必须优先并列在 Remotion 原生 `渲染` 按钮旁边，控制台打开时必须隐藏。
 - 左侧分镜不能完全依赖 Remotion explorer 是否可见；如果原生左栏在窄屏下消失，必须出现 `button.ttv-storyboard-launcher` 作为 fallback。
-- 左侧分镜不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 分镜列表 -> 时间线 -> 当前分镜编辑器。
+- 左侧分镜不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 分镜列表 -> 当前分镜编辑器；多轨道时间线必须 dock 到 Remotion 原生底部时间线。
 - 左侧双按钮不能在窄栏里用普通 flex 横排硬挤，必须用 `grid-template-columns: 1fr 1fr` 或上下堆叠。
-- 任何主面板里不能出现滚轮套滚轮。左侧分镜只允许 `.ttv-body` 一个滚动容器；分镜列表、时间线、当前编辑器都不再单独滚动。
+- 任何主面板里不能出现滚轮套滚轮。左侧分镜只允许 `.ttv-body` 一个滚动容器；分镜列表和当前编辑器都不再单独滚动，底部时间线也不能再塞回左侧滚动区。
 - 同一个动作只能保留一个主入口：总导出只在顶部工作栏；右侧生成控制台不再放第二个“总导出”；左侧分镜不再放“打开生成控制台”。
 
 #### 15.8.2 多轨道时间线
@@ -2100,12 +2103,10 @@ scene     镜头片段
 subtitle  字幕片段
 ```
 
-左侧分镜页签会渲染：
+底部原生时间线区域会渲染：
 
 ```text
-div.ttv-project-shell
-div.ttv-row-actions
-div.ttv-scene-list.compact
+section.ttv-native-timeline-dock
 div.ttv-timeline
 div.ttv-timebar
 div.ttv-track
@@ -2125,13 +2126,21 @@ span.ttv-trim.left/right
   background: #121212;
 }
 
-.ttv-project-shell {
-  display: grid;
-  gap: 10px;
+.ttv-native-timeline-dock.docked {
+  width: 100%;
+  flex: 1 0 100%;
+  grid-column: 1 / -1;
+  order: 999;
+  padding: 0 10px 8px;
 }
 
-.ttv-scene-list.compact {
-  padding-right: 2px;
+.ttv-native-timeline-dock.floating {
+  position: fixed;
+  left: 360px;
+  right: 420px;
+  bottom: 12px;
+  max-height: 218px;
+  overflow: hidden;
 }
 
 .ttv-timebar {
@@ -2172,6 +2181,7 @@ span.ttv-trim.left/right
 - 拖动镜头 clip 左右裁剪手柄会修改 `startMs/endMs`，松手后调用 `PATCH /api/projects/:id/scenes/:sceneId` 保存。
 - 已锁定分镜不允许裁剪和拖拽。
 - 原生 Remotion 左侧栏不可用时，`body.ttv-storyboard-undocked` 会把分镜面板挂到 `document.body`，并显示左侧 fallback 按钮。
+- 底部时间线由 `ensureTimelineDocked()` 查找 Remotion 原生 `Timeline / 时间线` 区域并插入；只有找不到原生底部时间线时才使用 `.ttv-native-timeline-dock.floating` 降级显示。
 - 短 clip 宽度不足 `7%` 时使用 `.dense` 隐藏文本，避免小屏时间线互相压字。
 
 这不是完整剪映时间线，但已经把数据层从 `scenes[]` 升级为 `tracks/clips`。后续加波形、吸附、快捷键、撤销重做时必须复用这个结构。
@@ -2764,9 +2774,10 @@ http://127.0.0.1:3057/MultiSceneVideo
 
 生成完成后，Studio 插件会自动加载项目 props 并切到 `MultiSceneVideo`。`/video-project/:id` 仍保留为备用调试页面，但它不是主工作流。当前内嵌编辑闭环：
 
-- 右侧浮层：文案生成、生成模式、TTS 指令、生成进度、刷新预览、总导出。
+- 右侧浮层：文案生成、生成模式、TTS 指令、生成进度、刷新预览、打开当前成片。
 - 左侧 `分镜` 页签：分镜列表、当前分镜属性、素材候选。
 - 中央画布：Remotion Studio 原生 `MultiSceneVideo` 预览。
+- 底部原生时间线：多轨道剪辑条、播放头、镜头排序、拉边裁剪。
 - 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定分镜、重配素材、替换素材、总导出。
 - 修改分镜后点击右侧控制台的“刷新 Studio 预览”，插件会重新写入 Remotion input props override 并刷新 Studio。
 

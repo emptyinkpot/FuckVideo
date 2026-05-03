@@ -310,6 +310,36 @@
       font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
     }
     .ttv-storyboard-panel.open { display: grid; grid-template-rows: auto 1fr; }
+    .ttv-native-timeline-dock {
+      display: none;
+      min-width: 0;
+      font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .ttv-native-timeline-dock.open {
+      display: block;
+    }
+    .ttv-native-timeline-dock.docked {
+      width: 100%;
+      flex: 1 0 100%;
+      grid-column: 1 / -1;
+      order: 999;
+      box-sizing: border-box;
+      padding: 0 10px 8px;
+    }
+    .ttv-native-timeline-dock.docked .ttv-timeline {
+      border-radius: 8px;
+      border-color: rgba(255,255,255,.08);
+      box-shadow: none;
+    }
+    .ttv-native-timeline-dock.floating {
+      position: fixed;
+      left: 360px;
+      right: 420px;
+      bottom: 12px;
+      z-index: 2147482998;
+      max-height: 218px;
+      overflow: hidden;
+    }
     .ttv-generator-launcher {
       z-index: 2147483000;
       height: 34px;
@@ -783,6 +813,11 @@
     </div>
   `;
 
+  const timelineDock = document.createElement("section");
+  timelineDock.className = "ttv-native-timeline-dock";
+  timelineDock.setAttribute("aria-label", "剪辑时间线");
+  document.body.appendChild(timelineDock);
+
   const sideTab = document.createElement("button");
   sideTab.type = "button";
   sideTab.className = "ttv-side-tab";
@@ -903,7 +938,7 @@
 
   function findHelpMenuItem() {
     const candidates = Array.from(document.querySelectorAll("button, a, div, span")).filter((el) => {
-      if (workbar.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el)) return false;
+      if (workbar.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el) || timelineDock.contains(el)) return false;
       return normalize(el.textContent) === "help" || normalize(el.textContent) === "帮助";
     });
     return candidates.find((el) => {
@@ -930,7 +965,7 @@
 
   function findNativeRenderButton() {
     const candidates = Array.from(document.querySelectorAll("button, [role='button']")).filter((el) => {
-      if (workbar.contains(el) || generatorLauncher.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el)) return false;
+      if (workbar.contains(el) || generatorLauncher.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el) || timelineDock.contains(el)) return false;
       const text = normalize(el.textContent);
       return text === "render" || text === "渲染";
     });
@@ -953,6 +988,47 @@
     }
     generatorLauncher.classList.add("docked");
     generatorLauncher.classList.remove("floating");
+  }
+
+  function findNativeTimelinePanel() {
+    const labels = Array.from(document.querySelectorAll("button, [role='button'], div, span")).filter((el) => {
+      if (workbar.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el) || timelineDock.contains(el)) return false;
+      const text = normalize(el.textContent);
+      if (text !== "timeline" && text !== "时间线") return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.top > window.innerHeight * 0.45;
+    });
+    for (const label of labels) {
+      let node = label.parentElement;
+      for (let depth = 0; node && depth < 7; depth += 1) {
+        const rect = node.getBoundingClientRect();
+        if (rect.width > Math.min(520, window.innerWidth * 0.45) && rect.top > window.innerHeight * 0.42) {
+          return node;
+        }
+        node = node.parentElement;
+      }
+    }
+    return null;
+  }
+
+  function ensureTimelineDocked() {
+    if (!state.project) {
+      timelineDock.classList.remove("open", "docked", "floating");
+      timelineDock.innerHTML = "";
+      return;
+    }
+    const nativeTimeline = findNativeTimelinePanel();
+    if (!nativeTimeline) {
+      if (timelineDock.parentElement !== document.body) document.body.appendChild(timelineDock);
+      timelineDock.classList.add("open", "floating");
+      timelineDock.classList.remove("docked");
+      return;
+    }
+    if (timelineDock.parentElement !== nativeTimeline) {
+      nativeTimeline.appendChild(timelineDock);
+    }
+    timelineDock.classList.add("open", "docked");
+    timelineDock.classList.remove("floating");
   }
 
   function normalize(value) {
@@ -1129,6 +1205,7 @@
     if (!project) {
       wrap.innerHTML = `<div class="ttv-status">还没有项目。先用右侧生成控制台生成初版视频。</div>`;
       g("#ttv-open-video").removeAttribute("href");
+      renderTimelineDock();
       return;
     }
     const scene = selectedScene();
@@ -1151,7 +1228,6 @@
             )
             .join("")}
         </div>
-        ${renderTimeline(project)}
         <div class="ttv-scene-editor">
           ${scene ? renderSceneEditor(scene) : ""}
         </div>
@@ -1174,7 +1250,14 @@
       renderProject();
     };
     if (scene) bindSceneEditor(scene);
-    bindTimeline(project);
+    renderTimelineDock();
+  }
+
+  function renderTimelineDock() {
+    ensureTimelineDocked();
+    if (!state.project) return;
+    timelineDock.innerHTML = renderTimeline(state.project);
+    bindTimeline(state.project);
   }
 
   function renderTimeline(project) {
@@ -1237,7 +1320,7 @@
   }
 
   function bindTimeline(project) {
-    const timeline = s(".ttv-timeline");
+    const timeline = timelineDock.querySelector(".ttv-timeline");
     if (!timeline) return;
     const durationMs = Math.max(Number(project.durationMs || 0), ...((project.tracks || []).flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0)))));
     for (const el of timeline.querySelectorAll("[data-scene]")) {
@@ -1559,6 +1642,7 @@
   translateStudioUi();
   ensureWorkbarDocked();
   ensureGeneratorLauncherDocked();
+  ensureTimelineDocked();
   ensureDocked();
   renderWorkbar();
   renderProject();
@@ -1568,6 +1652,7 @@
       translateStudioUi();
       ensureWorkbarDocked();
       ensureGeneratorLauncherDocked();
+      ensureTimelineDocked();
       ensureDocked();
     });
   });
