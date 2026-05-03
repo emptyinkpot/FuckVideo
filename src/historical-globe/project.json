@@ -48,6 +48,10 @@
     "scenePlanner": "scripts/scene-planner.mjs",
     "textToScenesVideo": "scripts/text-to-scenes-video.mjs",
     "textToScenesTtsVideo": "scripts/text-to-scenes-tts-video.mjs",
+    "timelineAligner": "scripts/timeline-aligner.mjs",
+    "assetIndexer": "scripts/asset-indexer.mjs",
+    "assetMatcher": "scripts/asset-matcher.mjs",
+    "sceneAssetPlanner": "scripts/scene-asset-planner.mjs",
     "studioVideoPlugin": "frontend/remotion-studio-plugin.js"
   },
   "historyDataFlow": {
@@ -144,7 +148,14 @@
     "portrait-focus-template",
     "concept-diagram-template",
     "metaphor-visual-template",
+    "footage-scene-template",
     "tts-to-multiscene-video-pipeline",
+    "audio-driven-scene-timeline",
+    "caption-aligned-scene-frames",
+    "local-footage-asset-index",
+    "visual-layer-footage-selection",
+    "tag-and-description-asset-matching",
+    "optional-embedding-rerank-extension-point",
     "studio-integrated-video-generation"
   ],
   "mainConfigFields": {
@@ -182,6 +193,8 @@
   "commands": {
     "startStudio": "npm run dev",
     "planScenes": "npm run plan-scenes -- --text-file input.txt --output public/generated/scenes-demo.json",
+    "indexAssets": "npm run index-assets",
+    "matchAssets": "npm run match-assets -- --scenes=public/generated/scenes-demo.json --output=public/generated/scenes-with-assets.json",
     "textToScenesVideo": "npm run text-to-scenes-video -- --text-file input.txt --title \"自动镜头视频\" --output out/auto-scenes-video.mp4",
     "listCompositions": "npx remotion compositions src/index.ts",
     "lint": "npm run lint",
@@ -190,6 +203,8 @@
   },
   "knownLimitations": [
     "The automatic scene DSL exists for template-directed videos, but historical fact extraction is still rule/manifest-driven rather than a fully sourced research agent.",
+    "Audio-driven scene timing depends on SRT/captions quality. Without captions, the pipeline still estimates scene durations from text and stretches to total audio length.",
+    "Footage retrieval is currently local tag/description scoring. Embedding rerank is designed as an extension point but is not enabled by default.",
     "Only lightweight camera interpolation exists; no full camera keyframe system yet.",
     "Engine layers are not fully split into CountriesLayer, ProvincesLayer, DisputedLayer, LabelsLayer, and LightingLayer.",
     "Scenario configuration is still TypeScript-based rather than external JSON.",

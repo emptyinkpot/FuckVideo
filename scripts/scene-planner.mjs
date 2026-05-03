@@ -16,6 +16,7 @@ const rhythm = [
   "ConceptDiagram",
   "MapRouteFlyover",
   "MetaphorVisual",
+  "FootageScene",
   "NarratedScene",
 ];
 
@@ -25,6 +26,7 @@ const sceneTypeByCategory = {
   person: "character_focus",
   concept: "concept_explain",
   metaphor: "metaphor_visual",
+  footage: "footage_context",
   map: "geo_context",
   narration: "narration_bridge",
 };
@@ -78,6 +80,7 @@ export function makeVisualBeat(blockText, index) {
   const keywords = extractKeywords(blockText);
   const sceneType = inferSceneType(blockText);
   const visualIntent = buildVisualIntent(sceneType, blockText, keywords);
+  const visualIntentData = buildVisualIntentData(sceneType, blockText, keywords);
   return {
     id: `scene-${String(index + 1).padStart(3, "0")}`,
     index,
@@ -85,6 +88,7 @@ export function makeVisualBeat(blockText, index) {
     text: blockText,
     sceneType,
     visualIntent,
+    visualIntentData,
     keywords,
   };
 }
@@ -166,6 +170,19 @@ export function buildSceneProps(templateId, beat) {
       toLabel: /日本/.test(blockText) ? "日本" : "去向",
       objectLabel: keywords.find((keyword) => /铁路|关东州|利权|租借地/.test(keyword)) || "权益",
       tone: "historical",
+    };
+  }
+
+  if (templateId === "FootageScene") {
+    return {
+      ...common,
+      title,
+      subtitle: beat.visualIntent,
+      src: "",
+      showTitle: true,
+      fit: "cover",
+      darken: 0.28,
+      zoom: 1.08,
     };
   }
 
@@ -289,6 +306,48 @@ function buildVisualIntent(sceneType, text, keywords) {
     narration_bridge: `承接旁白信息，作为下一组视觉解释的过渡：${focus}`,
   };
   return map[sceneType] || map.narration_bridge;
+}
+
+function buildVisualIntentData(sceneType, text, keywords) {
+  const value = String(text || "");
+  const base = {
+    type: sceneType,
+    keywords,
+    objects: keywords.slice(0, 4),
+    action: "explain",
+  };
+  if (sceneType === "metaphor_visual") {
+    return {
+      ...base,
+      action: /转让|放入|易手|衣袋/.test(value) ? "transfer" : "compare",
+      from: /俄国/.test(value) ? "俄国" : "",
+      to: /日本/.test(value) ? "日本" : "",
+      objects: keywords.filter((keyword) => !["俄国", "日本"].includes(keyword)).slice(0, 3),
+    };
+  }
+  if (sceneType === "geo_context" || sceneType === "establishing_map") {
+    return {
+      ...base,
+      action: /铁路|路线|流向/.test(value) ? "route" : "locate",
+      locations: keywords,
+    };
+  }
+  if (sceneType === "document_evidence" || sceneType === "quote_evidence") {
+    return {
+      ...base,
+      action: "show_evidence",
+      evidenceType: sceneType === "quote_evidence" ? "quote" : "document",
+      highlightWords: keywords.slice(0, 4),
+    };
+  }
+  if (sceneType === "concept_explain") {
+    return {
+      ...base,
+      action: "diagram",
+      nodes: buildConceptNodes(value, keywords),
+    };
+  }
+  return base;
 }
 
 function scoreTemplate(beat, template, previousScene) {

@@ -46,6 +46,7 @@ import {
   PortraitFocus,
   QuoteReveal,
 } from "./templates/AutoSceneTemplates";
+import { FootageScene } from "./templates/FootageScene";
 
 const templateIdSchema = z.enum([
   "DocumentReveal",
@@ -53,6 +54,7 @@ const templateIdSchema = z.enum([
   "PortraitFocus",
   "ConceptDiagram",
   "MetaphorVisual",
+  "FootageScene",
   "SinoJapaneseWarDemo",
   "HistoricalGlobeTexture1938",
   "AtlasMapFlyover",
@@ -142,6 +144,16 @@ const metaphorVisualSchema = z.object({
   tone: z.enum(["historical", "dark", "clean", "dramatic"]).optional(),
 });
 
+const footageSceneSchema = z.object({
+  src: z.string().optional(),
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  fit: z.enum(["cover", "contain"]).optional(),
+  darken: z.number().min(0).max(0.85).optional(),
+  zoom: z.number().min(1).max(1.5).optional(),
+  showTitle: z.boolean().optional(),
+});
+
 const autoSceneTemplateIdSchema = z.enum([
   "DocumentReveal",
   "QuoteReveal",
@@ -152,8 +164,22 @@ const autoSceneTemplateIdSchema = z.enum([
   "MapRouteFlyover",
   "HistoricalGlobeTexture1938",
   "PromptTextRotation",
+  "FootageScene",
   "NarratedScene",
 ]);
+
+const visualLayerSchema = z
+  .object({
+    type: z.enum(["template", "footage", "template_with_footage_hint"]),
+    templateId: z.string().optional(),
+    clipId: z.string().optional(),
+    path: z.string().optional(),
+    title: z.string().optional(),
+    confidence: z.number().optional(),
+    reason: z.string().optional(),
+    fallbackTemplateId: z.string().optional(),
+  })
+  .optional();
 
 const autoSceneSchema = z.object({
   id: z.string(),
@@ -162,6 +188,7 @@ const autoSceneSchema = z.object({
   sceneType: z.string().optional(),
   narrationText: z.string().optional(),
   visualIntent: z.string().optional(),
+  visualIntentData: z.record(z.string(), z.unknown()).optional(),
   templateId: autoSceneTemplateIdSchema,
   category: z.string().optional(),
   durationSec: z.number().optional(),
@@ -169,6 +196,7 @@ const autoSceneSchema = z.object({
   durationInFrames: z.number().int().min(1),
   keywords: z.array(z.string()).optional(),
   decisionReason: z.string().optional(),
+  visualLayer: visualLayerSchema,
   props: z.record(z.string(), z.unknown()),
 });
 
@@ -420,6 +448,16 @@ const metaphorVisualDefaultProps: z.input<typeof metaphorVisualSchema> = {
   tone: "historical",
 };
 
+const footageSceneDefaultProps: z.input<typeof footageSceneSchema> = {
+  src: "",
+  title: "本地素材片段",
+  subtitle: "把视频放进 public/footage 后，可由素材检索系统自动调用。",
+  fit: "cover",
+  darken: 0.26,
+  zoom: 1.06,
+  showTitle: true,
+};
+
 const claudeTyperDefaultProps: z.input<typeof claudeTyperSchema> = {
   prompt: "生成一套可复用的 Remotion 动画模板系统。",
   backgroundColor: "#15130f",
@@ -628,6 +666,16 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={metaphorVisualDefaultProps}
+      />
+      <Composition
+        id="FootageScene"
+        component={FootageScene}
+        schema={footageSceneSchema}
+        durationInFrames={180}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={footageSceneDefaultProps}
       />
       <Composition
         id="MultiSceneVideo"

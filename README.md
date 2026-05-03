@@ -11,7 +11,9 @@ Remotion Studio 模板预览与参数编辑
   + 自动镜头规划
   + 现有 Remotion 模板复用
   + 自动音频格式标准化
+  + 音频驱动镜头时间轴
   + 可选字幕文件
+  + 本地素材库检索与素材镜头混合
   + 一键渲染 MP4
 ```
 
@@ -27,7 +29,7 @@ Remotion Studio 模板预览与参数编辑
 
 - `src/Root.tsx` 注册全部 Remotion compositions。
 - 每个 composition 都有 `schema` 和 `defaultProps`。
-- Remotion Studio 中 29 个合成都能显示 props 编辑区。
+- Remotion Studio 中 30 个合成都能显示 props 编辑区。
 - 多数模板参数会真实影响画面，不是只挂一个空 schema。
 
 第二层是文本生成视频链路：
@@ -38,6 +40,8 @@ Remotion Studio 模板预览与参数编辑
 - 用 `ffmpeg` 转成 Remotion Studio 更稳定识别的标准 MP3。
 - 根据音频时长计算视频时长。
 - 可选调用字幕接口生成 SRT。
+- 如果存在 SRT/captions，自动镜头会按音频真实时间重新分配 `fromFrame` 和 `durationInFrames`。
+- 如果存在 `public/generated/asset-index.json`，自动镜头会尝试匹配 `public/footage/` 下的素材。
 - 使用 `GeneratedTemplateVideo` 包装已有模板并叠加音频/字幕。
 - 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
 - 调用 Remotion CLI 渲染 MP4。
@@ -188,6 +192,10 @@ remotion-project/
   scripts/
     text-to-video.mjs               命令行生成视频主链路
     scene-planner.mjs               文本拆块、关键词提取、镜头模板匹配
+    timeline-aligner.mjs            用 SRT/captions 把镜头贴到音频真实时间轴
+    asset-indexer.mjs               扫描 public/footage 生成素材索引草稿
+    asset-matcher.mjs               根据 sceneType、visualIntent、tags 匹配素材
+    scene-asset-planner.mjs         给已有 scenes JSON 补充 visualLayer 素材信息
     text-to-scenes-video.mjs        只生成/渲染多镜头视频，不调用 TTS
     text-to-scenes-tts-video.mjs    一站式：TTS + 自动镜头 + Remotion 渲染
     video-ui-server.mjs             本地任务 API 与静态页面服务
@@ -202,6 +210,7 @@ remotion-project/
       MultiSceneVideo.tsx           多镜头视频容器：Sequence 时间轴拼接
       DocumentReveal.tsx            条约/文件/档案类镜头模板
       AutoSceneTemplates.tsx        人物、引文、概念、隐喻四类解释型镜头模板
+      FootageScene.tsx              本地素材片段镜头模板
       sceneRegistry.tsx             自动镜头 templateId -> Remotion 组件映射
       template-manifest.json        模板语义说明书，供 planner 理解模板用途
       NarratedVideo.tsx             通用旁白视频模板
@@ -223,6 +232,7 @@ remotion-project/
 
   public/
     generated/                      生成后的 MP3、SRT、props JSON
+    footage/                        本地影视/历史/实拍素材库
     geojson/                        历史地球 GeoJSON 数据
     maps/                           地图纹理
 
@@ -322,9 +332,9 @@ src/Root.tsx
 当前合成总数：
 
 ```text
-29 个 Composition
-29 个 schema
-29 个 defaultProps
+30 个 Composition
+30 个 schema
+30 个 defaultProps
 ```
 
 也就是说，每个合成都能在 Remotion Studio 里显示可编辑 props 面板。
@@ -418,6 +428,20 @@ src/Root.tsx
 - `toLabel`
 - `objectLabel`
 - `tone`
+
+`FootageScene`
+
+用途：播放 `public/footage/` 下的本地素材片段。自动镜头系统匹配到高相关素材时，会通过 `visualLayer.type = "footage"` 调用它。
+
+主要参数：
+
+- `src`
+- `title`
+- `subtitle`
+- `fit`
+- `darken`
+- `zoom`
+- `showTitle`
 
 `MultiSceneVideo`
 
@@ -762,6 +786,8 @@ out/*.mp4
 --voice            音色，默认 my-clone
 --max-chars        每个镜头块的目标最大字符数，默认 130
 --skip-srt         是否跳过字幕
+--match-assets     是否匹配 public/generated/asset-index.json，默认 true
+--asset-index      素材索引路径，默认 public/generated/asset-index.json
 --no-render        只生成音频/镜头/props，不渲染视频
 --output           输出 MP4 路径
 --json             是否输出 TEXT_TO_VIDEO_RESULT
@@ -923,6 +949,18 @@ POST /srt
 ```
 
 如果字幕接口失败，脚本会继续渲染只有音频的视频，不会直接中断。
+
+自动镜头模式会优先使用字幕时间轴对齐画面：
+
+```text
+TTS 音频
+  -> SRT/captions
+  -> scripts/timeline-aligner.mjs
+  -> 重新计算每个 scene 的 fromFrame / durationInFrames
+  -> MultiSceneVideo 按音频真实时间切镜头
+```
+
+也就是说，一站式生成时如果没有跳过字幕，画面时长不再只按文本长度估算，而是尽量贴着语音识别时间走。当前实现依赖 `/srt` 返回的句段时间戳；后续如果接本地 Whisper/faster-whisper，只需要让它输出同样的 captions/SRT 结构即可。
 
 ## 13. Web 任务 API
 
@@ -1124,6 +1162,7 @@ QuoteReveal                   引文揭示
 PortraitFocus                 人物身份卡
 ConceptDiagram                概念关系图
 MetaphorVisual                隐喻可视化
+FootageScene                  本地素材片段
 SinoJapaneseWarDemo          中日战争历史地球
 HistoricalGlobeTexture1938   1938 历史地球纹理
 AtlasMapFlyover              世界地图飞越
@@ -1174,6 +1213,7 @@ src/templates/GeneratedTemplateVideo.tsx
 src/templates/MultiSceneVideo.tsx
 src/templates/DocumentReveal.tsx
 src/templates/AutoSceneTemplates.tsx
+src/templates/FootageScene.tsx
 src/templates/sceneRegistry.tsx
 src/templates/template-manifest.json
 ```
@@ -1212,7 +1252,24 @@ ffprobe 读时长
 把 TTS 音频、字幕和 scenes 送入 MultiSceneVideo
 ```
 
-8. 写 `scripts/video-ui-server.mjs`：
+8. 写 `scripts/timeline-aligner.mjs`：
+
+```text
+读取 captions/SRT
+按旁白文本长度把 captions 分组到 scenes
+用字幕 start/end 重新计算 fromFrame 和 durationInFrames
+没有 captions 时才使用文本估算时长
+```
+
+9. 写 `scripts/asset-indexer.mjs`、`scripts/asset-matcher.mjs` 和 `scripts/scene-asset-planner.mjs`：
+
+```text
+扫描 public/footage
+生成 public/generated/asset-index.json
+用 sceneType / visualIntent / keywords / tags / bestFor 给 scenes 追加 visualLayer
+```
+
+10. 写 `scripts/video-ui-server.mjs`：
 
 ```text
 GET /video-generator
@@ -1222,7 +1279,7 @@ GET /api/jobs/:id
 GET /files/:id
 ```
 
-9. 写 `frontend/remotion-studio-plugin.js`：
+11. 写 `frontend/remotion-studio-plugin.js`：
 
 ```text
 生成视频按钮
@@ -1233,14 +1290,14 @@ GET /files/:id
 Studio 中文化替换
 ```
 
-10. 写 `scripts/studio-plugin-proxy.mjs`：
+12. 写 `scripts/studio-plugin-proxy.mjs`：
 
 ```text
 代理 Remotion Studio
 注入 studio-plugin.js
 ```
 
-11. 写 `scripts/studio-with-video-ui.mjs`：
+13. 写 `scripts/studio-with-video-ui.mjs`：
 
 ```text
 同时启动 video-ui-server
@@ -1248,7 +1305,7 @@ Studio 中文化替换
 启动 studio-plugin-proxy
 ```
 
-12. 在 `package.json` 增加：
+14. 在 `package.json` 增加：
 
 ```json
 {
@@ -1258,6 +1315,8 @@ Studio 中文化替换
     "plan-scenes": "node scripts/scene-planner.mjs",
     "text-to-scenes-video": "node scripts/text-to-scenes-video.mjs",
     "text-to-scenes-tts-video": "node scripts/text-to-scenes-tts-video.mjs",
+    "index-assets": "node scripts/asset-indexer.mjs",
+    "match-assets": "node scripts/scene-asset-planner.mjs",
     "text-to-video": "node scripts/text-to-video.mjs",
     "video-ui": "node scripts/video-ui-server.mjs",
     "lint": "eslint src && tsc"
@@ -1265,10 +1324,11 @@ Studio 中文化替换
 }
 ```
 
-13. 建立素材目录：
+15. 建立素材目录：
 
 ```text
 public/generated/
+public/footage/
 public/maps/
 public/geojson/
 .runtime/text-to-video/jobs/
@@ -1276,7 +1336,7 @@ public/geojson/
 out/
 ```
 
-14. 跑验证：
+16. 跑验证：
 
 ```console
 npm run lint
@@ -1298,7 +1358,7 @@ npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
 
-预期能看到 29 个合成。
+预期能看到 30 个合成。
 
 schema 覆盖验证：
 
@@ -1314,9 +1374,9 @@ $root = Get-Content -Raw src\Root.tsx
 当前应为：
 
 ```text
-CompositionTags : 29
-SchemaProps     : 29
-DefaultProps    : 29
+CompositionTags : 30
+SchemaProps     : 30
+DefaultProps    : 30
 ```
 
 运行态验证：
@@ -1443,9 +1503,11 @@ http://127.0.0.1:3037
 
 - Remotion Studio 可运行。
 - 生成视频扩展已集成到 Studio 页面。
-- 29 个合成都已注册 schema 和 defaultProps。
+- 30 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
 - 自动镜头系统使用 `MultiSceneVideo`，可以把长文拆成多镜头时间轴。
+- 自动镜头系统会在有 captions/SRT 时使用音频真实时间轴对齐镜头。
+- 素材检索系统可以扫描 `public/footage/`，并把匹配到的素材写入 scene 的 `visualLayer`。
 - TTS 音频会统一转成标准 MP3。
 - 可选 SRT 字幕。
 - 输出视频落到 `out/`。
@@ -1465,12 +1527,14 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 当前链路：
 
 ```text
-文本
+文本 + TTS 音频
   -> scripts/scene-planner.mjs 拆句
   -> semanticBlocks
   -> visualBeats
   -> template-manifest.json 召回候选模板
   -> manifest 打分与模板轮换
+  -> captions/SRT 可选对齐到音频真实时间轴
+  -> asset-index.json 可选检索本地素材
   -> scenes JSON
   -> MultiSceneVideo
   -> Remotion Sequence 按时间轴拼接多个模板
@@ -1479,9 +1543,14 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 新增文件：
 
 - `scripts/scene-planner.mjs`：文本拆块、关键词提取、视觉意图生成、manifest 打分、模板轮换、scene props 生成。
+- `scripts/timeline-aligner.mjs`：用 captions/SRT 把 scene 的 `fromFrame` 和 `durationInFrames` 改成音频驱动。
+- `scripts/asset-indexer.mjs`：扫描 `public/footage/`，生成素材索引草稿。
+- `scripts/asset-matcher.mjs`：用 sceneType、visualIntent、keywords、tags、bestFor 给 scene 匹配素材。
+- `scripts/scene-asset-planner.mjs`：给已有 scenes JSON 追加 `visualLayer`。
 - `scripts/text-to-scenes-video.mjs`：生成 scenes/props，并可直接渲染 `MultiSceneVideo`。
 - `src/templates/DocumentReveal.tsx`：条约、文件、策论、档案类镜头模板。
 - `src/templates/AutoSceneTemplates.tsx`：`PortraitFocus`、`QuoteReveal`、`ConceptDiagram`、`MetaphorVisual` 四类解释型镜头模板。
+- `src/templates/FootageScene.tsx`：本地素材片段模板。
 - `src/templates/sceneRegistry.tsx`：把 `templateId` 映射到现有 Remotion 模板。
 - `src/templates/MultiSceneVideo.tsx`：多镜头容器，使用 Remotion `Sequence` 拼接时间轴。
 - `src/templates/template-manifest.json`：模板说明书，记录每个模板的适用场景、避免场景、视觉隐喻、必需 props、时长范围和镜头角色。
@@ -1541,6 +1610,12 @@ planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视�
   "sceneType": "document_evidence",
   "narrationText": "这“牛”，便是被《朴茨茅斯和约》悄然易手的关东州租借地与南满铁路。",
   "visualIntent": "用文件/条约视觉呈现证据，突出关键措辞：朴茨茅斯和约、关东州、南满铁路",
+  "visualIntentData": {
+    "type": "document_evidence",
+    "action": "show_evidence",
+    "evidenceType": "document",
+    "highlightWords": ["朴茨茅斯和约", "关东州", "南满铁路"]
+  },
   "templateId": "DocumentReveal",
   "durationSec": 6,
   "decisionReason": "历史文件揭示: 一张旧纸文件展开，展示标题、正文、高亮词和印章",
@@ -1551,6 +1626,8 @@ planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视�
   }
 }
 ```
+
+`visualIntent` 给人看，`visualIntentData` 给机器继续匹配模板或素材。比如隐喻镜头会写出 `action: "transfer"`、`from: "俄国"`、`to: "日本"`；地图镜头会写出 `action: "route"` 或 `action: "locate"`。
 
 ### 22.4 模板轮换策略
 
@@ -1578,6 +1655,97 @@ establishing map -> portrait/person -> document evidence -> quote -> concept exp
 战争/战役/硝烟/作战/占领 -> establishing_map -> HistoricalGlobeTexture1938 候选
 其他文本 -> narration_bridge -> NarratedScene 候选
 ```
+
+### 22.5 音频驱动时间轴
+
+图文错位的根因是只用文本长度估算镜头时长。当前一站式链路改成：
+
+```text
+TTS -> SRT/captions -> timeline-aligner -> scenes[fromFrame,durationInFrames]
+```
+
+`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `alignScenesToCaptions()`，把字幕时间分组到每个 scene。这样画面切换以语音时间为主。只有在跳过字幕或字幕接口失败时，才使用文本长度估算并按音频总时长拉伸。
+
+独立多镜头命令也支持同样的对齐：
+
+```console
+npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-xxxx.mp3 --captions-file public/generated/tts-xxxx.srt --output out/aligned.mp4
+```
+
+### 22.6 素材检索系统
+
+素材检索系统解决“讲到战争、条约、港口、铁路时能不能调本地素材”的问题。当前实现是本地素材库优先，不引入外部素材搜索。
+
+目录约定：
+
+```text
+public/footage/
+  war-smoke-001.mp4
+  treaty-paper-001.mp4
+  railway-map-001.mp4
+public/generated/asset-index.json
+```
+
+第一步扫描素材：
+
+```console
+npm run index-assets
+```
+
+这会生成 `public/generated/asset-index.json` 草稿。你需要补充或修正每条素材的 `description`、`tags`、`bestFor`、`avoidFor`、`mood`：
+
+```json
+{
+  "id": "treaty-paper-001",
+  "type": "footage",
+  "path": "footage/treaty-paper-001.mp4",
+  "title": "旧纸文件与印章",
+  "description": "泛黄纸张、条约、文件、印章、历史档案、合约签署",
+  "tags": ["条约", "文件", "印章", "档案", "和约", "转让"],
+  "bestFor": ["document_evidence", "quote_evidence"],
+  "avoidFor": ["战争地图", "人物卡片"],
+  "mood": ["historical", "serious"],
+  "durationSec": 6,
+  "license": "local",
+  "source": "local-library"
+}
+```
+
+给已有 scenes 匹配素材：
+
+```console
+npm run match-assets -- --scenes=public/generated/scenes-demo.json --output=public/generated/scenes-with-assets.json
+```
+
+一站式链路默认会在 `asset-index.json` 存在时自动匹配素材；没有素材索引时不会中断，会继续使用模板镜头。
+
+scene 匹配素材后会多出 `visualLayer`：
+
+```json
+{
+  "visualLayer": {
+    "type": "footage",
+    "clipId": "war-smoke-001",
+    "path": "footage/war-smoke-001.mp4",
+    "confidence": 37,
+    "reason": "命中：战争、硝烟、establishing_map",
+    "fallbackTemplateId": "HistoricalGlobeTexture1938"
+  }
+}
+```
+
+`sceneRegistry.tsx` 看到 `visualLayer.type === "footage"` 时会直接渲染 `FootageScene`。如果是 `template_with_footage_hint`，当前仍主用模板，同时把匹配素材保留在 scene 里，后续可以让具体模板把素材当背景。
+
+目前素材匹配使用本地标签/描述打分：
+
+```text
+sceneType + visualIntent + keywords
+  -> tags / description / bestFor / avoidFor
+  -> top match
+  -> visualLayer
+```
+
+`asset-matcher.mjs` 已保留 `optionalEmbeddingRerank()` 接口。素材库少于几百条时，先用标签和描述更稳；素材库变大后，可以接 OpenAI、DashScope 或本地 embedding 做 rerank。
 
 只生成镜头规划，不渲染：
 
@@ -1635,12 +1803,28 @@ npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-
       "sceneType": "document_evidence",
       "narrationText": "《朴茨茅斯和约》悄然易手。",
       "visualIntent": "用文件/条约视觉呈现证据，突出关键措辞：朴茨茅斯和约、转让",
+      "visualIntentData": {
+        "type": "document_evidence",
+        "action": "show_evidence",
+        "evidenceType": "document",
+        "highlightWords": ["朴茨茅斯和约", "转让"]
+      },
       "templateId": "DocumentReveal",
       "durationSec": 6,
       "fromFrame": 0,
       "durationInFrames": 180,
+      "audioStartMs": 0,
+      "audioEndMs": 6000,
+      "timingSource": "captions",
       "keywords": ["朴茨茅斯和约", "转让"],
       "decisionReason": "历史文件揭示: 一张旧纸文件展开，展示标题、正文、高亮词和印章",
+      "visualLayer": {
+        "type": "template_with_footage_hint",
+        "clipId": "treaty-paper-001",
+        "path": "footage/treaty-paper-001.mp4",
+        "confidence": 24,
+        "reason": "主用模板，素材作备选：命中：条约、文件、document_evidence"
+      },
       "props": {
         "title": "朴茨茅斯和约",
         "subtitle": "历史文件",
@@ -1652,3 +1836,4 @@ npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-
     }
   ]
 }
+```

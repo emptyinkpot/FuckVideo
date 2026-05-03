@@ -4,6 +4,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeScenesFile } from "./scene-planner.mjs";
+import { attachAssetsToScenes, loadAssetIndex } from "./asset-matcher.mjs";
+import { alignScenesToCaptions, stretchScenesToFrames } from "./timeline-aligner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -22,6 +24,8 @@ const defaults = {
   render: true,
   json: false,
   showSceneLabels: false,
+  matchAssets: true,
+  assetIndex: "public/generated/asset-index.json",
 };
 
 const myCloneVoice =
@@ -100,7 +104,16 @@ async function main() {
   });
   const sceneFrames = plan.scenes.reduce((sum, scene) => sum + scene.durationInFrames, 0);
   const targetFrames = Math.max(sceneFrames, Math.ceil(durationSeconds * 30));
-  const scenes = stretchScenesToFrames(plan.scenes, targetFrames);
+  let scenes = captions.length
+    ? alignScenesToCaptions(plan.scenes, captions, { fps: 30, totalFrames: targetFrames })
+    : stretchScenesToFrames(plan.scenes, targetFrames);
+  if (input.matchAssets !== false) {
+    const assets = loadAssetIndex(input.assetIndex);
+    if (assets.length) {
+      scenes = attachAssetsToScenes(scenes, assets);
+    }
+  }
+  await writeFile(scenesPath, JSON.stringify({ ...plan, scenes }, null, 2), "utf8");
 
   const props = {
     title: input.title,
@@ -262,25 +275,6 @@ function runRemotionRender(propsPath, outputPath) {
     );
     child.stdout?.pipe(process.stdout);
     child.stderr?.pipe(process.stderr);
-  });
-}
-
-function stretchScenesToFrames(scenes, targetFrames) {
-  if (scenes.length === 0) {
-    return scenes;
-  }
-  const sourceFrames = scenes.reduce((sum, scene) => sum + scene.durationInFrames, 0);
-  if (sourceFrames >= targetFrames) {
-    return scenes;
-  }
-  const ratio = targetFrames / sourceFrames;
-  let cursor = 0;
-  return scenes.map((scene, index) => {
-    const isLast = index === scenes.length - 1;
-    const durationInFrames = isLast ? targetFrames - cursor : Math.max(90, Math.round(scene.durationInFrames * ratio));
-    const next = { ...scene, fromFrame: cursor, durationInFrames };
-    cursor += durationInFrames;
-    return next;
   });
 }
 

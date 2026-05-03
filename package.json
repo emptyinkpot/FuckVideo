@@ -37,6 +37,8 @@
     "plan-scenes": "node scripts/scene-planner.mjs",
     "text-to-scenes-video": "node scripts/text-to-scenes-video.mjs",
     "text-to-scenes-tts-video": "node scripts/text-to-scenes-tts-video.mjs",
+    "index-assets": "node scripts/asset-indexer.mjs",
+    "match-assets": "node scripts/scene-asset-planner.mjs",
     "text-to-video": "node scripts/text-to-video.mjs",
     "video-ui": "node scripts/video-ui-server.mjs",
     "upgrade": "remotion upgrade",

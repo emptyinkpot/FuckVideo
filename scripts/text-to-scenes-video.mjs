@@ -4,6 +4,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeScenesFile } from "./scene-planner.mjs";
+import { attachAssetsToScenes, loadAssetIndex } from "./asset-matcher.mjs";
+import { alignScenesToCaptions } from "./timeline-aligner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -18,6 +20,8 @@ const defaults = {
   render: true,
   showSceneLabels: false,
   showCaptions: true,
+  matchAssets: true,
+  assetIndex: "public/generated/asset-index.json",
 };
 
 const args = parseArgs(process.argv.slice(2));
@@ -50,12 +54,24 @@ async function main() {
     outputPath: scenesPath,
     options: { fps: Number(input.fps), maxChars: Number(input.maxChars) },
   });
+  const captions = input.captionsFile ? parseSrt(await readFile(path.resolve(projectRoot, input.captionsFile), "utf8")) : [];
+  const totalCaptionFrames = Math.ceil((Math.max(0, ...captions.map((caption) => caption.endMs)) / 1000) * Number(input.fps));
+  let scenes = captions.length
+    ? alignScenesToCaptions(plan.scenes, captions, { fps: Number(input.fps), totalFrames: totalCaptionFrames })
+    : plan.scenes;
+  if (input.matchAssets !== false) {
+    const assets = loadAssetIndex(input.assetIndex);
+    if (assets.length) {
+      scenes = attachAssetsToScenes(scenes, assets);
+    }
+  }
+  await writeFile(scenesPath, JSON.stringify({ ...plan, scenes }, null, 2), "utf8");
 
   const props = {
     title: input.title,
-    scenes: plan.scenes,
+    scenes,
     audioSrc: input.audioSrc || "",
-    captions: input.captionsFile ? parseSrt(await readFile(path.resolve(projectRoot, input.captionsFile), "utf8")) : [],
+    captions,
     showCaptions: Boolean(input.showCaptions),
     showSceneLabels: Boolean(input.showSceneLabels),
   };
@@ -64,7 +80,7 @@ async function main() {
 
   console.log(`SCENES_FILE ${scenesPath}`);
   console.log(`PROPS_FILE ${propsPath}`);
-  console.log(`SCENE_COUNT ${plan.scenes.length}`);
+  console.log(`SCENE_COUNT ${scenes.length}`);
 
   if (!input.render) {
     return;

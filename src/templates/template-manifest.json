@@ -76,6 +76,21 @@
     "sceneRole": ["metaphor", "transition", "explain"]
   },
   {
+    "id": "FootageScene",
+    "displayName": "本地素材片段",
+    "category": "footage",
+    "bestFor": ["真实素材", "影视素材", "战场", "城市", "港口", "铁路", "文件实拍", "氛围"],
+    "avoidFor": ["没有素材库匹配", "需要精确文字解释"],
+    "visualMetaphor": "直接播放 public/footage 中的本地视频素材，并叠加标题与语义说明",
+    "requiredProps": {
+      "src": "public/ 下的素材相对路径，例如 footage/war-smoke-001.mp4",
+      "title": "素材镜头标题",
+      "subtitle": "素材与旁白的匹配说明"
+    },
+    "durationRangeSec": [4, 8],
+    "sceneRole": ["footage", "atmosphere", "evidence", "background"]
+  },
+  {
     "id": "AtlasMapFlyover",
     "displayName": "世界地图飞越",
     "category": "map",

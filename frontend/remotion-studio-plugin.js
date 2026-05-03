@@ -6,6 +6,7 @@
     ["PortraitFocus", "人物身份卡"],
     ["ConceptDiagram", "概念关系图"],
     ["MetaphorVisual", "隐喻可视化"],
+    ["FootageScene", "本地素材片段"],
     ["SinoJapaneseWarDemo", "中日战争历史地球"],
     ["HistoricalGlobeTexture1938", "1938 历史地球纹理"],
     ["AtlasMapFlyover", "世界地图飞越"],
@@ -313,12 +314,12 @@
         </label>
         <label class="ttv-label">字幕
           <select class="ttv-select" id="ttv-srt">
-            <option value="true">跳过字幕，更快</option>
             <option value="false">生成字幕文件</option>
+            <option value="true">跳过字幕，更快</option>
           </select>
         </label>
       </div>
-      <div class="ttv-status" id="ttv-status">默认是一站式自动镜头生成，结果会落到项目 out/ 目录。</div>
+      <div class="ttv-status" id="ttv-status">默认是一站式自动镜头生成；生成字幕时会用音频时间轴对齐画面。</div>
       <pre class="ttv-log" id="ttv-log">等待任务。</pre>
     </div>
     <div class="ttv-actions">
