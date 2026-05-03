@@ -76,8 +76,13 @@
     ["The studio server has disconnected.", "工作台服务已断开连接。"],
   ]);
 
+  const storyboardPanelStorageKey = "ttv.storyboardPanel";
+  if (localStorage.getItem("remotion.sidebarPanel") === "storyboard") {
+    localStorage.setItem("remotion.sidebarPanel", "input-props");
+  }
+
   const state = {
-    activePanel: localStorage.getItem("remotion.sidebarPanel") === "storyboard" ? "storyboard" : "native",
+    activePanel: localStorage.getItem(storyboardPanelStorageKey) === "storyboard" ? "storyboard" : "native",
     jobId: "",
     timer: 0,
     project: null,
@@ -240,7 +245,7 @@
   panel.innerHTML = `
     <div class="ttv-head">
       <div class="ttv-title">自动分镜工作台</div>
-      <div class="ttv-sub">嵌入 Remotion 右侧栏；中央区域继续使用 Studio 原生预览。</div>
+      <div class="ttv-sub">嵌入 Remotion 左侧栏；右侧参数栏和中央预览保持原生工作流。</div>
     </div>
     <div class="ttv-body">
       <div id="ttv-generator">
@@ -370,12 +375,14 @@
     }
   }
 
-  function findOptionsTabs() {
+  function findExplorerTabs() {
     for (const el of document.querySelectorAll("div")) {
       const buttons = Array.from(el.children).filter((child) => child.getAttribute("role") === "button");
       if (buttons.length < 2) continue;
       const labels = buttons.map((button) => normalize(button.textContent));
-      if (labels.includes("参数") && labels.some((label) => label.includes("渲染") || label.includes("render"))) {
+      const hasCompositions = labels.some((label) => label.includes("compositions") || label.includes("合成列表"));
+      const hasAssets = labels.some((label) => label.includes("assets") || label.includes("素材"));
+      if (hasCompositions && hasAssets) {
         return el;
       }
     }
@@ -387,7 +394,7 @@
   }
 
   function ensureDocked() {
-    const tabs = findOptionsTabs();
+    const tabs = findExplorerTabs();
     if (!tabs) return;
     const root = tabs.parentElement?.parentElement;
     if (!root) return;
@@ -418,7 +425,7 @@
 
   function setStoryboardOpen(open) {
     state.activePanel = open ? "storyboard" : "native";
-    localStorage.setItem("remotion.sidebarPanel", open ? "storyboard" : "input-props");
+    localStorage.setItem(storyboardPanelStorageKey, open ? "storyboard" : "native");
     ensureDocked();
   }
 
