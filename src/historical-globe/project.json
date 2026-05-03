@@ -1,0 +1,187 @@
+{
+  "name": "historical-globe-engine",
+  "displayName": "Historical Globe Engine",
+  "description": "A programmable Remotion historical globe video engine built from GeoJSON, d3-geo orthographic projection, and frame-driven animation.",
+  "root": "src/historical-globe",
+  "status": "engine-prototype",
+  "primaryComposition": {
+    "id": "HistoricalGlobeTexture1938",
+    "file": "src/historical-globe/compositions/HistoricalGlobeTexture1938.tsx",
+    "durationInFrames": 300,
+    "fps": 30,
+    "width": 1280,
+    "height": 720
+  },
+  "demoCompositions": [
+    {
+      "id": "SinoJapaneseWarDemo",
+      "file": "src/historical-globe/compositions/SinoJapaneseWarDemo.tsx",
+      "durationInFrames": 900,
+      "fps": 30,
+      "width": 1280,
+      "height": 720,
+      "purpose": "1931-1945 Sino-Japanese War timeline demo with camera focus, frontlines, attack arrows, event labels, and province hatch overlays."
+    }
+  ],
+  "entrypoints": {
+    "remotionRoot": "src/Root.tsx",
+    "composition": "src/historical-globe/compositions/HistoricalGlobeTexture1938.tsx",
+    "engine": "src/historical-globe/engine/EditableHistoricalWorldGlobe.tsx",
+    "sinoJapaneseWarDemo": "src/historical-globe/compositions/SinoJapaneseWarDemo.tsx",
+    "frontlineLayer": "src/historical-globe/layers/FrontlineLayer.tsx",
+    "timelineData": "src/historical-globe/data/sino-japanese-war.timeline.ts",
+    "timelineTypes": "src/historical-globe/data/warTimelineTypes.ts",
+    "historyDbReadme": "src/historical-globe/history-db/README.md",
+    "historyDbSchema": "src/historical-globe/history-db/schema.ts",
+    "historyRegionColorResolver": "src/historical-globe/history-db/getRegionColor.ts",
+    "historyWorldStateResolver": "src/historical-globe/history-db/resolveHistoricalWorldState.ts",
+    "historyDatasetValidator": "src/historical-globe/history-db/validateHistoricalDataset.ts",
+    "historyDbAdapter": "src/historical-globe/history-db/adapters/toWarTimeline.ts",
+    "sinoJapaneseWarDataset": "src/historical-globe/history-db/datasets/sino-japanese-war.ts",
+    "cameraHelpers": "src/historical-globe/camera/cameraPresets.ts",
+    "worldState": "src/historical-globe/timeline/getWorldState.ts"
+  },
+  "historyDataFlow": {
+    "principle": "Historical facts are maintained in history-db datasets. AI-generated scenes should consume the database and should not invent territorial control or battle lines.",
+    "geometryPrinciple": "Do not map partial historical regions to whole modern administrative units. Use render=false until a matching historical/city/county/custom-polygon geometry exists.",
+    "colorPrinciple": "Historical region colors are resolved only by history-db/getRegionColor.ts from actors + ownership + renderPolicy. Timeline and Composition layers consume resolved colors and must not recalculate historical actor colors.",
+    "reproducibilityPrinciple": "Territory control snapshots should own region colors/names/controllers. Event process data should own initiator, origin, target, route, process, result, sources, and confidence.",
+    "factPath": "regions + ownership + events. There is no legacy moments fallback.",
+    "pipeline": [
+      "src/historical-globe/history-db/datasets/sino-japanese-war.ts",
+      "src/historical-globe/history-db/getRegionColor.ts",
+      "src/historical-globe/history-db/resolveHistoricalWorldState.ts",
+      "src/historical-globe/history-db/adapters/toWarTimeline.ts",
+      "src/historical-globe/data/sino-japanese-war.timeline.ts",
+      "src/historical-globe/timeline/getWorldState.ts",
+      "src/historical-globe/engine/EditableHistoricalWorldGlobe.tsx"
+    ],
+    "requiredFactFields": [
+      "sources",
+      "confidence",
+      "note",
+      "geometry"
+    ],
+    "staticBaseMapPatch": {
+      "mechanism": "worldFeaturePartOverrides",
+      "currentPatch": {
+        "featureName": "Empire of Japan",
+        "partIndexes": [
+          57
+        ],
+        "reason": "The 1938 base map statically includes a large Korea/Manchuria-related multipolygon part under Empire of Japan. The Sino-Japanese War demo keeps the land geometry but recolors this part through timeline-controlled ownership before and after Japanese defeat."
+      }
+    }
+  },
+  "dataSources": {
+    "world1938": {
+      "path": "public/geojson/historical-world-1938.geojson",
+      "type": "geojson",
+      "featureNameField": "NAME",
+      "governingField": "SUBJECTO",
+      "purpose": "World countries, colonies, protectorates, and special historical regions for 1938."
+    },
+    "chinaProvinces": {
+      "path": "public/geojson/china-provinces-full.json",
+      "type": "geojson",
+      "featureNameField": "name",
+      "geometryLevel": "province",
+      "purpose": "China province overlay for province-bounded hatch or province-level styling. It is not precise enough for city/county-level occupation or historical regions that only overlap part of a modern province."
+    }
+  },
+  "capabilities": [
+    "orthographic-globe-projection",
+    "frame-driven-looping-rotation",
+    "geojson-country-fill",
+    "governing-subject-color-inheritance",
+    "manual-subject-color-overrides",
+    "fallback-distinct-color-generation",
+    "province-overlay-geojson",
+    "polygon-clipped-hatch-fill",
+    "city-markers",
+    "city-labels",
+    "country-labels",
+    "terrain-vector-lines",
+    "basic-ocean-lighting",
+    "front-side-globe-clipping",
+    "extra-overlay-extension-point",
+    "timeline-event-data",
+    "history-database-schema",
+    "history-dataset-to-timeline-adapter",
+    "source-and-confidence-history-metadata",
+    "geometry-level-history-metadata",
+    "territorial-control-periods",
+    "historical-world-state-resolver",
+    "historical-dataset-validator",
+    "render-policy-color-resolution",
+    "unrendered-partial-region-safety-flag",
+    "actor-color-aliases",
+    "world-feature-part-override",
+    "camera-focus-interpolation",
+    "animated-frontline-layer",
+    "animated-attack-arrows",
+    "event-title-overlay",
+    "world-state-time-function",
+    "territory-color-overrides",
+    "territory-color-interpolation",
+    "frontline-crossfade"
+  ],
+  "mainConfigFields": {
+    "geoJsonSrc": "World GeoJSON source path under public/.",
+    "overlayGeoJsonSrc": "Optional overlay GeoJSON source path under public/.",
+    "loopFrames": "Number of frames used for one seamless rotation loop.",
+    "startLongitude": "Initial horizontal globe rotation.",
+    "rotationDegreesPerFrame": "Degrees of globe rotation per frame.",
+    "tiltLatitude": "Vertical tilt of the orthographic projection.",
+    "projectionScale": "Rendered globe size.",
+    "governingAliases": "Maps special regions to their governing color subject.",
+    "subjectColorOverrides": "Manual governing subject color map.",
+    "hatchRegionNames": "World feature NAME values that receive clipped hatch fill.",
+    "overlayHatchRegionNames": "Overlay feature name values that receive clipped hatch fill.",
+    "cities": "City marker and label definitions.",
+    "labelNames": "Country or region labels to render."
+  },
+  "current1938Defaults": {
+    "worldHatchRegions": [
+      "Spanish Sahara",
+      "Mandatory Palestine (GB)"
+    ],
+    "overlayHatchRegions": [
+      "西藏自治区",
+      "新疆维吾尔自治区"
+    ],
+    "governingAliases": {
+      "Tibet": "Chinese warlords",
+      "Xinjiang": "Chinese warlords",
+      "United Kingdom of Great Britain and Ireland": "United Kingdom"
+    },
+    "showGraticule": false,
+    "frontLines": []
+  },
+  "commands": {
+    "startStudio": "npm run dev",
+    "listCompositions": "npx remotion compositions src/index.ts",
+    "lint": "npm run lint",
+    "renderStillExample": "npx remotion still src/index.ts HistoricalGlobeTexture1938 --frame=250 --output=screenshots/historical-globe-frame.png",
+    "renderSinoJapaneseWarStillExample": "npx remotion still src/index.ts SinoJapaneseWarDemo --frame=180 --output=screenshots/sino-japanese-war-frame.png"
+  },
+  "knownLimitations": [
+    "WorldState exists for the SinoJapaneseWarDemo, but there is no general scene DSL yet.",
+    "Only lightweight camera interpolation exists; no full camera keyframe system yet.",
+    "No scene or timeline DSL yet.",
+    "Engine layers are not fully split into CountriesLayer, ProvincesLayer, DisputedLayer, LabelsLayer, and LightingLayer.",
+    "Scenario configuration is still TypeScript-based rather than external JSON.",
+    "China overlay is currently province-level only; city/county-level and historical administrative GeoJSON are not yet integrated.",
+    "World 1938 GeoJSON and modern China province overlay are different geometry sources, so local boundaries can mismatch around leaseholds or historical control zones.",
+    "The current override of Empire of Japan part 57 is a reproducible base-map patch, not a final historical boundary model.",
+    "The Sino-Japanese War dataset is structured and source-tagged, but some control states and frontlines remain illustrative until calibrated against historical GIS or battle map sources."
+  ],
+  "recommendedNextSteps": [
+    "Split engine rendering into projection and layer modules.",
+    "Add a CameraState and camera interpolation system.",
+    "Add a geometry registry for country, province, prefecture, county, historical-admin, and custom-polygon datasets.",
+    "Integrate city/county-level or historical administrative GeoJSON before rendering partial historical regions such as Manchukuo's western edge.",
+    "Move historical scenario config to JSON with TypeScript validation.",
+    "Add a declarative scene timeline for AI-generated historical videos."
+  ]
+}
