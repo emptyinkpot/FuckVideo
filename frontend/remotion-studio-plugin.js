@@ -84,6 +84,7 @@
     selectedSceneId: "",
     candidates: [],
   };
+  const progressStorageKey = "ttv.lastProgress";
 
   const style = document.createElement("style");
   style.textContent = `
@@ -164,6 +165,12 @@
       border-top: 1px solid rgba(255,255,255,.1);
       display: grid;
       gap: 8px;
+      background: #171717;
+    }
+    .ttv-progress-title {
+      color: #bdbdbd;
+      font-size: 11px;
+      font-weight: 750;
     }
     .ttv-button {
       height: 32px;
@@ -191,12 +198,16 @@
       line-height: 1.45;
     }
     .ttv-log {
-      max-height: 120px;
+      max-height: 104px;
       overflow: auto;
       white-space: pre-wrap;
       margin: 0;
       color: #909090;
       font: 10px/1.5 Consolas, monospace;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px;
+      padding: 8px;
+      background: #111;
     }
     .ttv-scene-list { display: grid; gap: 6px; }
     .ttv-scene {
@@ -275,11 +286,12 @@
           </label>
         </div>
       </div>
-      <div class="ttv-status" id="ttv-status">生成后会自动加载到 MultiSceneVideo，使用现有 Remotion 预览屏幕查看。</div>
-      <pre class="ttv-log" id="ttv-log">等待任务。</pre>
       <div id="ttv-project"></div>
     </div>
     <div class="ttv-actions">
+      <div class="ttv-progress-title">生成进度</div>
+      <div class="ttv-status" id="ttv-status">生成后会自动加载到 MultiSceneVideo，使用现有 Remotion 预览屏幕查看。</div>
+      <pre class="ttv-log" id="ttv-log">等待任务。</pre>
       <button class="ttv-button primary" id="ttv-generate" type="button">生成初版项目</button>
       <div class="ttv-grid">
         <button class="ttv-button" id="ttv-preview" type="button">刷新 Studio 预览</button>
@@ -300,6 +312,39 @@
   };
 
   const $ = (selector) => panel.querySelector(selector);
+
+  function setStatus(text) {
+    $("#ttv-status").textContent = text;
+    persistProgress();
+  }
+
+  function setLog(text) {
+    $("#ttv-log").textContent = text || "等待日志。";
+    $("#ttv-log").scrollTop = $("#ttv-log").scrollHeight;
+    persistProgress();
+  }
+
+  function persistProgress() {
+    localStorage.setItem(
+      progressStorageKey,
+      JSON.stringify({
+        status: $("#ttv-status").textContent,
+        log: $("#ttv-log").textContent,
+        at: Date.now(),
+      }),
+    );
+  }
+
+  function restoreProgress() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(progressStorageKey) || "null");
+      if (!saved) return;
+      if (saved.status) $("#ttv-status").textContent = saved.status;
+      if (saved.log) $("#ttv-log").textContent = saved.log;
+    } catch {
+      localStorage.removeItem(progressStorageKey);
+    }
+  }
 
   function translateValue(value) {
     const trimmed = String(value || "").trim();
@@ -399,7 +444,7 @@
   async function applyProjectToStudioPreview(projectId) {
     const props = await fetchJson(`${API}/api/projects/${encodeURIComponent(projectId)}/props`);
     localStorage.setItem(`remotion_inputPropsOverride${window.location.origin}`, JSON.stringify(props));
-    $("#ttv-status").textContent = "已写入 Studio 预览参数，正在切换到 MultiSceneVideo。";
+    setStatus("已写入 Studio 预览参数，正在切换到 MultiSceneVideo。");
     if (window.location.pathname !== "/MultiSceneVideo") {
       window.location.href = "/MultiSceneVideo";
     } else {
@@ -527,7 +572,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ patch }),
       });
-      $("#ttv-status").textContent = "分镜已保存。需要看画面时点“刷新 Studio 预览”。";
+      setStatus("分镜已保存。需要看画面时点“刷新 Studio 预览”。");
       renderProject();
     };
     $("#ttv-lock").onclick = async () => {
@@ -561,7 +606,7 @@
             body: JSON.stringify({ candidate }),
           },
         );
-        $("#ttv-status").textContent = "素材已替换。";
+        setStatus("素材已替换。");
         renderProject();
       };
     }
@@ -585,12 +630,12 @@
   $("#ttv-generate").onclick = async () => {
     const text = $("#ttv-text").value.trim();
     if (!text) {
-      $("#ttv-status").textContent = "请输入文案。";
+      setStatus("请输入文案。");
       return;
     }
     $("#ttv-generate").disabled = true;
-    $("#ttv-status").textContent = "提交任务中。";
-    $("#ttv-log").textContent = "";
+    setStatus("提交任务中。");
+    setLog("提交任务中，等待服务端返回任务 ID。");
     try {
       const data = await fetchJson(`${API}/api/jobs`, {
         method: "POST",
@@ -611,13 +656,13 @@
       state.timer = window.setInterval(poll, 2000);
     } catch (error) {
       $("#ttv-generate").disabled = false;
-      $("#ttv-status").textContent = error.message || String(error);
+      setStatus(error.message || String(error));
     }
   };
 
   $("#ttv-preview").onclick = async () => {
     if (!state.project?.id) {
-      $("#ttv-status").textContent = "还没有可预览的项目。";
+      setStatus("还没有可预览的项目。");
       return;
     }
     await applyProjectToStudioPreview(state.project.id);
@@ -625,12 +670,12 @@
 
   $("#ttv-export").onclick = async () => {
     if (!state.project?.id) {
-      $("#ttv-status").textContent = "还没有可导出的项目。";
+      setStatus("还没有可导出的项目。");
       return;
     }
-    $("#ttv-status").textContent = "正在总导出。";
+    setStatus("正在总导出。");
     state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/export`, { method: "POST" });
-    $("#ttv-status").textContent = "导出完成。";
+    setStatus("导出完成。");
     renderProject();
   };
 
@@ -638,9 +683,8 @@
     if (!state.jobId) return;
     try {
       const job = await fetchJson(`${API}/api/jobs/${encodeURIComponent(state.jobId)}`);
-      $("#ttv-status").textContent = job.error || job.progress || job.status;
-      $("#ttv-log").textContent = (job.logs || []).join("\n") || "等待日志。";
-      $("#ttv-log").scrollTop = $("#ttv-log").scrollHeight;
+      setStatus(job.error || job.progress || job.status);
+      setLog((job.logs || []).join("\n") || "等待日志。");
       if (job.status === "succeeded") {
         window.clearInterval(state.timer);
         $("#ttv-generate").disabled = false;
@@ -649,10 +693,10 @@
           if (project.scenes?.length) {
             await applyProjectToStudioPreview(job.result.projectId);
           } else {
-            $("#ttv-status").textContent = "单模板视频已生成；自动分镜预览仅用于 MultiSceneVideo 项目。";
+            setStatus("单模板视频已生成；自动分镜预览仅用于 MultiSceneVideo 项目。");
           }
         } else {
-          $("#ttv-status").textContent = "视频已生成，但没有项目数据。";
+          setStatus("视频已生成，但没有项目数据。");
         }
       }
       if (job.status === "failed") {
@@ -662,10 +706,11 @@
     } catch (error) {
       window.clearInterval(state.timer);
       $("#ttv-generate").disabled = false;
-      $("#ttv-status").textContent = error.message || String(error);
+      setStatus(error.message || String(error));
     }
   }
 
+  restoreProgress();
   translateStudioUi();
   ensureDocked();
   const observer = new MutationObserver(() => {
