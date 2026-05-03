@@ -1294,7 +1294,7 @@ frontend/remotion-studio-plugin.js
 
 - 在页面右侧加 `生成视频` 按钮，打开右侧生成控制台；控制台打开时隐藏启动按钮。
 - 在 Remotion Studio 左侧栏 `合成列表 / 素材` 旁边加 `分镜` 页签。
-- 右侧生成控制台负责文案输入、模式选择、TTS 指令、任务提交、进度日志、刷新预览和总导出。
+- 右侧生成控制台负责文案输入、模式选择、TTS 指令、任务提交、进度日志和刷新预览；总导出只保留顶部工作栏一个主入口。
 - 左侧分镜页签只负责分镜列表、当前镜头编辑、锁定、素材重配和素材替换。
 - 生成成功后调用 `GET /api/projects/:id/props`，把项目写入 Remotion input props override，并切到 `/MultiSceneVideo`，复用中央预览屏幕。
 - 用 MutationObserver 把常见 Remotion Studio 英文 UI 替换成中文。
@@ -1324,7 +1324,7 @@ frontend/remotion-studio-plugin.js
 右侧 floating generator console
   -> 生成视频控制台
   -> 进度日志
-  -> 刷新预览 / 总导出
+  -> 刷新预览 / 打开当前成片
 ```
 
 ### 15.1 右侧生成视频控制台
@@ -1341,7 +1341,7 @@ aside.ttv-generator-panel
 ```css
 .ttv-generator-launcher {
   position: fixed;
-  top: 78px;
+  top: 42px;
   right: 18px;
   z-index: 2147483000;
   height: 34px;
@@ -1354,7 +1354,7 @@ aside.ttv-generator-panel
   top: 58px;
   right: 18px;
   bottom: 18px;
-  width: 390px;
+  width: clamp(340px, 28vw, 390px);
   z-index: 2147483001;
   display: none;
   grid-template-rows: auto 1fr auto;
@@ -1380,7 +1380,6 @@ aside.ttv-generator-panel
 - 轮询日志
 - 生成初版项目
 - 刷新 Studio 预览
-- 总导出
 - 打开当前成片
 
 字段高度和排版：
@@ -1420,7 +1419,7 @@ aside.ttv-generator-panel
 }
 
 .ttv-log {
-  max-height: 128px;
+  overflow: visible;
   padding: 8px;
   border-radius: 8px;
 }
@@ -1508,7 +1507,6 @@ function findExplorerTabs() {
 - 锁定 / 解除锁定
 - 重配素材
 - 替换为候选素材
-- 打开生成控制台
 
 左侧分镜不能包含：
 
@@ -1981,7 +1979,7 @@ SinoJapaneseWarDemo
   -> 仍然复用 MultiSceneVideo composition
 
 右侧 生成视频 控制台
-  -> 文案输入 / 任务进度 / 刷新预览 / 总导出
+  -> 文案输入 / 任务进度 / 刷新预览 / 打开当前成片
 ```
 
 #### 15.8.1 顶部项目工作栏
@@ -2059,6 +2057,8 @@ async function switchProject(projectId) {
 - 左侧分镜不能完全依赖 Remotion explorer 是否可见；如果原生左栏在窄屏下消失，必须出现 `button.ttv-storyboard-launcher` 作为 fallback。
 - 左侧分镜不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 分镜列表 -> 时间线 -> 当前分镜编辑器。
 - 左侧双按钮不能在窄栏里用普通 flex 横排硬挤，必须用 `grid-template-columns: 1fr 1fr` 或上下堆叠。
+- 任何主面板里不能出现滚轮套滚轮。左侧分镜只允许 `.ttv-body` 一个滚动容器；分镜列表、时间线、当前编辑器都不再单独滚动。
+- 同一个动作只能保留一个主入口：总导出只在顶部工作栏；右侧生成控制台不再放第二个“总导出”；左侧分镜不再放“打开生成控制台”。
 
 #### 15.8.2 多轨道时间线
 
@@ -2108,8 +2108,7 @@ span.ttv-trim.left/right
 }
 
 .ttv-scene-list.compact {
-  max-height: min(220px, 30vh);
-  overflow: auto;
+  padding-right: 2px;
 }
 
 .ttv-timebar {

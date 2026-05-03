@@ -280,7 +280,7 @@
       color: #f5f5f5;
       font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
     }
-    .ttv-storyboard-panel.open { display: grid; grid-template-rows: auto 1fr auto; }
+    .ttv-storyboard-panel.open { display: grid; grid-template-rows: auto 1fr; }
     .ttv-generator-launcher {
       position: fixed;
       top: 42px;
@@ -421,8 +421,7 @@
       line-height: 1.45;
     }
     .ttv-log {
-      max-height: 128px;
-      overflow: auto;
+      overflow: visible;
       white-space: pre-wrap;
       margin: 0;
       color: #909090;
@@ -439,8 +438,6 @@
       min-height: 0;
     }
     .ttv-scene-list.compact {
-      max-height: min(220px, 30vh);
-      overflow: auto;
       padding-right: 2px;
     }
     .ttv-scene-editor {
@@ -723,10 +720,7 @@
     </div>
     <div class="ttv-actions">
       <button class="ttv-button primary" id="ttv-generate" type="button">生成初版项目</button>
-      <div class="ttv-grid">
-        <button class="ttv-button" id="ttv-preview" type="button">刷新 Studio 预览</button>
-        <button class="ttv-button" id="ttv-export" type="button">总导出</button>
-      </div>
+      <button class="ttv-button" id="ttv-preview" type="button">刷新 Studio 预览</button>
       <a class="ttv-button" id="ttv-open-video" target="_blank" rel="noreferrer">打开当前成片</a>
     </div>
   `;
@@ -748,9 +742,6 @@
     </div>
     <div class="ttv-body">
       <div id="ttv-project"></div>
-    </div>
-    <div class="ttv-actions">
-      <button class="ttv-button" id="ttv-open-generator" type="button">打开生成控制台</button>
     </div>
   `;
 
@@ -776,7 +767,6 @@
 
   generatorLauncher.onclick = () => setGeneratorOpen(true);
   g("#ttv-close-generator").onclick = () => setGeneratorOpen(false);
-  s("#ttv-open-generator").onclick = () => setGeneratorOpen(true);
   setGeneratorOpen(localStorage.getItem(generatorPanelStorageKey) !== "closed");
 
   w("#ttv-project-toggle").onclick = async () => {
@@ -1438,10 +1428,6 @@
       return;
     }
     await applyProjectToStudioPreview(state.project.id);
-  };
-
-  g("#ttv-export").onclick = async () => {
-    await exportCurrentProject();
   };
 
   async function poll() {
