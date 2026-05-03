@@ -2154,10 +2154,12 @@ div.ttv-segment-block
 
 .ttv-native-timeline-dock.docked {
   width: 100%;
-  flex: 1 0 100%;
-  grid-column: 1 / -1;
-  order: 999;
-  padding: 0 10px 6px;
+  flex: 0 0 34px;
+  min-height: 34px;
+  order: 2147483000;
+  padding: 4px 16px 6px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: #111;
 }
 
 .ttv-native-timeline-dock.docked .ttv-segment-strip {
@@ -2206,7 +2208,7 @@ div.ttv-segment-block
 - 片段块颜色表达状态：模板画面、素材画面、低置信度、缺画面、已锁定、当前选中。
 - 已锁定片段不允许拖拽排序。
 - 原生 Remotion 左侧栏不可用时，`body.ttv-storyboard-undocked` 会把片段面板挂到 `document.body`，并显示左侧 fallback 按钮。
-- 底部片段条由 `ensureTimelineDocked()` 查找 Remotion 原生 `Timeline / 时间线` 区域并插入；dock 成功时只留下片段条。只有找不到原生底部时间线时才使用 `.ttv-native-timeline-dock.floating` 降级显示。
+- 底部片段条由 `ensureTimelineDocked()` 优先查找 Remotion Studio 原生 `.__remotion-horizontal-scrollbar`，并插入它的 flex-column 父容器，成为原生 timeline 区域里的底部一行。只有找不到原生底部时间线时才使用 `.ttv-native-timeline-dock.floating` 降级显示。
 - 短片段宽度不足 `7%` 时使用 `.dense` 隐藏文本，避免小屏互相压字。
 
 剪辑能力作为高级能力收在当前片段编辑器里：开始/结束毫秒、素材内偏移、转场等可以存在，但不能放到底部主交互里，也不能把产品变成自由剪辑软件。

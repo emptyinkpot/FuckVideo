@@ -320,11 +320,13 @@
     }
     .ttv-native-timeline-dock.docked {
       width: 100%;
-      flex: 1 0 100%;
-      grid-column: 1 / -1;
-      order: 999;
+      flex: 0 0 34px;
+      min-height: 34px;
+      order: 2147483000;
       box-sizing: border-box;
-      padding: 0 10px 6px;
+      padding: 4px 16px 6px;
+      border-top: 1px solid rgba(255,255,255,.08);
+      background: #111;
     }
     .ttv-native-timeline-dock.docked .ttv-segment-strip {
       gap: 3px;
@@ -962,6 +964,22 @@
   }
 
   function findNativeTimelinePanel() {
+    const horizontalScrollbar = document.querySelector(".__remotion-horizontal-scrollbar");
+    if (horizontalScrollbar?.parentElement) {
+      const rect = horizontalScrollbar.getBoundingClientRect();
+      if (rect.width > Math.min(520, window.innerWidth * 0.45) && rect.height > 0 && rect.top > window.innerHeight * 0.42) {
+        return horizontalScrollbar.parentElement;
+      }
+    }
+
+    const verticalScrollbar = document.querySelector(".__remotion-vertical-scrollbar");
+    if (verticalScrollbar) {
+      const rect = verticalScrollbar.getBoundingClientRect();
+      if (rect.width > Math.min(520, window.innerWidth * 0.45) && rect.height > 0 && rect.top > window.innerHeight * 0.42) {
+        return verticalScrollbar;
+      }
+    }
+
     const labels = Array.from(document.querySelectorAll("button, [role='button'], div, span")).filter((el) => {
       if (workbar.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el) || timelineDock.contains(el)) return false;
       const text = normalize(el.textContent);
