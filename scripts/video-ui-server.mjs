@@ -5,12 +5,23 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  createProjectFromJob,
+  loadProject,
+  patchScene,
+  rematchScene,
+  reorderScenes,
+  replaceSceneMaterial,
+  saveProject,
+  setSceneLocked,
+} from "./project-store.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const runtimeRoot = path.join(projectRoot, ".runtime", "text-to-video");
 const jobsRoot = path.join(runtimeRoot, "jobs");
 const pagePath = path.join(projectRoot, "frontend", "video-generator.html");
+const projectPagePath = path.join(projectRoot, "frontend", "video-project.html");
 const pluginScriptPath = path.join(projectRoot, "frontend", "remotion-studio-plugin.js");
 const port = Number(process.env.TEXT_TO_VIDEO_PORT || 3037);
 
@@ -27,6 +38,10 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/video-generator")) {
       return sendText(res, await readFile(pagePath, "utf8"), "text/html; charset=utf-8");
+    }
+
+    if (req.method === "GET" && url.pathname.startsWith("/video-project/")) {
+      return sendText(res, await readFile(projectPagePath, "utf8"), "text/html; charset=utf-8");
     }
 
     if (req.method === "GET" && url.pathname === "/studio-plugin.js") {
@@ -49,6 +64,10 @@ const server = createServer(async (req, res) => {
       return sendJson(res, { success: true, data: publicJob(job) });
     }
 
+    if (url.pathname.startsWith("/api/projects/")) {
+      return handleProjectApi(req, res, url);
+    }
+
     if (req.method === "GET" && url.pathname.startsWith("/files/")) {
       const id = decodeURIComponent(url.pathname.slice("/files/".length));
       const job = jobs.get(id);
@@ -56,6 +75,15 @@ const server = createServer(async (req, res) => {
         return sendJson(res, { success: false, error: "视频还没有生成完成" }, 404);
       }
       return sendFile(res, job.result.videoFile);
+    }
+
+    if (req.method === "GET" && url.pathname.startsWith("/project-files/")) {
+      const id = decodeURIComponent(url.pathname.slice("/project-files/".length));
+      const project = await loadProject(id);
+      if (!project?.source?.videoFile) {
+        return sendJson(res, { success: false, error: "项目视频还没有导出" }, 404);
+      }
+      return sendFile(res, project.source.videoFile);
     }
 
     return sendJson(res, { success: false, error: "路径不存在" }, 404);
@@ -96,6 +124,57 @@ function createJob(body) {
   };
   jobs.set(id, job);
   return job;
+}
+
+async function handleProjectApi(req, res, url) {
+  const parts = url.pathname.split("/").filter(Boolean);
+  const id = decodeURIComponent(parts[2] || "");
+  const project = await loadProject(id);
+  if (!project) {
+    return sendJson(res, { success: false, error: "项目不存在" }, 404);
+  }
+
+  if (req.method === "GET" && parts.length === 3) {
+    return sendJson(res, { success: true, data: publicProject(project) });
+  }
+
+  if (req.method === "PATCH" && parts.length === 5 && parts[3] === "scenes") {
+    const sceneId = decodeURIComponent(parts[4]);
+    const body = await readJson(req);
+    const next = await saveProject(patchScene(project, sceneId, body.patch || body));
+    return sendJson(res, { success: true, data: publicProject(next) });
+  }
+
+  if (req.method === "POST" && parts.length === 6 && parts[3] === "scenes" && parts[5] === "lock") {
+    const sceneId = decodeURIComponent(parts[4]);
+    const body = await readJson(req);
+    const next = await saveProject(setSceneLocked(project, sceneId, body.locked));
+    return sendJson(res, { success: true, data: publicProject(next) });
+  }
+
+  if (req.method === "POST" && parts.length === 6 && parts[3] === "scenes" && parts[5] === "rematch-material") {
+    const sceneId = decodeURIComponent(parts[4]);
+    return sendJson(res, { success: true, data: { candidates: rematchScene(project, sceneId) } });
+  }
+
+  if (req.method === "POST" && parts.length === 6 && parts[3] === "scenes" && parts[5] === "replace-material") {
+    const sceneId = decodeURIComponent(parts[4]);
+    const body = await readJson(req);
+    const next = await saveProject(replaceSceneMaterial(project, sceneId, body.candidate || body));
+    return sendJson(res, { success: true, data: publicProject(next) });
+  }
+
+  if (req.method === "POST" && parts.length === 4 && parts[3] === "reorder") {
+    const body = await readJson(req);
+    const next = await saveProject(reorderScenes(project, body.sceneIds || []));
+    return sendJson(res, { success: true, data: publicProject(next) });
+  }
+
+  if (req.method === "POST" && parts.length === 4 && parts[3] === "export") {
+    return exportProject(req, res, project);
+  }
+
+  return sendJson(res, { success: false, error: "项目接口不存在" }, 404);
 }
 
 function runJob(job) {
@@ -140,14 +219,28 @@ function runJob(job) {
     child.on("error", (error) => failJob(job, error.message));
     child.on("exit", (code) => {
       if (code === 0 && job.result?.videoFile) {
-        job.status = "succeeded";
-        job.progress = "已完成";
-        job.updatedAt = Date.now();
+        void completeJob(job);
         return;
       }
       failJob(job, `生成进程退出，code=${code}`);
     });
   })().catch((error) => failJob(job, error instanceof Error ? error.message : String(error)));
+}
+
+async function completeJob(job) {
+  try {
+    const project = await createProjectFromJob(job);
+    job.result = {
+      ...job.result,
+      projectId: project.id,
+      projectUrl: `/video-project/${encodeURIComponent(project.id)}`,
+    };
+    job.status = "succeeded";
+    job.progress = "已完成";
+    job.updatedAt = Date.now();
+  } catch (error) {
+    failJob(job, `项目创建失败：${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 function handleLog(job, text) {
@@ -193,6 +286,40 @@ function publicJob(job) {
       : null,
     error: job.error,
   };
+}
+
+function publicProject(project) {
+  return {
+    ...project,
+    videoUrl: project.source?.videoFile ? `/project-files/${encodeURIComponent(project.id)}` : project.source?.videoUrl || "",
+  };
+}
+
+function exportProject(req, res, project) {
+  const outputPath = path.join(projectRoot, "out", `video-project-${project.id}-${Date.now()}.mp4`);
+  const child = execFile(
+    process.execPath,
+    [path.join(projectRoot, "scripts", "export-video-project.mjs"), "--project", project.id, "--output", outputPath],
+    { cwd: projectRoot, windowsHide: true, maxBuffer: 1024 * 1024 * 50 },
+  );
+  let output = "";
+  child.stdout?.on("data", (chunk) => {
+    output += chunk.toString();
+  });
+  child.stderr?.on("data", (chunk) => {
+    output += chunk.toString();
+  });
+  child.on("error", (error) => {
+    sendJson(res, { success: false, error: error.message }, 500);
+  });
+  child.on("exit", async (code) => {
+    if (code !== 0) {
+      sendJson(res, { success: false, error: output || `导出失败，code=${code}` }, 500);
+      return;
+    }
+    const next = await loadProject(project.id);
+    sendJson(res, { success: true, data: publicProject(next || project) });
+  });
 }
 
 async function readJson(req) {

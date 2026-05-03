@@ -14,6 +14,8 @@ Remotion Studio 模板预览与参数编辑
   + 音频驱动镜头时间轴
   + 可选字幕文件
   + 本地素材库检索与素材镜头混合
+  + 生成可编辑 video project
+  + 项目编辑器微调与总导出
   + 一键渲染 MP4
 ```
 
@@ -55,6 +57,16 @@ Remotion Studio 模板预览与参数编辑
 - 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动镜头规划 -> `MultiSceneVideo` -> MP4。
 - 插件也保留“单模板”模式：文本 -> 千问 TTS -> 选定 Remotion 模板 -> MP4。
 - 插件提交任务到 `http://127.0.0.1:3037/api/jobs`。
+- 生成完成后会保存 `.runtime/video-projects/<id>.json`。
+- 点击“编辑项目”会进入 `/video-project/:id`，继续改分镜、字幕、素材和导出。
+
+第四层是项目编辑器：
+
+- 左侧分镜列表。
+- 中间已导出视频预览。
+- 右侧当前分镜属性。
+- 底部时间线。
+- 支持保存字幕/旁白、锁定分镜、重配素材、替换素材、上移/下移、总导出。
 
 ## 2. 运行环境
 
@@ -188,6 +200,7 @@ remotion-project/
   frontend/
     remotion-studio-plugin.js       Studio 内注入的“生成视频”扩展
     video-generator.html            独立文本生成视频页面
+    video-project.html              生成后继续微调的项目编辑器
 
   scripts/
     text-to-video.mjs               命令行生成视频主链路
@@ -196,6 +209,8 @@ remotion-project/
     asset-indexer.mjs               扫描 public/footage 生成素材索引草稿
     asset-matcher.mjs               根据 sceneType、visualIntent、tags 匹配素材
     scene-asset-planner.mjs         给已有 scenes JSON 补充 visualLayer 素材信息
+    project-store.mjs               VideoProject 读写、scene patch、素材替换、props 转换
+    export-video-project.mjs        project.json -> MultiSceneVideo props -> MP4
     text-to-scenes-video.mjs        只生成/渲染多镜头视频，不调用 TTS
     text-to-scenes-tts-video.mjs    一站式：TTS + 自动镜头 + Remotion 渲染
     video-ui-server.mjs             本地任务 API 与静态页面服务
@@ -244,6 +259,7 @@ remotion-project/
     text-to-video/
       jobs/                         Web 任务临时文本
       raw-audio/                    TTS 原始音频缓存
+    video-projects/                 可编辑项目 JSON，不作为源码提交
 
   out/                              渲染出的 MP4
 ```
@@ -1043,7 +1059,9 @@ failed
     "propsPath": "...",
     "videoFile": "...",
     "durationSeconds": 10,
-    "videoUrl": "/files/任务 ID"
+    "videoUrl": "/files/任务 ID",
+    "projectId": "任务 ID",
+    "projectUrl": "/video-project/任务 ID"
   }
 }
 ```
@@ -1055,6 +1073,123 @@ GET /files/:id
 ```
 
 返回 `video/mp4`。
+
+### 13.4 项目编辑器 API
+
+生成任务成功后，服务端会把 `propsPath/scenesPath/audio/captions` 转成可编辑项目：
+
+```text
+.runtime/video-projects/<projectId>.json
+```
+
+项目页面：
+
+```http
+GET /video-project/:id
+```
+
+读取项目：
+
+```http
+GET /api/projects/:id
+```
+
+更新单个分镜：
+
+```http
+PATCH /api/projects/:id/scenes/:sceneId
+Content-Type: application/json
+
+{
+  "patch": {
+    "voiceText": "新的旁白文本",
+    "subtitle": "新的字幕/画面文案",
+    "startMs": 0,
+    "endMs": 4200,
+    "templateId": "DocumentReveal",
+    "props": {
+      "body": "新的画面正文"
+    }
+  }
+}
+```
+
+锁定分镜：
+
+```http
+POST /api/projects/:id/scenes/:sceneId/lock
+Content-Type: application/json
+
+{
+  "locked": true
+}
+```
+
+重配当前分镜素材：
+
+```http
+POST /api/projects/:id/scenes/:sceneId/rematch-material
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "candidates": [
+      {
+        "id": "war-smoke-001",
+        "path": "footage/war-smoke-001.mp4",
+        "title": "战争硝烟",
+        "score": 38,
+        "reason": "命中：战争、硝烟、geo_context",
+        "copyright": "local"
+      }
+    ]
+  }
+}
+```
+
+替换当前分镜素材：
+
+```http
+POST /api/projects/:id/scenes/:sceneId/replace-material
+Content-Type: application/json
+
+{
+  "candidate": {
+    "id": "war-smoke-001",
+    "path": "footage/war-smoke-001.mp4",
+    "title": "战争硝烟",
+    "score": 38,
+    "reason": "命中：战争、硝烟"
+  }
+}
+```
+
+重排分镜：
+
+```http
+POST /api/projects/:id/reorder
+Content-Type: application/json
+
+{
+  "sceneIds": ["scene-002", "scene-001"]
+}
+```
+
+总导出：
+
+```http
+POST /api/projects/:id/export
+```
+
+导出会执行：
+
+```text
+project.json -> projectToMultiSceneProps -> Remotion render MultiSceneVideo -> out/video-project-*.mp4
+```
 
 ## 14. Studio 插件注入机制
 
@@ -1216,6 +1351,7 @@ src/templates/AutoSceneTemplates.tsx
 src/templates/FootageScene.tsx
 src/templates/sceneRegistry.tsx
 src/templates/template-manifest.json
+frontend/video-project.html
 ```
 
 4. 在 `src/Root.tsx` 注册所有 Composition。
@@ -1269,17 +1405,33 @@ ffprobe 读时长
 用 sceneType / visualIntent / keywords / tags / bestFor 给 scenes 追加 visualLayer
 ```
 
-10. 写 `scripts/video-ui-server.mjs`：
+10. 写 `scripts/project-store.mjs` 和 `scripts/export-video-project.mjs`：
+
+```text
+把生成结果转成 VideoProject
+保存 .runtime/video-projects/<id>.json
+支持 scene patch / lock / reorder / replace material
+把项目重新转换成 MultiSceneVideo props
+调用 Remotion 总导出
+```
+
+11. 写 `scripts/video-ui-server.mjs`：
 
 ```text
 GET /video-generator
+GET /video-project/:id
 GET /studio-plugin.js
 POST /api/jobs
 GET /api/jobs/:id
+GET /api/projects/:id
+PATCH /api/projects/:id/scenes/:sceneId
+POST /api/projects/:id/scenes/:sceneId/rematch-material
+POST /api/projects/:id/scenes/:sceneId/replace-material
+POST /api/projects/:id/export
 GET /files/:id
 ```
 
-11. 写 `frontend/remotion-studio-plugin.js`：
+12. 写 `frontend/remotion-studio-plugin.js` 和 `frontend/video-project.html`：
 
 ```text
 生成视频按钮
@@ -1287,17 +1439,19 @@ GET /files/:id
 提交任务
 轮询状态
 展示下载链接
+展示编辑项目入口
+项目编辑器：分镜列表 / 预览 / 属性面板 / 时间线
 Studio 中文化替换
 ```
 
-12. 写 `scripts/studio-plugin-proxy.mjs`：
+13. 写 `scripts/studio-plugin-proxy.mjs`：
 
 ```text
 代理 Remotion Studio
 注入 studio-plugin.js
 ```
 
-13. 写 `scripts/studio-with-video-ui.mjs`：
+14. 写 `scripts/studio-with-video-ui.mjs`：
 
 ```text
 同时启动 video-ui-server
@@ -1305,7 +1459,7 @@ Studio 中文化替换
 启动 studio-plugin-proxy
 ```
 
-14. 在 `package.json` 增加：
+15. 在 `package.json` 增加：
 
 ```json
 {
@@ -1317,6 +1471,7 @@ Studio 中文化替换
     "text-to-scenes-tts-video": "node scripts/text-to-scenes-tts-video.mjs",
     "index-assets": "node scripts/asset-indexer.mjs",
     "match-assets": "node scripts/scene-asset-planner.mjs",
+    "export-project": "node scripts/export-video-project.mjs",
     "text-to-video": "node scripts/text-to-video.mjs",
     "video-ui": "node scripts/video-ui-server.mjs",
     "lint": "eslint src && tsc"
@@ -1324,7 +1479,7 @@ Studio 中文化替换
 }
 ```
 
-15. 建立素材目录：
+16. 建立素材目录：
 
 ```text
 public/generated/
@@ -1333,10 +1488,11 @@ public/maps/
 public/geojson/
 .runtime/text-to-video/jobs/
 .runtime/text-to-video/raw-audio/
+.runtime/video-projects/
 out/
 ```
 
-16. 跑验证：
+17. 跑验证：
 
 ```console
 npm run lint
@@ -1575,6 +1731,95 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
   "durationRangeSec": [4, 8],
   "sceneRole": ["evidence", "document", "quote"]
 }
+```
+
+## 23. 可编辑项目系统
+
+自动生成不再只是一次性 MP4。任务完成后会生成一个可编辑 `VideoProject`：
+
+```ts
+type VideoProject = {
+  id: string;
+  title: string;
+  audioSrc: string;
+  captions: Caption[];
+  scenes: TimelineScene[];
+  assets: AssetItem[];
+  history: ProjectOperation[];
+};
+```
+
+分镜结构：
+
+```ts
+type TimelineScene = {
+  id: string;
+  order: number;
+  startMs: number;
+  endMs: number;
+  voiceText: string;
+  subtitle: string;
+  sceneType: string;
+  templateId: string;
+  props: Record<string, unknown>;
+  visualLayer: {
+    type: "template" | "footage" | "template_with_footage_hint";
+    clipId?: string;
+    path?: string;
+    startMs?: number;
+    endMs?: number;
+    reason?: string;
+    confidence?: number;
+  };
+  alternatives: MaterialCandidate[];
+  locked: boolean;
+};
+```
+
+项目编辑器入口：
+
+```text
+http://127.0.0.1:3037/video-project/:id
+```
+
+Studio 插件里生成完成后会出现“编辑项目”链接。编辑器当前是最小闭环：
+
+- 左侧：分镜列表。
+- 中间：当前导出视频预览。
+- 右侧：当前分镜属性。
+- 底部：时间线块。
+- 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定分镜、重配素材、替换素材、上移/下移、总导出。
+
+核心文件：
+
+```text
+frontend/video-project.html
+scripts/project-store.mjs
+scripts/export-video-project.mjs
+```
+
+`locked` 是给后续 AI 微调预留的边界。后续做“重新生成当前项目”时，应该跳过 `locked: true` 的分镜。
+
+操作历史保存在项目 JSON 的 `history` 内，目前记录最近 80 次操作快照，用于后续补撤销/重做：
+
+```ts
+type ProjectOperation = {
+  id: string;
+  type: "replaceMaterial" | "updateScene" | "reorderScene";
+  patch: unknown;
+  snapshotBefore: VideoProject;
+  createdAt: number;
+};
+```
+
+总导出流程：
+
+```text
+VideoProject
+  -> projectToMultiSceneProps()
+  -> public/generated/props-project-*.json
+  -> remotion render MultiSceneVideo
+  -> out/video-project-*.mp4
 ```
 
 ### 22.2 统一 props

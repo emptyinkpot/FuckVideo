@@ -196,7 +196,7 @@
 
       .links {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
         gap: 8px;
       }
 
@@ -366,6 +366,7 @@
             <div class="status" id="status">还没有任务。</div>
             <div class="links hidden" id="links">
               <a class="button" id="open" target="_blank" rel="noreferrer">打开视频</a>
+              <a class="button" id="project" target="_blank" rel="noreferrer">编辑项目</a>
               <a class="button" id="download" download>下载视频</a>
             </div>
           </div>
@@ -459,6 +460,7 @@
             const url = job.result.videoUrl;
             $("#video").src = url;
             $("#open").href = url;
+            $("#project").href = job.result.projectUrl || url;
             $("#download").href = url;
             $("#links").classList.remove("hidden");
             $("#status").textContent = "视频已生成。";

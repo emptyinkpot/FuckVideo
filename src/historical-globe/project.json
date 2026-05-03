@@ -52,6 +52,9 @@
     "assetIndexer": "scripts/asset-indexer.mjs",
     "assetMatcher": "scripts/asset-matcher.mjs",
     "sceneAssetPlanner": "scripts/scene-asset-planner.mjs",
+    "projectStore": "scripts/project-store.mjs",
+    "exportVideoProject": "scripts/export-video-project.mjs",
+    "videoProjectEditor": "frontend/video-project.html",
     "studioVideoPlugin": "frontend/remotion-studio-plugin.js"
   },
   "historyDataFlow": {
@@ -156,6 +159,12 @@
     "visual-layer-footage-selection",
     "tag-and-description-asset-matching",
     "optional-embedding-rerank-extension-point",
+    "editable-video-project-json",
+    "scene-level-subtitle-editing",
+    "scene-locking",
+    "single-scene-material-rematch",
+    "project-to-remotion-export",
+    "project-operation-history",
     "studio-integrated-video-generation"
   ],
   "mainConfigFields": {
@@ -195,6 +204,7 @@
     "planScenes": "npm run plan-scenes -- --text-file input.txt --output public/generated/scenes-demo.json",
     "indexAssets": "npm run index-assets",
     "matchAssets": "npm run match-assets -- --scenes=public/generated/scenes-demo.json --output=public/generated/scenes-with-assets.json",
+    "exportProject": "npm run export-project -- --project <id> --output out/video-project.mp4",
     "textToScenesVideo": "npm run text-to-scenes-video -- --text-file input.txt --title \"自动镜头视频\" --output out/auto-scenes-video.mp4",
     "listCompositions": "npx remotion compositions src/index.ts",
     "lint": "npm run lint",

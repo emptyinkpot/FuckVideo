@@ -39,6 +39,7 @@
     "text-to-scenes-tts-video": "node scripts/text-to-scenes-tts-video.mjs",
     "index-assets": "node scripts/asset-indexer.mjs",
     "match-assets": "node scripts/scene-asset-planner.mjs",
+    "export-project": "node scripts/export-video-project.mjs",
     "text-to-video": "node scripts/text-to-video.mjs",
     "video-ui": "node scripts/video-ui-server.mjs",
     "upgrade": "remotion upgrade",

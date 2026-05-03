@@ -229,7 +229,7 @@
     }
     .ttv-links {
       display: none;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
     }
     .ttv-links.show { display: grid; }
@@ -326,6 +326,7 @@
       <button class="ttv-primary" id="ttv-generate" type="button">一站式生成视频</button>
       <div class="ttv-links" id="ttv-links">
         <a class="ttv-link" id="ttv-open" target="_blank" rel="noreferrer">打开视频</a>
+        <a class="ttv-link" id="ttv-project" target="_blank" rel="noreferrer">编辑项目</a>
         <a class="ttv-link" id="ttv-download" download>下载视频</a>
       </div>
     </div>
@@ -405,10 +406,12 @@
         window.clearInterval(timer);
         $("#ttv-generate").disabled = false;
         const url = `${API}${job.result.videoUrl}`;
+        const projectUrl = job.result.projectUrl ? `${API}${job.result.projectUrl}` : "";
         $("#ttv-open").href = url;
+        $("#ttv-project").href = projectUrl || url;
         $("#ttv-download").href = url;
         $("#ttv-links").classList.add("show");
-        $("#ttv-status").textContent = "视频已生成。";
+        $("#ttv-status").textContent = projectUrl ? "视频已生成，可进入项目编辑器继续微调。" : "视频已生成。";
       }
       if (job.status === "failed") {
         window.clearInterval(timer);
