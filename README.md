@@ -43,7 +43,7 @@ Remotion Studio 模板预览与参数编辑
 - 用 `ffmpeg` 转成 Remotion Studio 更稳定识别的标准 MP3。
 - 根据音频时长计算视频时长。
 - 可选调用字幕接口生成 SRT。
-- 如果存在 SRT/captions，自动片段会按音频真实时间重新分配 `fromFrame` 和 `durationInFrames`。
+- 如果存在 SRT/captions，自动片段会直接按每条 caption 生成一个 scene：一段音频、一段文本、一个画面。
 - 如果存在 `public/generated/asset-index.json`，自动片段会尝试匹配 `public/footage/` 下的素材。
 - 使用 `GeneratedTemplateVideo` 包装已有模板并叠加音频/字幕。
 - 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
@@ -207,7 +207,7 @@ remotion-project/
   scripts/
     text-to-video.mjs               命令行生成视频主链路
     scene-planner.mjs               文本拆块、关键词提取、镜头模板匹配
-    timeline-aligner.mjs            用 SRT/captions 把镜头贴到音频真实时间轴
+    timeline-aligner.mjs            旧兼容：把已有 scenes 贴到音频真实时间轴
     asset-indexer.mjs               扫描 public/footage 生成素材索引草稿
     asset-matcher.mjs               根据 sceneType、visualIntent、tags 匹配素材
     scene-asset-planner.mjs         给已有 scenes JSON 补充 visualLayer 素材信息
@@ -967,17 +967,19 @@ POST /srt
 
 如果字幕接口失败，脚本会继续渲染只有音频的视频，不会直接中断。
 
-自动片段模式会优先使用字幕时间轴对齐画面：
+自动片段模式会优先使用字幕时间轴创建画面：
 
 ```text
 TTS 音频
   -> SRT/captions
-  -> scripts/timeline-aligner.mjs
-  -> 重新计算每个 scene 的 fromFrame / durationInFrames
+  -> scripts/scene-planner.mjs 的 planScenesFromCaptions()
+  -> 每条 caption 生成一个 scene，并直接写入 fromFrame / durationInFrames / audioStartMs / audioEndMs
   -> MultiSceneVideo 按音频真实时间切镜头
 ```
 
-也就是说，一站式生成时如果没有跳过字幕，画面时长不再只按文本长度估算，而是尽量贴着语音识别时间走。当前实现依赖 `/srt` 返回的句段时间戳；后续如果接本地 Whisper/faster-whisper，只需要让它输出同样的 captions/SRT 结构即可。
+也就是说，一站式生成时如果没有跳过字幕，`captions.length` 必须等于 `scenes.length`，且每个 scene 的 `audioStartMs/audioEndMs` 必须等于对应 caption 的 `startMs/endMs`。当前实现依赖 `/srt` 返回的句段时间戳；后续如果接本地 Whisper/faster-whisper，只需要让它输出同样的 captions/SRT 结构即可。
+
+生成脚本里有硬校验：有 captions 时如果 `scenes.length !== captions.length`，或任一 scene 缺少文本/音频起止时间不等于对应 caption，任务必须失败，不能继续输出错位项目。
 
 ## 13. Web 任务 API
 
@@ -2394,12 +2396,13 @@ ffprobe 读时长
 把 TTS 音频、字幕和 scenes 送入 MultiSceneVideo
 ```
 
-8. 写 `scripts/timeline-aligner.mjs`：
+8. 写 caption-driven 片段生成：
 
 ```text
 读取 captions/SRT
-按旁白文本长度把 captions 分组到 scenes
-用字幕 start/end 重新计算 fromFrame 和 durationInFrames
+每条 caption 直接调用 planScenesFromCaptions()
+用 caption start/end 直接计算 fromFrame 和 durationInFrames
+每个 scene 只使用当前 caption 文本做 visualIntent 和素材匹配
 没有 captions 时才使用文本估算时长
 ```
 
@@ -2702,8 +2705,8 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
   -> semanticBlocks
   -> visualBeats
   -> template-manifest.json 召回候选模板
+  -> captions/SRT 存在时直接生成一 caption 一 scene
   -> manifest 打分与模板轮换
-  -> captions/SRT 可选对齐到音频真实时间轴
   -> asset-index.json 可选检索本地素材
   -> scenes JSON
   -> MultiSceneVideo
@@ -2712,8 +2715,8 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 
 新增文件：
 
-- `scripts/scene-planner.mjs`：文本拆块、关键词提取、视觉意图生成、manifest 打分、模板轮换、scene props 生成。
-- `scripts/timeline-aligner.mjs`：用 captions/SRT 把 scene 的 `fromFrame` 和 `durationInFrames` 改成音频驱动。
+- `scripts/scene-planner.mjs`：文本拆块、caption 驱动片段生成、关键词提取、视觉意图生成、manifest 打分、模板轮换、scene props 生成。
+- `scripts/timeline-aligner.mjs`：旧兼容工具；新一站式生成不再用它把 captions 按文本长度分组到 scenes。
 - `scripts/asset-indexer.mjs`：扫描 `public/footage/`，生成素材索引草稿。
 - `scripts/asset-matcher.mjs`：用 sceneType、visualIntent、keywords、tags、bestFor 给 scene 匹配素材。
 - `scripts/scene-asset-planner.mjs`：给已有 scenes JSON 追加 `visualLayer`。
@@ -2928,10 +2931,12 @@ establishing map -> portrait/person -> document evidence -> quote -> concept exp
 图文错位的根因是只用文本长度估算镜头时长。当前一站式链路改成：
 
 ```text
-TTS -> SRT/captions -> timeline-aligner -> scenes[fromFrame,durationInFrames]
+TTS -> SRT/captions -> planScenesFromCaptions -> scenes[fromFrame,durationInFrames,audioStartMs,audioEndMs]
 ```
 
-`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `alignScenesToCaptions()`，把字幕时间分组到每个 scene。这样画面切换以语音时间为主。只有在跳过字幕或字幕接口失败时，才使用文本长度估算并按音频总时长拉伸。
+`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `planScenesFromCaptions()`，每条 caption 直接成为一个 scene。scene 的时间来自 caption，scene 的语义文本优先来自原始文案：当原始句子数和 caption 数不一致时，用 caption 文本在原文中找锚点切片，避免 ASR 错字污染画面匹配。禁止再用旁白文本长度把多个 captions 分组到旧 scenes；那会造成画面和声音错位。只有在跳过字幕或字幕接口失败时，才使用文本拆句估算并按音频总时长拉伸。
+
+素材匹配也必须发生在这个 caption-derived scene 之后：`asset-matcher.mjs` 的 query 只能包含当前 scene 的 `narrationText/text/visualIntent/keywords`，不能用整段文案或相邻片段的文本参与当前片段匹配。
 
 独立多镜头命令也支持同样的对齐：
 

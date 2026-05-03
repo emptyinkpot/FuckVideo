@@ -3,9 +3,9 @@ import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeScenesFile } from "./scene-planner.mjs";
+import { planScenesFromCaptions, writeScenesFile } from "./scene-planner.mjs";
 import { attachAssetsToScenes, loadAssetIndex } from "./asset-matcher.mjs";
-import { alignScenesToCaptions, stretchScenesToFrames } from "./timeline-aligner.mjs";
+import { stretchScenesToFrames } from "./timeline-aligner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -15,7 +15,7 @@ const rawAudioDir = path.join(projectRoot, ".runtime", "text-to-video", "raw-aud
 const defaults = {
   apiBase: "https://<private-tts-relay>/api/qwen3-tts",
   text: "旅顺港的海风吹进东京霞关，战争的尾声并没有带来平静。新的铁路和港口，正在改变东亚的权力地图。",
-  title: "自动镜头文本视频",
+  title: "自动片段文本视频",
   language: "Chinese",
   voice: "my-clone",
   instruction: "标准播音风格，吐字清晰，语速平稳，停顿自然",
@@ -95,7 +95,7 @@ async function main() {
     console.log("[3/6] 已按要求跳过字幕。");
   }
 
-  console.log("[4/6] 正在规划自动镜头...");
+  console.log("[4/6] 正在规划自动片段...");
   const scenesPath = path.join(generatedDir, `scenes-${stamp}.json`);
   const plan = await writeScenesFile({
     text: input.text,
@@ -105,15 +105,16 @@ async function main() {
   const sceneFrames = plan.scenes.reduce((sum, scene) => sum + scene.durationInFrames, 0);
   const targetFrames = Math.max(sceneFrames, Math.ceil(durationSeconds * 30));
   let scenes = captions.length
-    ? alignScenesToCaptions(plan.scenes, captions, { fps: 30, totalFrames: targetFrames })
+    ? planScenesFromCaptions(captions, { fps: 30, sourceText: input.text, maxChars: Number(input.maxChars || 130) })
     : stretchScenesToFrames(plan.scenes, targetFrames);
+  assertCaptionSceneLockstep(scenes, captions);
   if (input.matchAssets !== false) {
     const assets = loadAssetIndex(input.assetIndex);
     if (assets.length) {
       scenes = attachAssetsToScenes(scenes, assets);
     }
   }
-  await writeFile(scenesPath, JSON.stringify({ ...plan, scenes }, null, 2), "utf8");
+  await writeFile(scenesPath, JSON.stringify({ ...plan, scenes, totalFrames: sceneEndFrame(scenes) }, null, 2), "utf8");
 
   const props = {
     title: input.title,
@@ -140,12 +141,12 @@ async function main() {
     return;
   }
 
-  console.log("[5/6] 正在渲染 Remotion 自动镜头视频...");
+  console.log("[5/6] 正在渲染 Remotion 自动片段视频...");
   await runRemotionRender(propsPath, path.resolve(projectRoot, input.output));
 
   console.log("[6/6] 已完成。");
   console.log(`音频：${audioFile}`);
-  console.log(`镜头：${scenesPath}`);
+  console.log(`片段：${scenesPath}`);
   if (srtText) {
     console.log(`字幕：${path.join(generatedDir, `tts-${stamp}.srt`)}`);
   }
@@ -276,6 +277,29 @@ function runRemotionRender(propsPath, outputPath) {
     child.stdout?.pipe(process.stdout);
     child.stderr?.pipe(process.stderr);
   });
+}
+
+function sceneEndFrame(scenes) {
+  return Math.max(0, ...scenes.map((scene) => Number(scene.fromFrame || 0) + Number(scene.durationInFrames || 0)));
+}
+
+function assertCaptionSceneLockstep(scenes, captions) {
+  if (!Array.isArray(captions) || captions.length === 0) {
+    return;
+  }
+  if (scenes.length !== captions.length) {
+    throw new Error(`片段数量必须等于字幕数量：scenes=${scenes.length}, captions=${captions.length}`);
+  }
+  for (let index = 0; index < captions.length; index += 1) {
+    const scene = scenes[index];
+    const caption = captions[index];
+    if (Number(scene.audioStartMs) !== Number(caption.startMs) || Number(scene.audioEndMs) !== Number(caption.endMs)) {
+      throw new Error(`片段 ${index + 1} 与字幕时间不一致。`);
+    }
+    if (!String(scene.narrationText || scene.text || "").trim()) {
+      throw new Error(`片段 ${index + 1} 缺少文本。`);
+    }
+  }
 }
 
 function parseSrt(value) {

@@ -41,16 +41,7 @@ export function splitIntoBlocks(text, maxChars = 130) {
     .split(/(?<=[。！？!?；;：:])\s*/)
     .map((sentence) => sentence.trim())
     .filter(Boolean)
-    .reduce((blocks, sentence) => {
-      const last = blocks[blocks.length - 1];
-      const typeChanged = last && inferSceneType(last) !== inferSceneType(sentence);
-      if (!last || typeChanged || last.length + sentence.length > maxChars) {
-        blocks.push(sentence);
-      } else {
-        blocks[blocks.length - 1] = `${last}${sentence}`;
-      }
-      return blocks;
-    }, []);
+    .flatMap((sentence) => splitLongSentence(sentence, maxChars));
 }
 
 export function extractKeywords(text) {
@@ -102,6 +93,10 @@ export function chooseTemplate(beat, previousScene, manifest = loadTemplateManif
     .sort((a, b) => b.score - a.score);
 
   const best = candidates[0];
+  const exactSceneType = candidates.find((candidate) => sceneTypeByCategory[candidate.template.category] === beat.sceneType);
+  if (exactSceneType) {
+    return exactSceneType;
+  }
   const rotated =
     previousScene && best?.template.id === previousScene.templateId && best.template.category === previousScene.category
       ? candidates.find((candidate) => candidate.template.id !== previousScene.templateId && candidate.score >= best.score - 2)
@@ -267,6 +262,39 @@ export function planScenes(text, options = {}) {
   });
 }
 
+export function planScenesFromCaptions(captions, options = {}) {
+  const fps = Number(options.fps || 30);
+  const manifest = loadTemplateManifest();
+  const sourceBlocks = splitIntoBlocks(options.sourceText || "", Number(options.maxChars || 130));
+  const timedTexts = normalizeTimedTexts(captions, sourceBlocks);
+  let previousScene = null;
+
+  return timedTexts.map((item, index) => {
+    const beat = makeVisualBeat(item.text, index);
+    const selected = chooseTemplate(beat, previousScene, manifest);
+    const template = selected.template;
+    const fromFrame = Math.max(0, Math.round((item.startMs / 1000) * fps));
+    const durationInFrames = Math.max(1, Math.round(((item.endMs - item.startMs) / 1000) * fps));
+    const durationSec = Math.round((durationInFrames / fps) * 100) / 100;
+    const scene = {
+      ...beat,
+      captionIndex: item.captionIndex,
+      templateId: template.id,
+      category: template.category,
+      durationSec,
+      fromFrame,
+      durationInFrames,
+      audioStartMs: item.startMs,
+      audioEndMs: item.endMs,
+      timingSource: "caption-segment",
+      decisionReason: `${template.displayName}: ${template.visualMetaphor}`,
+      props: buildSceneProps(template.id, beat),
+    };
+    previousScene = scene;
+    return scene;
+  });
+}
+
 export async function writeScenesFile({ text, outputPath, options = {} }) {
   const fps = Number(options.fps || 30);
   const scenes = planScenes(text, { ...options, fps });
@@ -291,6 +319,121 @@ function inferSceneType(text) {
   if (/港|铁路|路线|大陆|关东州|南满|旅顺|大连|黄海|东京|霞关|俄国|日本|满洲/.test(text)) return "geo_context";
   if (/战争|战役|硝烟|军|作战|焦土|铁锈|占领/.test(text)) return "establishing_map";
   return "narration_bridge";
+}
+
+function splitLongSentence(sentence, maxChars) {
+  const value = String(sentence || "").trim();
+  const limit = Number(maxChars || 0);
+  if (!limit || value.length <= limit) {
+    return value ? [value] : [];
+  }
+  const parts = value
+    .split(/(?<=[，、,])\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length <= 1) {
+    return [value];
+  }
+  const blocks = [];
+  for (const part of parts) {
+    const last = blocks[blocks.length - 1] || "";
+    if (!last || `${last}${part}`.length > limit) {
+      blocks.push(part);
+    } else {
+      blocks[blocks.length - 1] = `${last}${part}`;
+    }
+  }
+  return blocks;
+}
+
+function normalizeTimedTexts(captions, sourceBlocks) {
+  const list = Array.isArray(captions) ? captions : [];
+  const sourceTexts = sourceBlocks.length ? sourceTextsForCaptionCount(sourceBlocks, list) : [];
+  const clean = list
+    .map((caption, index) => {
+      const startMs = Math.max(0, Number(caption.startMs || 0));
+      const endMs = Math.max(startMs, Number(caption.endMs || startMs));
+      const captionText = String(caption.text || "").trim();
+      const sourceText = sourceTexts[index] || "";
+      return {
+        captionIndex: Number(caption.index || index + 1),
+        startMs,
+        endMs,
+        text: (sourceText || captionText).trim(),
+      };
+    })
+    .filter((item) => item.text && item.endMs > item.startMs);
+  return clean;
+}
+
+function sourceTextsForCaptionCount(sourceBlocks, captions) {
+  const count = captions.length;
+  if (!count) {
+    return [];
+  }
+  if (sourceBlocks.length === count) {
+    return sourceBlocks;
+  }
+  const sourceText = sourceBlocks.join("");
+  const totalSourceLength = Math.max(1, cleanText(sourceText).length);
+  const captionLengths = captions.map((caption) => Math.max(1, cleanText(caption.text).length));
+  const totalCaptionLength = captionLengths.reduce((sum, length) => sum + length, 0);
+  const cleanMap = cleanSourceMap(sourceText);
+  const starts = [];
+  let consumedCaptionChars = 0;
+
+  for (let captionIndex = 0; captionIndex < count; captionIndex += 1) {
+    const fallbackStart = Math.round((consumedCaptionChars / totalCaptionLength) * totalSourceLength);
+    consumedCaptionChars += captionLengths[captionIndex];
+    const minStart = starts[starts.length - 1] ?? 0;
+    const anchored = findCaptionAnchor(cleanMap.clean, cleanText(captions[captionIndex]?.text), minStart);
+    starts.push(Math.max(minStart, anchored >= 0 ? anchored : fallbackStart));
+  }
+
+  const slices = starts.map((startClean, index) => {
+    const endClean = index === starts.length - 1 ? totalSourceLength : starts[index + 1];
+    const start = cleanMap.indexes[Math.max(0, Math.min(startClean, cleanMap.indexes.length - 1))] ?? 0;
+    const end = cleanMap.indexes[Math.max(0, Math.min(endClean, cleanMap.indexes.length - 1))] ?? sourceText.length;
+    return trimSegmentText(sourceText.slice(start, Math.max(end, start + 1)));
+  });
+  return slices.map((slice, index) => slice || String(captions[index]?.text || "").trim());
+}
+
+function cleanSourceMap(text) {
+  const chars = [];
+  const indexes = [];
+  for (let index = 0; index < text.length; index += 1) {
+    const clean = cleanText(text[index]);
+    if (clean) {
+      chars.push(clean);
+      indexes.push(index);
+    }
+  }
+  indexes.push(text.length);
+  return { clean: chars.join(""), indexes };
+}
+
+function findCaptionAnchor(cleanSource, cleanCaption, minStart) {
+  const caption = String(cleanCaption || "");
+  const searchStart = Math.max(0, minStart - 6);
+  const maxOffset = Math.min(10, Math.max(0, caption.length - 2));
+  for (let offset = 0; offset <= maxOffset; offset += 1) {
+    for (let size = Math.min(10, caption.length - offset); size >= 2; size -= 1) {
+      const needle = caption.slice(offset, offset + size);
+      const found = cleanSource.indexOf(needle, searchStart);
+      if (found >= minStart - 2) {
+        return Math.max(0, found);
+      }
+    }
+  }
+  return -1;
+}
+
+function trimSegmentText(value) {
+  return String(value || "")
+    .replace(/^[\s，。！？、；：,.!?;:]+/, "")
+    .replace(/[\s]+/g, " ")
+    .trim();
 }
 
 function buildVisualIntent(sceneType, text, keywords) {
@@ -423,6 +566,10 @@ function cleanKeyword(value) {
     .replace(/^[这那其之所谓与和及、，仿佛好像]+/, "")
     .replace(/[，。！？；：,.!?;:]$/g, "")
     .trim();
+}
+
+function cleanText(value) {
+  return String(value || "").replace(/[\s，。！？、；：,.!?;:"“”《》]/g, "");
 }
 
 function parseArgs(argv) {

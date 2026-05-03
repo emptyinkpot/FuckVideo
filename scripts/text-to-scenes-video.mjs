@@ -3,16 +3,15 @@ import { execFile } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeScenesFile } from "./scene-planner.mjs";
+import { planScenesFromCaptions, writeScenesFile } from "./scene-planner.mjs";
 import { attachAssetsToScenes, loadAssetIndex } from "./asset-matcher.mjs";
-import { alignScenesToCaptions } from "./timeline-aligner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const generatedDir = path.join(projectRoot, "public", "generated");
 
 const defaults = {
-  title: "自动镜头视频",
+  title: "自动片段视频",
   output: path.join(projectRoot, "out", "auto-scenes-video.mp4"),
   composition: "MultiSceneVideo",
   fps: 30,
@@ -55,17 +54,17 @@ async function main() {
     options: { fps: Number(input.fps), maxChars: Number(input.maxChars) },
   });
   const captions = input.captionsFile ? parseSrt(await readFile(path.resolve(projectRoot, input.captionsFile), "utf8")) : [];
-  const totalCaptionFrames = Math.ceil((Math.max(0, ...captions.map((caption) => caption.endMs)) / 1000) * Number(input.fps));
   let scenes = captions.length
-    ? alignScenesToCaptions(plan.scenes, captions, { fps: Number(input.fps), totalFrames: totalCaptionFrames })
+    ? planScenesFromCaptions(captions, { fps: Number(input.fps), sourceText: text, maxChars: Number(input.maxChars) })
     : plan.scenes;
+  assertCaptionSceneLockstep(scenes, captions);
   if (input.matchAssets !== false) {
     const assets = loadAssetIndex(input.assetIndex);
     if (assets.length) {
       scenes = attachAssetsToScenes(scenes, assets);
     }
   }
-  await writeFile(scenesPath, JSON.stringify({ ...plan, scenes }, null, 2), "utf8");
+  await writeFile(scenesPath, JSON.stringify({ ...plan, scenes, totalFrames: sceneEndFrame(scenes) }, null, 2), "utf8");
 
   const props = {
     title: input.title,
@@ -113,6 +112,29 @@ function runRemotionRender(propsPath, outputPath, composition) {
     child.stdout?.pipe(process.stdout);
     child.stderr?.pipe(process.stderr);
   });
+}
+
+function sceneEndFrame(scenes) {
+  return Math.max(0, ...scenes.map((scene) => Number(scene.fromFrame || 0) + Number(scene.durationInFrames || 0)));
+}
+
+function assertCaptionSceneLockstep(scenes, captions) {
+  if (!Array.isArray(captions) || captions.length === 0) {
+    return;
+  }
+  if (scenes.length !== captions.length) {
+    throw new Error(`片段数量必须等于字幕数量：scenes=${scenes.length}, captions=${captions.length}`);
+  }
+  for (let index = 0; index < captions.length; index += 1) {
+    const scene = scenes[index];
+    const caption = captions[index];
+    if (Number(scene.audioStartMs) !== Number(caption.startMs) || Number(scene.audioEndMs) !== Number(caption.endMs)) {
+      throw new Error(`片段 ${index + 1} 与字幕时间不一致。`);
+    }
+    if (!String(scene.narrationText || scene.text || "").trim()) {
+      throw new Error(`片段 ${index + 1} 缺少文本。`);
+    }
+  }
 }
 
 function parseSrt(value) {
