@@ -2000,25 +2000,35 @@ button#ttv-workbar-export
 
 ```css
 .ttv-workbar {
+  height: 28px;
+  min-width: 0;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: rgba(15,17,21,.94);
+  z-index: 2147482999;
+}
+
+.ttv-workbar.docked {
+  position: static;
+  width: auto;
+  max-width: min(520px, calc(100vw - 380px));
+  margin-left: 8px;
+}
+
+.ttv-workbar.docked .ttv-workbar-status,
+.ttv-workbar.docked #ttv-workbar-compact,
+.ttv-workbar.docked .ttv-brand {
+  display: none;
+}
+
+.ttv-workbar.floating {
   position: fixed;
   top: 42px;
   left: clamp(84px, 22vw, 304px);
   right: 126px;
   height: 40px;
-  min-width: 0;
   padding: 0 10px;
   border-radius: 13px;
-  background: rgba(15,17,21,.94);
-  z-index: 2147482999;
-}
-
-body.ttv-generator-open .ttv-workbar {
-  right: 426px;
-}
-
-.ttv-workbar.compact {
-  height: 30px;
-  opacity: .86;
 }
 ```
 
@@ -2027,11 +2037,12 @@ body.ttv-generator-open .ttv-workbar {
 - 点击项目名展开最近项目菜单。
 - 最近项目来自 `GET /api/projects`，数据源是 `.runtime/video-projects/*.json`。
 - 点击项目调用 `GET /api/projects/:id`，再调用 `GET /api/projects/:id/props` 写入 Remotion input props override。
-- `+` 和菜单里的 `+ 新建项目` 调用 `POST /api/projects`，只创建空工作空间。
+- dock 模式不显示独立 `+`；菜单里的 `+ 新建项目` 调用 `POST /api/projects`，只创建空工作空间。floating fallback 可以保留独立 `+`。
 - `导出` 调用 `POST /api/projects/:id/export`。
 - `收纳` 写入 `localStorage["ttv.workbar"] = "collapsed" | "expanded"`。
-- 顶部栏不再居中压住 Remotion 原生菜单，而是从 Studio 左侧工作区后方开始，右侧给 `生成视频` 按钮或生成控制台让位。
-- 右侧生成控制台打开时，`body.ttv-generator-open` 会压缩顶部栏右边界；窄屏下生成控制台改为更小的 dock 面板。
+- 顶部栏优先用 `ensureWorkbarDocked()` 插入 Remotion 原生 `Help / 帮助` 菜单后面，成为原生顶栏的一部分。
+- dock 到 Help 后面的版本必须是紧凑条：隐藏品牌、状态、收纳按钮和独立 `+`，只保留项目切换和导出；新建项目放在项目下拉菜单里，避免重复按钮和挤压 Remotion 中央标题。
+- 只有找不到原生 Help 菜单时才使用 `.ttv-workbar.floating` 降级浮层。
 
 项目切换逻辑：
 
@@ -2053,6 +2064,7 @@ async function switchProject(projectId) {
 
 - 顶部项目栏不能 `left: 50% + transform` 居中悬浮，否则会压住 Remotion 原生顶栏和右侧按钮。
 - 顶部项目栏不能同时写死 `min-width` 和依赖右侧控制台的 `max-width: calc(100vw - 460px)`，窄屏会互相打架。
+- 顶部项目栏默认必须 dock 到 Remotion 原生 `Help / 帮助` 后面；悬浮只允许作为找不到原生菜单时的 fallback。
 - 右侧生成控制台不能让 `生成视频` 启动按钮继续漂在画面中央边缘；控制台打开时启动按钮必须隐藏。
 - 左侧分镜不能完全依赖 Remotion explorer 是否可见；如果原生左栏在窄屏下消失，必须出现 `button.ttv-storyboard-launcher` 作为 fallback。
 - 左侧分镜不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 分镜列表 -> 时间线 -> 当前分镜编辑器。

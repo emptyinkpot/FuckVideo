@@ -102,36 +102,65 @@
   const style = document.createElement("style");
   style.textContent = `
     .ttv-workbar {
-      position: fixed;
-      top: 42px;
-      left: clamp(84px, 22vw, 304px);
-      right: 126px;
       z-index: 2147482999;
-      height: 40px;
+      height: 28px;
       min-width: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      padding: 0 10px;
+      gap: 8px;
+      padding: 0 6px;
       border: 1px solid rgba(255,255,255,.12);
-      border-radius: 13px;
+      border-radius: 9px;
       background: rgba(15,17,21,.94);
       color: #e5e7eb;
-      box-shadow: 0 18px 50px rgba(0,0,0,.34);
+      box-shadow: 0 10px 28px rgba(0,0,0,.26);
       backdrop-filter: blur(14px);
       font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
-      transition: height .16s ease, opacity .16s ease, left .16s ease, right .16s ease;
+      transition: height .16s ease, opacity .16s ease;
     }
-    body.ttv-generator-open .ttv-workbar {
+    .ttv-workbar.docked {
+      position: static;
+      width: auto;
+      max-width: min(520px, calc(100vw - 380px));
+      margin-left: 8px;
+    }
+    .ttv-workbar.docked .ttv-workbar-status,
+    .ttv-workbar.docked #ttv-workbar-compact,
+    .ttv-workbar.docked .ttv-brand {
+      display: none;
+    }
+    .ttv-workbar.docked,
+    .ttv-workbar.docked .ttv-workbar-left,
+    .ttv-workbar.docked .ttv-workbar-right {
+      gap: 4px;
+    }
+    .ttv-workbar.docked .ttv-project-button {
+      max-width: 118px;
+    }
+    .ttv-workbar.docked #ttv-quick-create {
+      display: none;
+    }
+    .ttv-workbar.docked #ttv-workbar-export {
+      width: 42px;
+      padding: 0;
+    }
+    .ttv-workbar.floating {
+      position: fixed;
+      top: 42px;
+      left: clamp(84px, 22vw, 304px);
+      right: 126px;
+      height: 40px;
+      padding: 0 10px;
+      border-radius: 13px;
+    }
+    body.ttv-generator-open .ttv-workbar.floating {
       right: 426px;
     }
     .ttv-workbar.compact {
-      height: 30px;
       opacity: .86;
     }
     .ttv-workbar.compact:hover {
-      height: 40px;
       opacity: 1;
     }
     .ttv-workbar-left,
@@ -142,7 +171,7 @@
       min-width: 0;
     }
     .ttv-brand {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 820;
       color: white;
       padding: 0 4px;
@@ -153,15 +182,15 @@
       min-width: 0;
     }
     .ttv-project-button {
-      max-width: 240px;
+      max-width: 170px;
       min-width: 0;
-      height: 30px;
+      height: 24px;
       border: 1px solid rgba(255,255,255,.12);
       border-radius: 8px;
       background: #171b24;
       color: #f5f5f5;
       padding: 0 10px;
-      font: 700 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
+      font: 700 11px Inter, "Microsoft YaHei", system-ui, sans-serif;
       cursor: pointer;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -169,7 +198,7 @@
     }
     .ttv-project-menu {
       position: absolute;
-      top: 38px;
+      top: 32px;
       left: 0;
       width: 280px;
       max-height: 360px;
@@ -231,14 +260,14 @@
     }
     .ttv-menu-action:hover { background: #1f2937; }
     .ttv-workbar-button {
-      height: 30px;
+      height: 24px;
       border: 1px solid rgba(255,255,255,.12);
       border-radius: 8px;
       background: #171b24;
       color: #e5e7eb;
-      padding: 0 10px;
+      padding: 0 8px;
       cursor: pointer;
-      font: 750 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
+      font: 750 11px Inter, "Microsoft YaHei", system-ui, sans-serif;
       white-space: nowrap;
     }
     .ttv-workbar-button.primary {
@@ -249,7 +278,7 @@
     .ttv-workbar-status {
       color: #9ca3af;
       font-size: 11px;
-      max-width: 120px;
+      max-width: 96px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -591,10 +620,10 @@
       box-shadow: 0 24px 70px rgba(0,0,0,.46);
     }
     @media (max-width: 1180px) {
-      .ttv-workbar {
+      .ttv-workbar.floating {
         left: 252px;
       }
-      body.ttv-generator-open .ttv-workbar {
+      body.ttv-generator-open .ttv-workbar.floating {
         right: 374px;
       }
       .ttv-workbar-status {
@@ -602,11 +631,11 @@
       }
     }
     @media (max-width: 1060px) {
-      .ttv-workbar {
+      .ttv-workbar.floating {
         left: 252px;
         right: 118px;
       }
-      body.ttv-generator-open .ttv-workbar {
+      body.ttv-generator-open .ttv-workbar.floating {
         right: 18px;
       }
       body.ttv-generator-open .ttv-generator-panel {
@@ -620,7 +649,7 @@
       }
     }
     @media (max-width: 760px) {
-      .ttv-workbar {
+      .ttv-workbar.floating {
         left: 12px;
         right: 12px;
       }
@@ -861,6 +890,33 @@
       }
     }
     return null;
+  }
+
+  function findHelpMenuItem() {
+    const candidates = Array.from(document.querySelectorAll("button, a, div, span")).filter((el) => {
+      if (workbar.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el)) return false;
+      return normalize(el.textContent) === "help" || normalize(el.textContent) === "帮助";
+    });
+    return candidates.find((el) => {
+      const parentText = normalize(el.parentElement?.textContent || "");
+      return parentText.includes("file") && parentText.includes("view") && parentText.includes("help");
+    }) || candidates[0] || null;
+  }
+
+  function ensureWorkbarDocked() {
+    const help = findHelpMenuItem();
+    if (!help?.parentElement) {
+      if (workbar.parentElement !== document.body) document.body.appendChild(workbar);
+      workbar.classList.remove("docked");
+      workbar.classList.add("floating");
+      return;
+    }
+    const host = help.parentElement;
+    if (workbar.parentElement !== host || help.nextElementSibling !== workbar) {
+      help.insertAdjacentElement("afterend", workbar);
+    }
+    workbar.classList.add("docked");
+    workbar.classList.remove("floating");
   }
 
   function normalize(value) {
@@ -1465,6 +1521,7 @@
 
   restoreProgress();
   translateStudioUi();
+  ensureWorkbarDocked();
   ensureDocked();
   renderWorkbar();
   renderProject();
@@ -1472,6 +1529,7 @@
   const observer = new MutationObserver(() => {
     window.requestAnimationFrame(() => {
       translateStudioUi();
+      ensureWorkbarDocked();
       ensureDocked();
     });
   });
