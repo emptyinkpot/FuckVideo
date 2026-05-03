@@ -12,6 +12,7 @@ import {
   loadProject,
   patchScene,
   projectToMultiSceneProps,
+  projectToSegments,
   projectToTracks,
   rematchScene,
   reorderScenes,
@@ -156,26 +157,26 @@ async function handleProjectApi(req, res, url) {
     return sendJson(res, { success: true, data: projectToMultiSceneProps(project) });
   }
 
-  if (req.method === "PATCH" && parts.length === 5 && parts[3] === "scenes") {
+  if (req.method === "PATCH" && parts.length === 5 && (parts[3] === "scenes" || parts[3] === "segments")) {
     const sceneId = decodeURIComponent(parts[4]);
     const body = await readJson(req);
     const next = await saveProject(patchScene(project, sceneId, body.patch || body));
     return sendJson(res, { success: true, data: publicProject(next) });
   }
 
-  if (req.method === "POST" && parts.length === 6 && parts[3] === "scenes" && parts[5] === "lock") {
+  if (req.method === "POST" && parts.length === 6 && (parts[3] === "scenes" || parts[3] === "segments") && parts[5] === "lock") {
     const sceneId = decodeURIComponent(parts[4]);
     const body = await readJson(req);
     const next = await saveProject(setSceneLocked(project, sceneId, body.locked));
     return sendJson(res, { success: true, data: publicProject(next) });
   }
 
-  if (req.method === "POST" && parts.length === 6 && parts[3] === "scenes" && parts[5] === "rematch-material") {
+  if (req.method === "POST" && parts.length === 6 && (parts[3] === "scenes" || parts[3] === "segments") && (parts[5] === "rematch-material" || parts[5] === "rematch-visual")) {
     const sceneId = decodeURIComponent(parts[4]);
     return sendJson(res, { success: true, data: { candidates: rematchScene(project, sceneId) } });
   }
 
-  if (req.method === "POST" && parts.length === 6 && parts[3] === "scenes" && parts[5] === "replace-material") {
+  if (req.method === "POST" && parts.length === 6 && (parts[3] === "scenes" || parts[3] === "segments") && (parts[5] === "replace-material" || parts[5] === "replace-visual")) {
     const sceneId = decodeURIComponent(parts[4]);
     const body = await readJson(req);
     const next = await saveProject(replaceSceneMaterial(project, sceneId, body.candidate || body));
@@ -272,7 +273,7 @@ function handleLog(job, text) {
     if (line.includes("[1/5]") || line.includes("[1/6]")) job.progress = "生成旁白音频";
     if (line.includes("[2/5]") || line.includes("[2/6]")) job.progress = "读取音频时长";
     if (line.includes("[3/5]") || line.includes("[3/6]")) job.progress = "生成字幕";
-    if (line.includes("[4/6]")) job.progress = "规划自动镜头";
+    if (line.includes("[4/6]")) job.progress = "规划自动片段";
     if (line.includes("[4/5]") || line.includes("[5/6]")) job.progress = "渲染视频";
     if (line.includes("[5/5]") || line.includes("[6/6]")) job.progress = "收尾";
   }
@@ -308,10 +309,12 @@ function publicJob(job) {
 
 function publicProject(project) {
   const tracks = projectToTracks(project);
+  const segments = projectToSegments(project);
   const durationMs = Math.max(0, ...tracks.flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0))));
   return {
     ...project,
     durationMs,
+    segments,
     tracks,
     videoUrl: project.source?.videoFile ? `/project-files/${encodeURIComponent(project.id)}` : project.source?.videoUrl || "",
   };

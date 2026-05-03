@@ -226,6 +226,54 @@ export function projectToTracks(project) {
   ];
 }
 
+export function projectToSegments(project) {
+  const scenes = Array.isArray(project.scenes) ? project.scenes : [];
+  return scenes.map((scene, index) => {
+    const startMs = Number(scene.startMs || 0);
+    const endMs = Number(scene.endMs || startMs);
+    const visualLayer = scene.visualLayer || {};
+    const confidence = Number(visualLayer.confidence || 0);
+    const source = visualLayer.type === "footage" ? "footage" : "template";
+    const status = visualLayer.type === "footage" && !visualLayer.path
+      ? "missing_visual"
+      : confidence > 0 && confidence < 12
+        ? "low_confidence"
+        : scene.locked
+          ? "ok"
+          : "ok";
+    return {
+      id: scene.id,
+      order: Number(scene.order ?? index),
+      text: scene.voiceText || scene.narrationText || scene.subtitle || "",
+      narrationText: scene.voiceText || scene.narrationText || scene.subtitle || "",
+      subtitleText: scene.subtitle || scene.voiceText || scene.narrationText || "",
+      audioStartMs: startMs,
+      audioEndMs: endMs,
+      startMs,
+      endMs,
+      durationMs: Math.max(0, endMs - startMs),
+      voice: {
+        instruction: scene.voice?.instruction || "",
+        audioSrc: project.audioSrc || "",
+      },
+      visual: {
+        source,
+        type: source,
+        templateId: scene.templateId || visualLayer.templateId || "NarratedScene",
+        materialId: visualLayer.clipId || "",
+        src: visualLayer.path || "",
+        props: scene.props || {},
+        confidence,
+        reason: visualLayer.reason || scene.decisionReason || "",
+      },
+      alternatives: scene.alternatives || [],
+      status,
+      locked: Boolean(scene.locked),
+      sceneType: scene.sceneType || "",
+    };
+  });
+}
+
 export function patchScene(project, sceneId, patch) {
   const before = clone(project);
   const scenes = project.scenes.map((scene) => {

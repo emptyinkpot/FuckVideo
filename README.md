@@ -7,20 +7,20 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 ```text
 Remotion Studio 模板预览与参数编辑
   + 右侧“生成视频”控制台
-  + 左侧“分镜”扩展页签
+  + 左侧“片段”扩展页签
   + 千问 TTS 旁白生成
-  + 自动镜头规划
+  + 自动片段规划
   + 现有 Remotion 模板复用
   + 自动音频格式标准化
   + 音频驱动镜头时间轴
   + 可选字幕文件
   + 本地素材库检索与素材镜头混合
   + 生成可编辑 video project
-  + Studio 内嵌分镜微调与总导出
+  + Studio 内嵌片段微调与总导出
   + 一键渲染 MP4
 ```
 
-它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，右侧用浮层控制台负责“生成视频”，左侧在 `合成列表 / 素材` 旁边注入 `分镜` 页签负责镜头微调；中央画布仍然使用 Remotion Studio 原生预览屏幕。生成成功后，插件会把项目转换成 `MultiSceneVideo` props，写入 Remotion 的 input props override，并切到 `MultiSceneVideo` composition 预览。
+它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，右侧用浮层控制台负责“生成视频”，左侧在 `合成列表 / 素材` 旁边注入 `片段` 页签负责“一段话绑定一个画面”的微调；中央画布仍然使用 Remotion Studio 原生预览屏幕。生成成功后，插件会把项目转换成 `MultiSceneVideo` props，写入 Remotion 的 input props override，并切到 `MultiSceneVideo` composition 预览。
 
 本文档按“给一个不了解项目的人复现出近似工程”的标准编写，包含运行环境、目录结构、端口、数据流、模板系统、参数系统、API 合约、排障和验证方式。
 
@@ -43,8 +43,8 @@ Remotion Studio 模板预览与参数编辑
 - 用 `ffmpeg` 转成 Remotion Studio 更稳定识别的标准 MP3。
 - 根据音频时长计算视频时长。
 - 可选调用字幕接口生成 SRT。
-- 如果存在 SRT/captions，自动镜头会按音频真实时间重新分配 `fromFrame` 和 `durationInFrames`。
-- 如果存在 `public/generated/asset-index.json`，自动镜头会尝试匹配 `public/footage/` 下的素材。
+- 如果存在 SRT/captions，自动片段会按音频真实时间重新分配 `fromFrame` 和 `durationInFrames`。
+- 如果存在 `public/generated/asset-index.json`，自动片段会尝试匹配 `public/footage/` 下的素材。
 - 使用 `GeneratedTemplateVideo` 包装已有模板并叠加音频/字幕。
 - 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
 - 调用 Remotion CLI 渲染 MP4。
@@ -55,19 +55,19 @@ Remotion Studio 模板预览与参数编辑
 - 访问 `http://127.0.0.1:3057`。
 - 代理会把 `frontend/remotion-studio-plugin.js` 注入 Studio 页面。
 - Remotion 原生 `渲染` 按钮旁边会出现 `生成视频` 按钮，点击后打开右侧生成控制台；控制台打开时按钮自动隐藏。
-- Remotion Studio 左侧栏 `合成列表 / 素材` 旁边会出现 `分镜` 页签。
-- 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动镜头规划 -> `MultiSceneVideo` -> MP4。
+- Remotion Studio 左侧栏 `合成列表 / 素材` 旁边会出现 `片段` 页签。
+- 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动片段规划 -> `MultiSceneVideo` -> MP4。
 - 插件也保留“单模板”模式：文本 -> 千问 TTS -> 选定 Remotion 模板 -> MP4。
 - 插件提交任务到 `http://127.0.0.1:3037/api/jobs`。
 - 生成完成后会保存 `.runtime/video-projects/<id>.json`。
-- 生成完成后自动把项目加载到 Remotion Studio 中央预览，并打开左侧 `分镜` 页签。
+- 生成完成后自动把项目加载到 Remotion Studio 中央预览，并打开左侧 `片段` 页签。
 
 第四层是项目编辑能力：
 
-- 分镜编辑内嵌在 Remotion Studio 左侧栏，不另起一个主控制台。
-- 生成控制台保持在右侧，和分镜编辑分离。
+- 片段编辑内嵌在 Remotion Studio 左侧栏，不另起一个主控制台。
+- 生成控制台保持在右侧，和片段编辑分离。
 - 中央区域复用 Remotion Studio 原生 composition 预览。
-- 支持保存字幕/旁白、修改视觉意图、修改模板、修改时间、锁定分镜、重配素材、替换素材、总导出。
+- 支持保存字幕/旁白、修改视觉意图、修改模板、修改时间、锁定片段、重配画面、替换画面、总导出。
 - `/video-project/:id` 独立页面仍保留为备用调试入口，但主工作流不再依赖它。
 
 ## 2. 运行环境
@@ -214,7 +214,7 @@ remotion-project/
     project-store.mjs               VideoProject 读写、scene patch、素材替换、props 转换
     export-video-project.mjs        project.json -> MultiSceneVideo props -> MP4
     text-to-scenes-video.mjs        只生成/渲染多镜头视频，不调用 TTS
-    text-to-scenes-tts-video.mjs    一站式：TTS + 自动镜头 + Remotion 渲染
+    text-to-scenes-tts-video.mjs    一站式：TTS + 自动片段 + Remotion 渲染
     video-ui-server.mjs             本地任务 API 与静态页面服务
     studio-plugin-proxy.mjs         代理 Remotion Studio 并注入插件脚本
     studio-with-video-ui.mjs        一键启动 Studio + API + 插件代理
@@ -228,7 +228,7 @@ remotion-project/
       DocumentReveal.tsx            条约/文件/档案类镜头模板
       AutoSceneTemplates.tsx        人物、引文、概念、隐喻四类解释型镜头模板
       FootageScene.tsx              本地素材片段镜头模板
-      sceneRegistry.tsx             自动镜头 templateId -> Remotion 组件映射
+      sceneRegistry.tsx             自动片段 templateId -> Remotion 组件映射
       template-manifest.json        模板语义说明书，供 planner 理解模板用途
       NarratedVideo.tsx             通用旁白视频模板
       MapTemplates.tsx              地图飞越模板
@@ -321,7 +321,7 @@ src/templates/GeneratedTemplateVideo.tsx
 - 可选字幕
 - 由音频时长决定的视频时长
 
-自动镜头生成时，任务 API 会调用：
+自动片段生成时，任务 API 会调用：
 
 ```text
 scripts/text-to-scenes-tts-video.mjs
@@ -388,7 +388,7 @@ src/Root.tsx
 
 `DocumentReveal`
 
-用途：历史文件、条约、策论、档案类镜头。自动镜头系统遇到“条约/和约/协定/策论/转让/租借地”等文本时会优先使用它。
+用途：历史文件、条约、策论、档案类镜头。自动片段系统遇到“条约/和约/协定/策论/转让/租借地”等文本时会优先使用它。
 
 主要参数：
 
@@ -449,7 +449,7 @@ src/Root.tsx
 
 `FootageScene`
 
-用途：播放 `public/footage/` 下的本地素材片段。自动镜头系统匹配到高相关素材时，会通过 `visualLayer.type = "footage"` 调用它。
+用途：播放 `public/footage/` 下的本地素材片段。自动片段系统匹配到高相关素材时，会通过 `visualLayer.type = "footage"` 调用它。
 
 主要参数：
 
@@ -463,7 +463,7 @@ src/Root.tsx
 
 `MultiSceneVideo`
 
-用途：一站式自动镜头视频的主合成。它不代表单个模板，而是根据 `scenes` 数组用 Remotion `Sequence` 串联多个镜头。
+用途：一站式自动片段视频的主合成。它不代表单个模板，而是根据 `scenes` 数组用 Remotion `Sequence` 串联多个镜头。
 
 主要参数：
 
@@ -758,7 +758,7 @@ npm run text-to-video -- --text "短文本" --json=true
 
 默认配置在 `scripts/text-to-video.mjs` 顶部的 `defaults` 中。
 
-## 9.1 一站式自动镜头生成命令行
+## 9.1 一站式自动片段生成命令行
 
 主脚本：
 
@@ -775,7 +775,7 @@ npm run text-to-scenes-tts-video -- --text-file input.txt --title "南满铁路�
 直接传文本：
 
 ```console
-npm run text-to-scenes-tts-video -- --text "条约上用词谨慎，所谓转让遮住了更复杂的权力关系。" --title "自动镜头测试" --output out/auto.mp4 --skip-srt=true
+npm run text-to-scenes-tts-video -- --text "条约上用词谨慎，所谓转让遮住了更复杂的权力关系。" --title "自动片段测试" --output out/auto.mp4 --skip-srt=true
 ```
 
 只生成音频、镜头规划和 props，不渲染：
@@ -865,7 +865,6 @@ POST /custom-voice/long
   "styleInstruction": "标准播音风格，吐字清晰，语速平稳，停顿自然"
 }
 ```
-
 期望响应结构：
 
 ```json
@@ -968,7 +967,7 @@ POST /srt
 
 如果字幕接口失败，脚本会继续渲染只有音频的视频，不会直接中断。
 
-自动镜头模式会优先使用字幕时间轴对齐画面：
+自动片段模式会优先使用字幕时间轴对齐画面：
 
 ```text
 TTS 音频
@@ -1019,7 +1018,7 @@ Content-Type: application/json
 `mode` 可选：
 
 ```text
-auto-scenes       默认。一站式自动镜头：TTS -> scene-planner -> MultiSceneVideo。
+auto-scenes       默认。一站式自动片段：TTS -> scene-planner -> MultiSceneVideo。
 single-template   旧链路。TTS -> GeneratedTemplateVideo -> 选中的单个模板。
 ```
 
@@ -1068,7 +1067,7 @@ failed
 }
 ```
 
-`projectUrl` 是备用独立编辑页。Studio 主工作流使用 `projectId` 调 `GET /api/projects/:id/props`，然后把项目加载到左侧 `分镜` 页签和中央 `MultiSceneVideo` 预览。
+`projectUrl` 是备用独立编辑页。Studio 主工作流使用 `projectId` 调 `GET /api/projects/:id/props`，然后把项目加载到左侧 `片段` 页签和中央 `MultiSceneVideo` 预览。
 
 ### 13.3 获取视频文件
 
@@ -1134,36 +1133,31 @@ GET /video-project/:id
 GET /api/projects/:id
 ```
 
-返回的项目对象会带多轨道时间线视图：
+返回的项目对象会带 `segments` 主视图。`tracks` 仍保留给内部兼容和未来高级模式，但默认前端不暴露多轨：
 
 ```ts
-type TrackType = "audio" | "scene" | "subtitle" | "material";
-
-type TimelineTrack = {
+type VideoSegment = {
   id: string;
-  type: TrackType;
-  name: string;
-  clips: TimelineClip[];
-};
-
-type TimelineClip = {
-  id: string;
-  trackId: string;
-  type: TrackType;
+  order: number;
+  text: string;
+  narrationText: string;
+  subtitleText: string;
   startMs: number;
   endMs: number;
-  sourceStartMs?: number;
-  sourceEndMs?: number;
-  title: string;
-  text?: string;
-  src?: string;
-  templateId?: string;
-  sceneId?: string;
-  locked?: boolean;
+  durationMs: number;
+  visual: {
+    source: "template" | "footage";
+    templateId?: string;
+    materialId?: string;
+    confidence?: number;
+    reason?: string;
+  };
+  status: "ok" | "missing_visual" | "low_confidence" | "needs_review";
+  locked: boolean;
 };
 ```
 
-`tracks` 由服务端 `projectToTracks(project)` 根据 `audioSrc / scenes / captions / visualLayer` 计算，前端不重复推导时间线。
+`segments` 由服务端 `projectToSegments(project)` 根据 `scenes / visualLayer / audioSrc` 计算，前端不重复推导片段状态。
 
 把项目转换成 Remotion `MultiSceneVideo` props：
 
@@ -1171,12 +1165,12 @@ type TimelineClip = {
 GET /api/projects/:id/props
 ```
 
-这个接口供 Studio 内嵌前端刷新中央预览使用：右侧生成控制台触发刷新，左侧分镜提供项目编辑数据。
+这个接口供 Studio 内嵌前端刷新中央预览使用：右侧生成控制台触发刷新，左侧片段页签提供项目编辑数据。
 
-更新单个分镜：
+更新单个片段：
 
 ```http
-PATCH /api/projects/:id/scenes/:sceneId
+PATCH /api/projects/:id/segments/:segmentId
 Content-Type: application/json
 
 {
@@ -1193,10 +1187,10 @@ Content-Type: application/json
 }
 ```
 
-锁定分镜：
+锁定片段：
 
 ```http
-POST /api/projects/:id/scenes/:sceneId/lock
+POST /api/projects/:id/segments/:segmentId/lock
 Content-Type: application/json
 
 {
@@ -1204,10 +1198,10 @@ Content-Type: application/json
 }
 ```
 
-重配当前分镜素材：
+重配当前片段画面：
 
 ```http
-POST /api/projects/:id/scenes/:sceneId/rematch-material
+POST /api/projects/:id/segments/:segmentId/rematch-visual
 ```
 
 响应：
@@ -1230,10 +1224,10 @@ POST /api/projects/:id/scenes/:sceneId/rematch-material
 }
 ```
 
-替换当前分镜素材：
+替换当前片段画面：
 
 ```http
-POST /api/projects/:id/scenes/:sceneId/replace-material
+POST /api/projects/:id/segments/:segmentId/replace-visual
 Content-Type: application/json
 
 {
@@ -1247,7 +1241,7 @@ Content-Type: application/json
 }
 ```
 
-重排分镜：
+重排片段：
 
 ```http
 POST /api/projects/:id/reorder
@@ -1257,6 +1251,8 @@ Content-Type: application/json
   "sceneIds": ["scene-002", "scene-001"]
 }
 ```
+
+旧接口 `/scenes/:sceneId`、`rematch-material`、`replace-material` 仍兼容，但新前端应优先使用 `/segments/:segmentId`、`rematch-visual`、`replace-visual`。
 
 总导出：
 
@@ -1293,9 +1289,9 @@ frontend/remotion-studio-plugin.js
 插件做了五件事：
 
 - 在 Remotion 原生 `渲染` 按钮旁边加 `生成视频` 按钮，打开右侧生成控制台；控制台打开时隐藏启动按钮。
-- 在 Remotion Studio 左侧栏 `合成列表 / 素材` 旁边加 `分镜` 页签。
+- 在 Remotion Studio 左侧栏 `合成列表 / 素材` 旁边加 `片段` 页签。
 - 右侧生成控制台负责文案输入、模式选择、TTS 指令、任务提交、进度日志和刷新预览；总导出只保留顶部工作栏一个主入口。
-- 左侧分镜页签只负责分镜列表、当前镜头编辑、锁定、素材重配和素材替换。
+- 左侧片段页签只负责片段列表、当前片段编辑、锁定、画面重配和画面替换。
 - 生成成功后调用 `GET /api/projects/:id/props`，把项目写入 Remotion input props override，并切到 `/MultiSceneVideo`，复用中央预览屏幕。
 - 用 MutationObserver 把常见 Remotion Studio 英文 UI 替换成中文。
 
@@ -1309,14 +1305,14 @@ Studio 内嵌扩展前端集中在：
 frontend/remotion-studio-plugin.js
 ```
 
-它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“分镜编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 30 个 Composition 画布 UI。
+它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“片段编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 30 个 Composition 画布 UI。
 
 复刻 Studio 内嵌工作流时应保持三个工作区分离：
 
 ```text
 左侧 Remotion explorer sidebar
   -> 原生 合成列表 / 素材
-  -> 注入 分镜 tab
+  -> 注入 片段 tab
 
 中央 Remotion preview canvas
   -> 原生 MultiSceneVideo / 当前 composition 预览
@@ -1447,12 +1443,12 @@ localStorage["ttv.lastProgress"] = JSON.stringify({ status, log, at });
 - `生成视频` 按钮只负责打开右侧控制台。
 - `生成视频` 按钮必须优先由 `ensureGeneratorLauncherDocked()` 插入 Remotion 原生 `渲染 / Render` 按钮后面；只有找不到原生渲染按钮时才使用 `.ttv-generator-launcher.floating` 降级到右上角。
 - 右侧控制台默认打开，用户关闭后写入 `ttv.generatorPanel=closed`。
-- 生成进度和日志必须常驻右侧控制台，不放进左侧分镜。
+- 生成进度和日志必须常驻右侧控制台，不放进左侧片段面板。
 - 每次轮询 `GET /api/jobs/:id` 后都要更新 `ttv.lastProgress`，页面跳转到 `/MultiSceneVideo` 后仍能恢复上一轮状态。
 
-### 15.2 左侧分镜页签
+### 15.2 左侧片段页签
 
-左侧分镜由两个 DOM 节点组成：
+左侧片段页签由两个 DOM 节点组成：
 
 ```text
 button.ttv-side-tab
@@ -1473,7 +1469,7 @@ function findExplorerTabs() {
 }
 ```
 
-左侧分镜页签尺寸：
+左侧片段页签尺寸：
 
 ```css
 .ttv-side-tab {
@@ -1505,21 +1501,21 @@ function findExplorerTabs() {
 }
 ```
 
-左侧分镜只包含：
+左侧片段页签只包含：
 
 - 当前项目提示
-- 分镜列表
-- 当前分镜旁白 / 字幕
-- 当前分镜视觉意图
-- 当前分镜模板
-- 当前分镜类型
+- 片段列表
+- 当前片段旁白 / 字幕
+- 当前片段视觉意图
+- 当前片段画面 / 模板
+- 当前片段类型
 - 开始 / 结束毫秒
-- 保存分镜
+- 保存片段
 - 锁定 / 解除锁定
-- 重配素材
-- 替换为候选素材
+- 重配画面
+- 替换为候选画面
 
-左侧分镜不能包含：
+左侧片段页签不能包含：
 
 - 文案大输入框
 - 生成模式选择
@@ -1536,9 +1532,9 @@ localStorage["ttv.lastProjectId"] = projectId;
 
 规则：
 
-- 点击 `分镜` 时隐藏左侧原生 explorer 内容，只显示 `ttv-storyboard-panel`。
+- 点击 `片段` 时隐藏左侧原生 explorer 内容，只显示 `ttv-storyboard-panel`。
 - 点击 `合成列表` 或 `素材` 时恢复 Remotion 原生左侧内容。
-- 右侧 Remotion 原生参数栏不应该被 `分镜` 占用。
+- 右侧 Remotion 原生参数栏不应该被 `片段` 占用。
 - 旧版本如果写过 `localStorage["remotion.sidebarPanel"]="storyboard"`，启动时必须改回 `input-props`，避免污染右侧原生栏。
 
 ### 15.3 中央预览复用
@@ -1555,7 +1551,7 @@ GET /api/projects/:id/props
 
 这会让 Remotion 的 `getInputProps()` 返回项目 props，从而让 `MultiSceneVideo` 在中央画布展示最新项目。
 
-切换左侧分镜时，如果当前页面已经有 `window.remotion_setFrame`，可以把预览跳到该镜头开始帧：
+切换左侧片段时，如果当前页面已经有 `window.remotion_setFrame`，可以把预览跳到该镜头开始帧：
 
 ```js
 const frame = Math.round((scene.startMs / 1000) * 30);
@@ -1568,7 +1564,7 @@ window.remotion_setFrame(frame, "MultiSceneVideo", 0);
 
 ```text
 http://127.0.0.1:3057                         带插件注入的 Remotion Studio
-http://127.0.0.1:3057/MultiSceneVideo         自动分镜主预览 composition
+http://127.0.0.1:3057/MultiSceneVideo         自动片段主预览 composition
 http://127.0.0.1:3037/video-generator         备用独立生成页面
 http://127.0.0.1:3037/video-project/:id       备用独立项目编辑页
 http://127.0.0.1:3037/studio-plugin.js        Studio 注入脚本
@@ -1588,14 +1584,14 @@ GET  http://127.0.0.1:3037/api/projects
 POST http://127.0.0.1:3037/api/projects
 ```
 
-左侧分镜编辑：
+左侧片段编辑：
 
 ```http
 GET   http://127.0.0.1:3037/api/projects/:id
-PATCH http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId
-POST  http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId/lock
-POST  http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId/rematch-material
-POST  http://127.0.0.1:3037/api/projects/:id/scenes/:sceneId/replace-material
+PATCH http://127.0.0.1:3037/api/projects/:id/segments/:segmentId
+POST  http://127.0.0.1:3037/api/projects/:id/segments/:segmentId/lock
+POST  http://127.0.0.1:3037/api/projects/:id/segments/:segmentId/rematch-visual
+POST  http://127.0.0.1:3037/api/projects/:id/segments/:segmentId/replace-visual
 ```
 
 中央预览和总导出：
@@ -1613,14 +1609,14 @@ GET  http://127.0.0.1:3037/files/:id
 
 1. 插件 `POST /api/jobs`。
 2. 本地任务 API 启动 `scripts/text-to-scenes-tts-video.mjs`。
-3. 脚本生成 TTS、自动镜头 scenes、`MultiSceneVideo` props 和 MP4。
+3. 脚本生成 TTS、自动片段 scenes、`MultiSceneVideo` props 和 MP4。
 4. 前端每 2 秒轮询 `GET /api/jobs/:id`。
 5. 成功后保存 `.runtime/video-projects/<id>.json`。
 6. 插件拉取 `GET /api/projects/:id/props`。
 7. 插件把 props 写入 `remotion_inputPropsOverride<studio-origin>`，并切换到 `/MultiSceneVideo`。
-8. 中央预览屏幕显示自动分镜视频。
-9. 左侧自动打开 `分镜` 页签继续编辑项目。
-10. 右侧继续保留生成进度日志和导出控制。
+8. 中央预览屏幕显示自动片段视频。
+9. 左侧自动打开 `片段` 页签继续编辑项目。
+10. 右侧继续保留生成进度日志和打开成片入口。
 
 如果把“生成模式”改成“单模板”，则任务 API 会启动旧链路 `scripts/text-to-video.mjs`。
 
@@ -1629,7 +1625,7 @@ GET  http://127.0.0.1:3037/files/:id
 后续扩展必须优先复用已有模块：
 
 - 新生成入口复用右侧 `ttv-generator-panel`，不要再新建第二套控制台。
-- 新分镜操作复用左侧 `ttv-storyboard-panel`，不要把镜头编辑塞回右侧。
+- 新片段操作复用左侧 `ttv-storyboard-panel`，不要把片段编辑塞回右侧。
 - 新预览能力复用 Remotion Studio 中央画布和 `MultiSceneVideo`，不要自建 `<video>` 预览替代主预览。
 - 新项目数据能力复用 `.runtime/video-projects/<id>.json` 和 `project-store.mjs`，不要另建平行 project store。
 - 新素材能力复用 `asset-indexer.mjs`、`asset-matcher.mjs`、`visualLayer` 和 `alternatives`，不要把素材路径散落在前端本地状态。
@@ -1640,7 +1636,7 @@ GET  http://127.0.0.1:3037/files/:id
 前端边界：
 
 - 右侧负责“生成和任务状态”。
-- 左侧负责“项目和分镜编辑”。
+- 左侧负责“项目和片段编辑”。
 - 中央负责“Remotion 原生预览”。
 - 右侧 Remotion 原生参数栏属于 Remotion，不放本项目 UI。
 
@@ -1711,10 +1707,10 @@ border-radius: 14px;
 z-index: 2147483001;
 ```
 
-左侧 `分镜` 页签插在 Remotion 原生 `合成列表 / 素材` 旁边，像素规格见 `15.2`。它不能放到右侧原生 props 面板，也不能和生成控制台混在一起。用户操作空间应该是：
+左侧 `片段` 页签插在 Remotion 原生 `合成列表 / 素材` 旁边，像素规格见 `15.2`。它不能放到右侧原生 props 面板，也不能和生成控制台混在一起。用户操作空间应该是：
 
 ```text
-左侧：合成列表 / 素材 / 分镜
+左侧：合成列表 / 素材 / 片段
 中央：Remotion 原生预览画布
 右侧：本项目生成控制台浮层 + Remotion 原生 props 面板各自保留
 ```
@@ -1803,7 +1799,7 @@ POST /api/jobs
 GET  /api/jobs/:id
 ```
 
-成功后更新 `video.src`、打开视频链接、项目编辑链接和下载链接。这个页面可以打开 `/video-project/:id`，但在 Studio 主工作流里应改为把项目载入左侧 `分镜` 页签。
+成功后更新 `video.src`、打开视频链接、项目编辑链接和下载链接。这个页面可以打开 `/video-project/:id`，但在 Studio 主工作流里应改为把项目载入左侧 `片段` 页签。
 
 #### 15.7.4 备用独立项目编辑页
 
@@ -1819,11 +1815,11 @@ frontend/video-project.html
 http://127.0.0.1:3037/video-project/:id
 ```
 
-这是备用项目编辑器，不是 Studio 主编辑器。主编辑器是 Remotion Studio 左侧的 `分镜` 页签。保留它的目的：
+这是备用项目编辑器，不是 Studio 主编辑器。主编辑器是 Remotion Studio 左侧的 `片段` 页签。保留它的目的：
 
 - 调试 `.runtime/video-projects/<id>.json`。
 - Studio 插件加载失败时仍能编辑项目。
-- 为左侧 `分镜` 页签提供交互参考。
+- 为左侧 `片段` 页签提供交互参考。
 
 复刻布局：
 
@@ -1859,24 +1855,24 @@ header {
 页面结构：
 
 - 顶部 header：项目标题、状态、打开视频、总导出。
-- 左列 `290px`：分镜列表，`.scenes` 高 `calc(100vh - 174px)`。
+- 左列 `290px`：片段列表，`.scenes` 高 `calc(100vh - 174px)`。
 - 中列：预览 panel，`.preview` margin `12px`、圆角 `12px`、黑底、最小高 `360px`；有导出视频时显示 `<video controls>`。
-- 右列 `340px`：当前分镜表单，`.form` 高 `calc(100vh - 174px)`。
-- 底部 footer：timeline 高 `58px`，每个 `.block` 最小宽 `82px`。
+- 右列 `340px`：当前片段表单，`.form` 高 `calc(100vh - 174px)`。
+- 底部 footer：片段条高 `58px`，每个 `.block` 最小宽 `82px`。
 
 交互：
 
 ```http
 GET   /api/projects/:id
-PATCH /api/projects/:id/scenes/:sceneId
-POST  /api/projects/:id/scenes/:sceneId/lock
-POST  /api/projects/:id/scenes/:sceneId/rematch-material
-POST  /api/projects/:id/scenes/:sceneId/replace-material
+PATCH /api/projects/:id/segments/:segmentId
+POST  /api/projects/:id/segments/:segmentId/lock
+POST  /api/projects/:id/segments/:segmentId/rematch-visual
+POST  /api/projects/:id/segments/:segmentId/replace-visual
 POST  /api/projects/:id/reorder
 POST  /api/projects/:id/export
 ```
 
-可编辑字段必须和 Studio 左侧 `分镜` 页签一致：旁白、字幕、视觉意图、模板 ID、场景类型、开始 / 结束毫秒、锁定、素材候选、替换素材。不要在这个备用页面新增只有它有、Studio 内嵌编辑器没有的核心能力。
+可编辑字段必须和 Studio 左侧 `片段` 页签一致：旁白、字幕、视觉意图、模板 ID、场景类型、开始 / 结束毫秒、锁定、画面候选、替换画面。不要在这个备用页面新增只有它有、Studio 内嵌编辑器没有的核心能力。旧 `/scenes/*` 和 `*-material` 接口只作为兼容入口保留。
 
 #### 15.7.5 Composition / Template 画布前端
 
@@ -1892,7 +1888,7 @@ src/historical-globe/compositions/*.tsx
 
 当前 `src/Root.tsx` 注册 30 个合成：
 
-自动视频 / 分镜系统：
+自动视频 / 片段系统：
 
 ```text
 DocumentReveal
@@ -1949,11 +1945,11 @@ SinoJapaneseWarDemo
 
 复刻规则：
 
-- `MultiSceneVideo` 是自动镜头主合成；它读取 `scenes`、`audioSrc`、`captions`，用 `Sequence` 拼接多个镜头。
+- `MultiSceneVideo` 是自动片段主合成；它读取 `scenes`、`audioSrc`、`captions`，用 `Sequence` 拼接多个镜头。
 - `GeneratedTemplateVideo` 是单模板包装器；它读取 `templateId`、`audioSrc`、`captions` 和时长。
-- `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`FootageScene` 是自动镜头可调度的基础模板。
-- 地图和历史模板应通过 `sceneRegistry.tsx` 和 `template-manifest.json` 接入自动镜头，不要让前端下拉框硬编码“文本里有某词就选某模板”。
-- 所有画布 UI 的细颗粒参数都放在 Remotion 原生 props 面板，不要在右侧生成控制台或左侧分镜重复实现完整模板参数编辑器。
+- `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`FootageScene` 是自动片段可调度的基础模板。
+- 地图和历史模板应通过 `sceneRegistry.tsx` 和 `template-manifest.json` 接入自动片段，不要让前端下拉框硬编码“文本里有某词就选某模板”。
+- 所有画布 UI 的细颗粒参数都放在 Remotion 原生 props 面板，不要在右侧生成控制台或左侧片段重复实现完整模板参数编辑器。
 
 #### 15.7.6 前端复用原则
 
@@ -1962,7 +1958,7 @@ SinoJapaneseWarDemo
 1. 需要预览视频：复用 Remotion Studio 中央 canvas 和 `MultiSceneVideo`。
 2. 需要改 Composition 参数：复用 `Root.tsx` 的 `schema/defaultProps` 和 Remotion 右侧原生 props 面板。
 3. 需要创建视频项目：复用右侧 `ttv-generator-panel` 和 `/api/jobs`。
-4. 需要改分镜：复用左侧 `ttv-storyboard-panel` 和 `/api/projects/:id` 系列接口。
+4. 需要改片段：复用左侧 `ttv-storyboard-panel` 和 `/api/projects/:id` 系列接口。
 5. 需要备用独立页面：才使用 `video-generator.html` 或 `video-project.html`，但不能让它们成为能力唯一来源。
 6. 需要新增模板：先补 `src/templates/*`、`Root.tsx`、`template-manifest.json`、`sceneRegistry.tsx`，再决定是否在生成控制台的模板下拉中暴露。
 
@@ -1970,30 +1966,67 @@ SinoJapaneseWarDemo
 
 - 不再另起一个主控制台。
 - 不把生成控制台塞进中央视频预览框。
-- 不把分镜编辑塞进右侧生成控制台。
-- 不占用 Remotion 原生右侧 props 面板承载项目分镜。
+- 不把片段编辑塞进右侧生成控制台。
+- 不占用 Remotion 原生右侧 props 面板承载项目片段。
 - 不自建主预览播放器替代 Remotion Studio 画布。
 - 不创建第二套 project store 或第二套素材匹配状态。
 
-### 15.8 IDE 项目工作流与剪辑时间线
+### 15.8 Segment-based 项目工作流
 
-新一层工作台能力已经落在 `frontend/remotion-studio-plugin.js`，不是新建入口页。它把产品从“一次性生成工具”推进到“IDE 式多项目视频工作台”：
+新一层工作台能力已经落在 `frontend/remotion-studio-plugin.js`，不是新建入口页。主方向不是自由剪辑软件，而是花生 AI 一类的 Segment-based Video Editor：
+
+```text
+一句/一段话 = 一个片段 = 一个画面 = 一个可管理单元
+```
+
+一个片段只绑定一个主画面。用户主要管理“这句话用什么画面解释”，而不是管理自由素材轨、字幕轨、音频轨。
 
 ```text
 顶部 VideoLab 工作栏
   -> 项目切换 / 新建项目 / 收纳 / 导出
 
-左侧 分镜 页签
-  -> 分镜列表 / 当前分镜属性 / 素材候选
+左侧 片段 页签
+  -> 片段列表 / 当前片段文本 / 当前片段画面 / 画面候选
 
 中央 Remotion Studio 预览
   -> 仍然复用 MultiSceneVideo composition
 
 底部 Remotion 原生时间线
-  -> 原生 timeline + 项目 clip 轨道增强层 / 拖镜头排序 / 拉边裁剪
+  -> 原生 timeline + 紧凑片段条
 
 右侧 生成视频 控制台
   -> 文案输入 / 任务进度 / 刷新预览 / 打开当前成片
+```
+
+主结构是 `segments`。当前仍保留 `scenes` 字段兼容 Remotion 渲染和旧 API，但前端主交互必须以 `segments` 为准：
+
+```ts
+type VideoSegment = {
+  id: string;
+  order: number;
+  text: string;
+  narrationText: string;
+  subtitleText: string;
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  voice: {
+    instruction?: string;
+    audioSrc?: string;
+  };
+  visual: {
+    source: "template" | "footage";
+    templateId?: string;
+    materialId?: string;
+    src?: string;
+    props?: Record<string, unknown>;
+    confidence?: number;
+    reason?: string;
+  };
+  alternatives: MaterialCandidate[];
+  status: "ok" | "missing_visual" | "low_confidence" | "needs_review";
+  locked: boolean;
+};
 ```
 
 #### 15.8.1 顶部项目工作栏
@@ -2080,47 +2113,40 @@ async function switchProject(projectId) {
 - 顶部项目栏不能同时写死 `min-width` 和依赖右侧控制台的 `max-width: calc(100vw - 460px)`，窄屏会互相打架。
 - 顶部项目栏默认必须 dock 到 Remotion 原生 `Help / 帮助` 后面；悬浮只允许作为找不到原生菜单时的 fallback。
 - 右侧生成控制台不能让 `生成视频` 启动按钮继续漂在画面中央边缘；启动按钮必须优先并列在 Remotion 原生 `渲染` 按钮旁边，控制台打开时必须隐藏。
-- 左侧分镜不能完全依赖 Remotion explorer 是否可见；如果原生左栏在窄屏下消失，必须出现 `button.ttv-storyboard-launcher` 作为 fallback。
-- 左侧分镜不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 分镜列表 -> 当前分镜编辑器；多轨道时间线必须作为 Remotion 原生底部 timeline 的增强层，不允许堆叠成第二套时间线面板。
+- 左侧片段不能完全依赖 Remotion explorer 是否可见；如果原生左栏在窄屏下消失，必须出现 `button.ttv-storyboard-launcher` 作为 fallback。
+- 左侧片段不能是“长列表后面接时间线再接编辑器”。当前固定顺序是：操作条 -> 片段列表 -> 当前片段编辑器。
+- 底部不能暴露旁白/素材/镜头/字幕四轨。底部只允许一个紧凑片段条：`[01 3.2s][02 4.8s][03 5.1s]`。
 - 左侧双按钮不能在窄栏里用普通 flex 横排硬挤，必须用 `grid-template-columns: 1fr 1fr` 或上下堆叠。
-- 任何主面板里不能出现滚轮套滚轮。左侧分镜只允许 `.ttv-body` 一个滚动容器；分镜列表和当前编辑器都不再单独滚动，底部时间线也不能再塞回左侧滚动区。
-- 同一个动作只能保留一个主入口：总导出只在顶部工作栏；右侧生成控制台不再放第二个“总导出”；左侧分镜不再放“打开生成控制台”。
+- 任何主面板里不能出现滚轮套滚轮。左侧片段只允许 `.ttv-body` 一个滚动容器；片段列表和当前编辑器都不再单独滚动，底部片段条也不能再塞回左侧滚动区。
+- 同一个动作只能保留一个主入口：总导出只在顶部工作栏；右侧生成控制台不再放第二个“总导出”；左侧片段不再放“打开生成控制台”。
+- `tracks/clips` 只能作为内部兼容或未来高级模式，不能作为默认主交互。
 
-#### 15.8.2 多轨道时间线
+#### 15.8.2 片段条
 
 服务端在 `scripts/project-store.mjs` 中提供：
 
 ```js
-projectToTracks(project)
+projectToSegments(project)
 ```
 
-返回四类轨道：
+它把现有 `scenes[]` 转成主交互使用的 `segments[]`。`publicProject(project)` 会同时返回 `segments` 和兼容用的 `tracks`，但默认前端只渲染 `segments`。
 
-```text
-audio     旁白音频
-material  素材片段
-scene     镜头片段
-subtitle  字幕片段
-```
-
-底部原生时间线区域会渲染项目 clip 增强层：
+底部原生时间线区域只渲染片段条：
 
 ```text
 section.ttv-native-timeline-dock
-div.ttv-timeline
-div.ttv-timebar
-div.ttv-track
-div.ttv-track-lane
-div.ttv-clip
-span.ttv-trim.left/right
+div.ttv-segment-strip
+div.ttv-segment-strip-head
+div.ttv-segment-lane
+div.ttv-segment-block
 ```
 
 像素规格：
 
 ```css
-.ttv-timeline {
+.ttv-segment-strip {
   display: grid;
-  gap: 7px;
+  gap: 6px;
   padding: 8px;
   border-radius: 10px;
   background: #121212;
@@ -2134,15 +2160,14 @@ span.ttv-trim.left/right
   padding: 0 10px 6px;
 }
 
-.ttv-native-timeline-dock.docked .ttv-timeline {
+.ttv-native-timeline-dock.docked .ttv-segment-strip {
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-.ttv-native-timeline-dock.docked .ttv-timeline-head,
-.ttv-native-timeline-dock.docked .ttv-timebar {
+.ttv-native-timeline-dock.docked .ttv-segment-strip-head {
   display: none;
 }
 
@@ -2155,48 +2180,36 @@ span.ttv-trim.left/right
   overflow: hidden;
 }
 
-.ttv-timebar {
-  height: 22px;
-  border-radius: 6px;
-}
-
-.ttv-track {
-  display: grid;
-  grid-template-columns: 48px 1fr;
-  gap: 6px;
-}
-
-.ttv-track-lane {
+.ttv-segment-lane {
   position: relative;
-  height: 28px;
+  height: 34px;
 }
 
-.ttv-clip {
+.ttv-segment-block {
   position: absolute;
-  top: 3px;
-  height: 22px;
-  border-radius: 5px;
+  top: 4px;
+  height: 26px;
+  border-radius: 6px;
   font-size: 10px;
 }
 
-.ttv-clip.dense {
+.ttv-segment-block.dense {
   padding: 0;
   color: transparent;
 }
 ```
 
-当前已实现的剪辑交互：
+当前已实现的片段交互：
 
-- 点击时间条移动播放头。
-- 点击镜头 clip 选中分镜，并把中央 Remotion 预览跳到该镜头开始帧。
-- 拖动 `scene` 轨道 clip 可重排镜头，落点后调用 `POST /api/projects/:id/reorder`。
-- 拖动镜头 clip 左右裁剪手柄会修改 `startMs/endMs`，松手后调用 `PATCH /api/projects/:id/scenes/:sceneId` 保存。
-- 已锁定分镜不允许裁剪和拖拽。
-- 原生 Remotion 左侧栏不可用时，`body.ttv-storyboard-undocked` 会把分镜面板挂到 `document.body`，并显示左侧 fallback 按钮。
-- 底部时间线由 `ensureTimelineDocked()` 查找 Remotion 原生 `Timeline / 时间线` 区域并插入；dock 成功时必须隐藏自建标题、时长说明和自建 timebar，只留下项目 clip 轨道增强层。只有找不到原生底部时间线时才使用 `.ttv-native-timeline-dock.floating` 降级显示完整自建时间线。
-- 短 clip 宽度不足 `7%` 时使用 `.dense` 隐藏文本，避免小屏时间线互相压字。
+- 点击片段块选中片段，并把中央 Remotion 预览跳到该片段开始帧。
+- 拖动片段块只做片段排序，落点后调用 `POST /api/projects/:id/reorder`。
+- 片段块颜色表达状态：模板画面、素材画面、低置信度、缺画面、已锁定、当前选中。
+- 已锁定片段不允许拖拽排序。
+- 原生 Remotion 左侧栏不可用时，`body.ttv-storyboard-undocked` 会把片段面板挂到 `document.body`，并显示左侧 fallback 按钮。
+- 底部片段条由 `ensureTimelineDocked()` 查找 Remotion 原生 `Timeline / 时间线` 区域并插入；dock 成功时只留下片段条。只有找不到原生底部时间线时才使用 `.ttv-native-timeline-dock.floating` 降级显示。
+- 短片段宽度不足 `7%` 时使用 `.dense` 隐藏文本，避免小屏互相压字。
 
-这不是完整剪映时间线，但已经把数据层从 `scenes[]` 升级为 `tracks/clips`。后续加波形、吸附、快捷键、撤销重做时必须复用这个结构。
+剪辑能力作为高级能力收在当前片段编辑器里：开始/结束毫秒、素材内偏移、转场等可以存在，但不能放到底部主交互里，也不能把产品变成自由剪辑软件。
 
 #### 15.8.3 关于 React / Tailwind / dnd-kit / wavesurfer
 
@@ -2209,10 +2222,10 @@ frontend/remotion-studio-plugin.js
 所以当前源码没有引入一套平行 React 编辑器，也没有安装未使用依赖。等未来需要独立编辑器时，落地方式应该是：
 
 ```text
-src/editor/store/useTimelineStore.ts
+src/editor/store/useSegmentStore.ts
 src/editor/components/TopBar.tsx
-src/editor/components/TimelineEditor.tsx
-src/editor/components/SceneList.tsx
+src/editor/components/SegmentStrip.tsx
+src/editor/components/SegmentList.tsx
 src/editor/components/Inspector.tsx
 ```
 
@@ -2221,15 +2234,18 @@ src/editor/components/Inspector.tsx
 - `GET /api/projects`
 - `POST /api/projects`
 - `GET /api/projects/:id`
-- `PATCH /api/projects/:id/scenes/:sceneId`
+- `PATCH /api/projects/:id/segments/:segmentId`
+- `POST /api/projects/:id/segments/:segmentId/rematch-visual`
+- `POST /api/projects/:id/segments/:segmentId/replace-visual`
 - `POST /api/projects/:id/reorder`
 - `POST /api/projects/:id/export`
-- `tracks/clips`
+- `segments`
+- `projectToSegments(project)`
 - `projectToMultiSceneProps(project)`
 
-禁止 React 编辑器重新定义一套 project JSON、素材候选结构或导出链路。
+禁止 React 编辑器重新定义一套 project JSON、画面候选结构或导出链路。`tracks/clips` 只能在未来高级模式里复用，不得作为默认主交互。
 
-## 16. 一站式自动镜头入口验证
+## 16. 一站式自动片段入口验证
 
 启动：
 
@@ -2247,7 +2263,7 @@ http://127.0.0.1:3057
 
 ```text
 生成模式
-自动镜头
+自动片段
 生成初版项目
 生成进度
 ```
@@ -2257,7 +2273,7 @@ http://127.0.0.1:3057
 ```powershell
 $body = @{
   text = "条约上用词谨慎，所谓转让遮住了更复杂的权力关系。南满铁路成为新的利益轴线。"
-  title = "一站式自动镜头测试"
+  title = "一站式自动片段测试"
   instruction = "标准播音风格，吐字清晰，语速平稳，停顿自然"
   mode = "auto-scenes"
   skipSrt = $true
@@ -2270,8 +2286,8 @@ Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3037/api/jobs" -ContentTyp
 
 ```text
 [1/6] 正在生成千问 TTS 旁白音频...
-[4/6] 正在规划自动镜头...
-[5/6] 正在渲染 Remotion 自动镜头视频...
+[4/6] 正在规划自动片段...
+[5/6] 正在渲染 Remotion 自动片段视频...
 [6/6] 已完成。
 ```
 
@@ -2310,7 +2326,7 @@ PromptAnimatedShapes         提示词动态图形
 
 注意：`GeneratedTemplateVideo` 包装这些模板时，主要控制的是模板选择、音频、字幕和视频时长。每个单独模板的细颗粒 props 编辑是在 Remotion Studio 合成详情里完成。
 
-自动镜头模式不使用这个下拉选择的单一模板，而是由 `scripts/scene-planner.mjs` 根据文本内容自动选择多个镜头模板。
+自动片段模式不使用这个下拉选择的单一模板，而是由 `scripts/scene-planner.mjs` 根据文本内容自动选择多个镜头模板。
 
 ## 18. 从零复现近似工程的步骤
 
@@ -2412,9 +2428,9 @@ GET /studio-plugin.js
 POST /api/jobs
 GET /api/jobs/:id
 GET /api/projects/:id
-PATCH /api/projects/:id/scenes/:sceneId
-POST /api/projects/:id/scenes/:sceneId/rematch-material
-POST /api/projects/:id/scenes/:sceneId/replace-material
+PATCH /api/projects/:id/segments/:segmentId
+POST /api/projects/:id/segments/:segmentId/rematch-visual
+POST /api/projects/:id/segments/:segmentId/replace-visual
 POST /api/projects/:id/export
 GET /files/:id
 ```
@@ -2424,14 +2440,14 @@ GET /files/:id
 ```text
 右侧生成视频按钮
 右侧固定生成控制台
-左侧 explorer 分镜 tab
+左侧 explorer 片段 tab
 提交任务 POST /api/jobs
 每 2 秒轮询 GET /api/jobs/:id
 生成进度持久化到 ttv.lastProgress
 项目 ID 持久化到 ttv.lastProjectId
 GET /api/projects/:id/props 写入 Remotion input props override
 中央 Remotion Studio 预览 MultiSceneVideo
-左侧分镜列表 / 当前分镜属性 / 素材候选
+左侧片段列表 / 当前片段属性 / 画面候选
 备用项目编辑器 frontend/video-project.html
 Studio 中文化替换
 ```
@@ -2544,8 +2560,8 @@ http://127.0.0.1:3057
 - Remotion Studio 能打开。
 - Remotion 原生“渲染”按钮旁边有“生成视频”按钮，控制台打开时该按钮隐藏。
 - 点击后右侧出现 `一站式生成视频` 控制台，宽度约 390px。
-- 左侧 `合成列表 / 素材` 旁边有 `分镜` 页签。
-- 点击 `分镜` 后左侧只显示分镜列表和当前镜头编辑，不显示生成表单。
+- 左侧 `合成列表 / 素材` 旁边有 `片段` 页签。
+- 点击 `片段` 后左侧只显示片段列表和当前片段编辑，不显示生成表单。
 - 选择任意合成，右侧能看到 props 编辑区。
 - 生成视频任务能进入运行状态。
 
@@ -2653,13 +2669,13 @@ http://127.0.0.1:3037
 当前工程状态：
 
 - Remotion Studio 可运行。
-- 生成视频扩展已集成到 Studio 页面：原生“渲染”按钮旁边是生成入口，右侧浮层是生成控制台，左侧 explorer 是分镜页签。
-- 右侧 Remotion 原生参数栏保持给 `schema/defaultProps` 编辑使用，不承载本项目分镜 UI。
+- 生成视频扩展已集成到 Studio 页面：原生“渲染”按钮旁边是生成入口，右侧浮层是生成控制台，左侧 explorer 是片段页签。
+- 右侧 Remotion 原生参数栏保持给 `schema/defaultProps` 编辑使用，不承载本项目片段 UI。
 - 30 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
-- 自动镜头系统使用 `MultiSceneVideo`，可以把长文拆成多镜头时间轴。
-- 自动镜头系统会在有 captions/SRT 时使用音频真实时间轴对齐镜头。
-- 素材检索系统可以扫描 `public/footage/`，并把匹配到的素材写入 scene 的 `visualLayer`。
+- 自动片段系统使用 `MultiSceneVideo`，可以把长文拆成一段话绑定一个画面的片段时间轴。
+- 自动片段系统会在有 captions/SRT 时使用音频真实时间轴对齐片段。
+- 素材检索系统可以扫描 `public/footage/`，并把匹配到的画面写入 scene/segment 的 `visualLayer`/`visual`。
 - TTS 音频会统一转成标准 MP3。
 - 可选 SRT 字幕。
 - 输出视频落到 `out/`。
@@ -2672,9 +2688,9 @@ npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
 
-## 23. 自动镜头系统
+## 23. 自动片段系统
 
-自动镜头系统解决的是“长文案如何变成有镜头切换的视频”，而不是只给整段文本套一个模板。
+自动片段系统解决的是“长文案如何变成有镜头切换的视频”，而不是只给整段文本套一个模板。
 
 当前链路：
 
@@ -2745,7 +2761,7 @@ type VideoProject = {
 };
 ```
 
-分镜结构：
+兼容 scene 结构：
 
 ```ts
 type TimelineScene = {
@@ -2787,11 +2803,11 @@ http://127.0.0.1:3057/MultiSceneVideo
 生成完成后，Studio 插件会自动加载项目 props 并切到 `MultiSceneVideo`。`/video-project/:id` 仍保留为备用调试页面，但它不是主工作流。当前内嵌编辑闭环：
 
 - 右侧浮层：文案生成、生成模式、TTS 指令、生成进度、刷新预览、打开当前成片。
-- 左侧 `分镜` 页签：分镜列表、当前分镜属性、素材候选。
+- 左侧 `片段` 页签：片段列表、当前片段属性、画面候选。
 - 中央画布：Remotion Studio 原生 `MultiSceneVideo` 预览。
-- 底部原生时间线：原生播放头和刻度 + 项目多轨道 clip 增强层、镜头排序、拉边裁剪。
-- 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定分镜、重配素材、替换素材、总导出。
-- 修改分镜后点击右侧控制台的“刷新 Studio 预览”，插件会重新写入 Remotion input props override 并刷新 Studio。
+- 底部原生时间线：原生播放头和刻度 + 紧凑片段条，不暴露旁白/素材/镜头/字幕多轨。
+- 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定片段、重配画面、替换画面、总导出。
+- 修改片段后点击右侧控制台的“刷新 Studio 预览”，插件会重新写入 Remotion input props override 并刷新 Studio。
 
 核心文件：
 
@@ -2802,7 +2818,7 @@ scripts/project-store.mjs
 scripts/export-video-project.mjs
 ```
 
-`locked` 是给后续 AI 微调预留的边界。后续做“重新生成当前项目”时，应该跳过 `locked: true` 的分镜。
+`locked` 是给后续 AI 微调预留的边界。后续做“重新生成当前项目”时，应该跳过 `locked: true` 的片段。
 
 操作历史保存在项目 JSON 的 `history` 内，目前记录最近 80 次操作快照，用于后续补撤销/重做：
 
@@ -2828,7 +2844,7 @@ VideoProject
 
 ### 24.1 统一 props
 
-自动镜头模板统一吃一组通用字段，再由 `sceneRegistry.tsx` 适配到具体模板：
+自动片段模板统一吃一组通用字段，再由 `sceneRegistry.tsx` 适配到具体模板：
 
 ```ts
 type CommonSceneProps = {
@@ -3026,7 +3042,7 @@ npm run dev:video
 http://127.0.0.1:3057
 ```
 
-右侧点 `生成视频` 会打开右侧生成控制台。默认生成模式是 `自动镜头`，流程是文本 -> 语音 -> 镜头 -> 成片；如果只想套一个固定模板，把 `生成模式` 切到 `单模板`。生成完成后左侧 `分镜` 页签会载入项目，用来继续改镜头。
+右侧点 `生成视频` 会打开右侧生成控制台。默认生成模式是 `自动片段`，流程是文本 -> 语音 -> 片段 -> 成片；如果只想套一个固定模板，把 `生成模式` 切到 `单模板`。生成完成后左侧 `片段` 页签会载入项目，用来继续改片段画面。
 
 如果已有旁白音频和字幕，可以把它们传给多镜头视频：
 
@@ -3040,7 +3056,7 @@ npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-
 
 ```json
 {
-  "title": "自动镜头视频",
+  "title": "自动片段视频",
   "audioSrc": "generated/tts-xxxx.mp3",
   "showCaptions": true,
   "showSceneLabels": false,

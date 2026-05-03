@@ -326,7 +326,7 @@
       box-sizing: border-box;
       padding: 0 10px 6px;
     }
-    .ttv-native-timeline-dock.docked .ttv-timeline {
+    .ttv-native-timeline-dock.docked .ttv-segment-strip {
       gap: 3px;
       padding: 0;
       border: 0;
@@ -334,29 +334,8 @@
       background: transparent;
       box-shadow: none;
     }
-    .ttv-native-timeline-dock.docked .ttv-timeline-head,
-    .ttv-native-timeline-dock.docked .ttv-timebar {
+    .ttv-native-timeline-dock.docked .ttv-segment-strip-head {
       display: none;
-    }
-    .ttv-native-timeline-dock.docked .ttv-track {
-      grid-template-columns: 34px 1fr;
-      gap: 5px;
-    }
-    .ttv-native-timeline-dock.docked .ttv-track-name {
-      font-size: 9px;
-      opacity: .72;
-    }
-    .ttv-native-timeline-dock.docked .ttv-track-lane {
-      height: 20px;
-      border-radius: 4px;
-      background: rgba(255,255,255,.045);
-    }
-    .ttv-native-timeline-dock.docked .ttv-clip {
-      top: 2px;
-      height: 16px;
-      line-height: 16px;
-      border-radius: 4px;
-      font-size: 9px;
     }
     .ttv-native-timeline-dock.floating {
       position: fixed;
@@ -562,101 +541,66 @@
       background: #202020;
       font-size: 11px;
     }
-    .ttv-timeline {
+    .ttv-segment-strip {
       display: grid;
-      gap: 7px;
+      gap: 6px;
       padding: 8px;
       border: 1px solid rgba(255,255,255,.09);
       border-radius: 10px;
       background: #121212;
     }
-    .ttv-timeline-head {
+    .ttv-segment-strip-head {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 10px;
       color: #aaa;
       font-size: 11px;
       font-weight: 750;
     }
-    .ttv-timeline-head span:last-child {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-weight: 600;
-    }
-    .ttv-timebar {
+    .ttv-segment-lane {
       position: relative;
-      height: 22px;
-      border-radius: 6px;
-      background: #1f1f1f;
+      height: 34px;
+      border-radius: 7px;
+      background: rgba(255,255,255,.045);
       overflow: hidden;
       cursor: pointer;
     }
-    .ttv-playhead {
+    .ttv-segment-block {
       position: absolute;
-      top: 0;
-      bottom: 0;
-      width: 2px;
-      background: #4f8cff;
-      box-shadow: 0 0 0 1px rgba(79,140,255,.25);
-    }
-    .ttv-track {
-      display: grid;
-      grid-template-columns: 48px 1fr;
-      gap: 6px;
-      align-items: center;
-    }
-    .ttv-track-name {
-      color: #858585;
-      font-size: 10px;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-    .ttv-track-lane {
-      position: relative;
-      height: 28px;
+      top: 4px;
+      height: 26px;
+      border: 1px solid rgba(255,255,255,.12);
       border-radius: 6px;
-      background: #1b1b1b;
-      overflow: hidden;
-    }
-    .ttv-clip {
-      position: absolute;
-      top: 3px;
-      height: 22px;
-      border: 1px solid rgba(255,255,255,.15);
-      border-radius: 5px;
-      padding: 0 5px;
+      background: #242424;
       color: #e5e7eb;
-      font-size: 10px;
-      line-height: 20px;
+      padding: 0 7px;
+      font: 750 10px/24px Inter, "Microsoft YaHei", system-ui, sans-serif;
       overflow: hidden;
-      text-overflow: ellipsis;
       white-space: nowrap;
-      cursor: grab;
+      text-overflow: ellipsis;
+      cursor: pointer;
       user-select: none;
     }
-    .ttv-clip.scene { background: #22304a; border-color: #4f8cff; }
-    .ttv-clip.material { background: #263347; border-color: #40506a; }
-    .ttv-clip.subtitle { background: #332c18; border-color: #7c6a2a; }
-    .ttv-clip.audio { background: #173326; border-color: #2d8a61; }
-    .ttv-clip.selected { box-shadow: 0 0 0 2px rgba(79,140,255,.72); }
-    .ttv-clip.dense {
-      padding: 0;
-      color: transparent;
+    .ttv-segment-block.template { background: #243044; border-color: rgba(79,140,255,.28); }
+    .ttv-segment-block.footage { background: #22372d; border-color: rgba(62,180,137,.28); }
+    .ttv-segment-block.low_confidence { background: #3a321d; border-color: rgba(245,158,11,.55); }
+    .ttv-segment-block.missing_visual { background: #3b2020; border-color: rgba(239,68,68,.55); }
+    .ttv-segment-block.locked { box-shadow: inset 0 -2px 0 rgba(80,200,120,.75); }
+    .ttv-segment-block.active { outline: 2px solid rgba(79,140,255,.95); }
+    .ttv-segment-block.dense { padding: 0; color: transparent; }
+    .ttv-native-timeline-dock.docked .ttv-segment-lane {
+      height: 24px;
+      border-radius: 5px;
+      background: rgba(255,255,255,.035);
     }
-    .ttv-trim {
-      position: absolute;
-      top: 0;
-      width: 6px;
-      height: 100%;
-      background: rgba(255,255,255,.16);
-      cursor: ew-resize;
+    .ttv-native-timeline-dock.docked .ttv-segment-block {
+      top: 3px;
+      height: 18px;
+      line-height: 16px;
+      border-radius: 4px;
+      font-size: 9px;
+      padding: 0 5px;
     }
-    .ttv-trim.left { left: 0; }
-    .ttv-trim.right { right: 0; }
     .ttv-storyboard-launcher {
       display: none;
       position: fixed;
@@ -774,7 +718,7 @@
       <div class="ttv-grid">
         <label class="ttv-label">生成模式
           <select class="ttv-select" id="ttv-mode">
-            <option value="auto-scenes">自动镜头</option>
+            <option value="auto-scenes">自动片段</option>
             <option value="single-template">单模板</option>
           </select>
         </label>
@@ -824,7 +768,7 @@
   const storyboardLauncher = document.createElement("button");
   storyboardLauncher.className = "ttv-storyboard-launcher";
   storyboardLauncher.type = "button";
-  storyboardLauncher.textContent = "分镜";
+  storyboardLauncher.textContent = "片段";
   storyboardLauncher.onclick = () => setStoryboardOpen(true);
   document.body.appendChild(storyboardLauncher);
 
@@ -832,8 +776,8 @@
   storyboardPanel.className = "ttv-storyboard-panel";
   storyboardPanel.innerHTML = `
     <div class="ttv-head">
-      <div class="ttv-title">分镜</div>
-      <div class="ttv-sub">只编辑镜头、字幕和素材；生成控制台在右侧。</div>
+      <div class="ttv-title">片段</div>
+      <div class="ttv-sub">一句/一段话绑定一个画面；生成控制台在右侧。</div>
     </div>
     <div class="ttv-body">
       <div id="ttv-project"></div>
@@ -842,13 +786,13 @@
 
   const timelineDock = document.createElement("section");
   timelineDock.className = "ttv-native-timeline-dock";
-  timelineDock.setAttribute("aria-label", "剪辑时间线");
+  timelineDock.setAttribute("aria-label", "片段条");
   document.body.appendChild(timelineDock);
 
   const sideTab = document.createElement("button");
   sideTab.type = "button";
   sideTab.className = "ttv-side-tab";
-  sideTab.textContent = "分镜";
+  sideTab.textContent = "片段";
   sideTab.onclick = (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -1137,7 +1081,7 @@
     w("#ttv-project-toggle").textContent = `${title} ▼`;
     w("#ttv-project-menu").classList.toggle("open", state.projectMenuOpen);
     w("#ttv-workbar-status").textContent = state.project?.id
-      ? `${state.project.scenes?.length || 0} 镜头 · 自动保存`
+      ? `${projectSegments().length || 0} 片段 · 自动保存`
       : "未载入项目";
     w("#ttv-workbar-compact").textContent = state.workbarCollapsed ? "展开" : "收纳";
     w("#ttv-project-list").innerHTML = state.projects.length
@@ -1146,7 +1090,7 @@
             (project) => `
               <button class="ttv-project-item ${project.id === state.project?.id ? "active" : ""}" data-project="${escapeHtml(project.id)}" type="button">
                 ${project.id === state.project?.id ? "✓ " : ""}${escapeHtml(project.title || "未命名项目")}
-                <div class="ttv-project-meta">${project.sceneCount || 0} 镜头 · ${formatTime(project.updatedAt)}</div>
+                <div class="ttv-project-meta">${project.sceneCount || 0} 片段 · ${formatTime(project.updatedAt)}</div>
               </button>
             `,
           )
@@ -1198,6 +1142,34 @@
     return state.project?.scenes.find((scene) => scene.id === state.selectedSceneId) || state.project?.scenes[0] || null;
   }
 
+  function projectSegments(project = state.project) {
+    const scenes = Array.isArray(project?.scenes) ? project.scenes : [];
+    const fromApi = Array.isArray(project?.segments) ? project.segments : [];
+    return scenes.map((scene, index) => {
+      const segment = fromApi.find((item) => item.id === scene.id) || {};
+      const visual = segment.visual || {};
+      return {
+        ...segment,
+        id: scene.id,
+        order: Number(scene.order ?? segment.order ?? index),
+        text: segment.text || scene.voiceText || scene.subtitle || "",
+        subtitleText: segment.subtitleText || scene.subtitle || scene.voiceText || "",
+        startMs: Number(segment.startMs ?? scene.startMs ?? 0),
+        endMs: Number(segment.endMs ?? scene.endMs ?? 0),
+        durationMs: Number(segment.durationMs ?? (Number(scene.endMs || 0) - Number(scene.startMs || 0))),
+        visual: {
+          source: visual.source || (scene.visualLayer?.type === "footage" ? "footage" : "template"),
+          templateId: visual.templateId || scene.templateId || scene.visualLayer?.templateId || "",
+          materialId: visual.materialId || scene.visualLayer?.clipId || "",
+          confidence: Number(visual.confidence || scene.visualLayer?.confidence || 0),
+          reason: visual.reason || scene.visualLayer?.reason || scene.decisionReason || "",
+        },
+        status: segment.status || (!scene.visualLayer ? "missing_visual" : "ok"),
+        locked: Boolean(scene.locked),
+      };
+    });
+  }
+
   async function loadProject(projectId) {
     state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(projectId)}`);
     state.selectedSceneId = selectedScene()?.id || "";
@@ -1232,24 +1204,25 @@
     if (!project) {
       wrap.innerHTML = `<div class="ttv-status">还没有项目。先用右侧生成控制台生成初版视频。</div>`;
       g("#ttv-open-video").removeAttribute("href");
-      renderTimelineDock();
+      renderSegmentStripDock();
       return;
     }
     const scene = selectedScene();
+    const segments = projectSegments(project);
     g("#ttv-open-video").href = project.videoUrl ? `${API}${project.videoUrl}` : "#";
     wrap.innerHTML = `
       <div class="ttv-project-shell">
         <div class="ttv-row-actions">
           <button class="ttv-button" id="ttv-new-draft" type="button">清空草稿</button>
-          <button class="ttv-button" id="ttv-lock" type="button">${scene?.locked ? "解除锁定" : "锁定分镜"}</button>
+          <button class="ttv-button" id="ttv-lock" type="button">${scene?.locked ? "解除锁定" : "锁定片段"}</button>
         </div>
         <div class="ttv-scene-list compact">
-          ${project.scenes
+          ${segments
             .map(
               (item, index) => `
                 <button class="ttv-scene ${item.id === state.selectedSceneId ? "active" : ""}" data-scene="${item.id}" type="button">
-                  ${index + 1}. ${escapeHtml(item.subtitle || item.voiceText).slice(0, 70)}
-                  <div class="ttv-pill">${escapeHtml(item.templateId)} · ${Math.round((item.endMs - item.startMs) / 100) / 10}s${item.locked ? " · 已锁定" : ""}</div>
+                  ${index + 1}. ${escapeHtml(item.subtitleText || item.text).slice(0, 70)}
+                  <div class="ttv-pill">${escapeHtml(item.visual?.templateId || item.visual?.materialId || "画面")} · ${Math.round(item.durationMs / 100) / 10}s${item.locked ? " · 已锁定" : ""}</div>
                 </button>
               `,
             )
@@ -1277,84 +1250,62 @@
       renderProject();
     };
     if (scene) bindSceneEditor(scene);
-    renderTimelineDock();
+    renderSegmentStripDock();
   }
 
-  function renderTimelineDock() {
+  function renderSegmentStripDock() {
     ensureTimelineDocked();
     if (!state.project) return;
-    timelineDock.innerHTML = renderTimeline(state.project);
-    bindTimeline(state.project);
+    timelineDock.innerHTML = renderSegmentStrip(state.project);
+    bindSegmentStrip(state.project);
   }
 
-  function renderTimeline(project) {
-    const tracks = project.tracks || [];
-    const durationMs = Math.max(Number(project.durationMs || 0), ...tracks.flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0))));
+  function renderSegmentStrip(project) {
+    const segments = projectSegments(project);
+    const durationMs = Math.max(Number(project.durationMs || 0), ...segments.map((segment) => Number(segment.endMs || 0)));
     if (!durationMs) {
-      return `<div class="ttv-timeline"><div class="ttv-status">时间线会在项目生成旁白和分镜后显示。</div></div>`;
+      return `<div class="ttv-segment-strip"><div class="ttv-status">片段条会在项目生成旁白和画面后显示。</div></div>`;
     }
-    const playheadLeft = clamp((state.playheadMs / durationMs) * 100, 0, 100);
     return `
-      <div class="ttv-timeline">
-        <div class="ttv-timeline-head">
-          <span>剪辑时间线</span>
-          <span>${Math.round(durationMs / 100) / 10}s · 拖镜头排序 / 拉边裁剪</span>
+      <div class="ttv-segment-strip">
+        <div class="ttv-segment-strip-head">
+          <span>片段条</span>
+          <span>${segments.length} 段 · 一段话绑定一个画面</span>
         </div>
-        <div class="ttv-timebar" data-timebar="true">
-          <div class="ttv-playhead" style="left:${playheadLeft}%"></div>
-        </div>
-        ${tracks
-          .filter((track) => ["audio", "material", "scene", "subtitle"].includes(track.type))
-          .map((track) => renderTrack(track, durationMs))
-          .join("")}
-      </div>
-    `;
-  }
-
-  function renderTrack(track, durationMs) {
-    return `
-      <div class="ttv-track" data-track="${escapeHtml(track.id)}">
-        <div class="ttv-track-name">${escapeHtml(track.name || track.type)}</div>
-        <div class="ttv-track-lane" data-lane="${escapeHtml(track.id)}">
-          ${track.clips.map((clip) => renderClip(clip, durationMs)).join("")}
+        <div class="ttv-segment-lane" data-segment-lane="true">
+          ${segments.map((segment, index) => renderSegmentBlock(segment, index, durationMs)).join("")}
         </div>
       </div>
     `;
   }
 
-  function renderClip(clip, durationMs) {
-    const left = clamp((Number(clip.startMs || 0) / durationMs) * 100, 0, 100);
-    const width = Math.max(2, clamp(((Number(clip.endMs || 0) - Number(clip.startMs || 0)) / durationMs) * 100, 0, 100 - left));
-    const sceneId = clip.sceneId || (clip.type === "scene" ? clip.id : "");
-    const selected = sceneId && sceneId === state.selectedSceneId;
-    const draggable = clip.type === "scene" && !clip.locked;
+  function renderSegmentBlock(segment, index, durationMs) {
+    const left = clamp((Number(segment.startMs || 0) / durationMs) * 100, 0, 100);
+    const width = Math.max(2, clamp((Number(segment.durationMs || 0) / durationMs) * 100, 0, 100 - left));
+    const selected = segment.id === state.selectedSceneId;
     const dense = width < 7;
+    const visualSource = segment.visual?.source || "template";
+    const label = `${String(index + 1).padStart(2, "0")} ${Math.round(Number(segment.durationMs || 0) / 100) / 10}s · ${visualSource === "footage" ? "素材" : "模板"}`;
     return `
       <div
-        class="ttv-clip ${escapeHtml(clip.type)} ${selected ? "selected" : ""} ${dense ? "dense" : ""}"
-        data-clip="${escapeHtml(clip.id)}"
-        data-scene="${escapeHtml(sceneId)}"
-        data-type="${escapeHtml(clip.type)}"
-        draggable="${draggable ? "true" : "false"}"
-        title="${escapeHtml(clip.title || clip.text || clip.type)}"
+        class="ttv-segment-block ${escapeHtml(visualSource)} ${escapeHtml(segment.status || "ok")} ${segment.locked ? "locked" : ""} ${selected ? "active" : ""} ${dense ? "dense" : ""}"
+        data-segment="${escapeHtml(segment.id)}"
+        draggable="${segment.locked ? "false" : "true"}"
+        title="${escapeHtml(segment.subtitleText || segment.text || label)}"
         style="left:${left}%;width:${width}%"
       >
-        ${clip.type === "scene" && !clip.locked ? `<span class="ttv-trim left" data-trim="left" data-scene="${escapeHtml(sceneId)}"></span>` : ""}
-        ${dense ? "" : escapeHtml(clip.title || clip.text || clip.type)}
-        ${clip.type === "scene" && !clip.locked ? `<span class="ttv-trim right" data-trim="right" data-scene="${escapeHtml(sceneId)}"></span>` : ""}
+        ${dense ? "" : escapeHtml(label)}
       </div>
     `;
   }
 
-  function bindTimeline(project) {
-    const timeline = timelineDock.querySelector(".ttv-timeline");
-    if (!timeline) return;
-    const durationMs = Math.max(Number(project.durationMs || 0), ...((project.tracks || []).flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0)))));
-    for (const el of timeline.querySelectorAll("[data-scene]")) {
+  function bindSegmentStrip(project) {
+    const strip = timelineDock.querySelector(".ttv-segment-strip");
+    if (!strip) return;
+    const segments = projectSegments(project);
+    for (const el of strip.querySelectorAll("[data-segment]")) {
       el.onclick = (event) => {
-        const trim = event.target.closest("[data-trim]");
-        if (trim) return;
-        const sceneId = el.dataset.scene;
+        const sceneId = el.dataset.segment;
         if (!sceneId) return;
         const scene = project.scenes.find((item) => item.id === sceneId);
         if (!scene) return;
@@ -1365,7 +1316,8 @@
         seekPreview(scene);
       };
     }
-    for (const lane of timeline.querySelectorAll("[data-lane='scene']")) {
+    const lane = strip.querySelector("[data-segment-lane]");
+    if (lane) {
       lane.ondragover = (event) => event.preventDefault();
       lane.ondrop = async (event) => {
         event.preventDefault();
@@ -1376,7 +1328,7 @@
         const scenes = [...project.scenes];
         const from = scenes.findIndex((scene) => scene.id === dragged);
         if (from < 0) return;
-        const to = Math.max(0, Math.min(scenes.length - 1, Math.floor(ratio * scenes.length)));
+        const to = Math.max(0, Math.min(scenes.length - 1, Math.floor(ratio * segments.length)));
         const [item] = scenes.splice(from, 1);
         scenes.splice(to, 0, item);
         state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(project.id)}/reorder`, {
@@ -1386,73 +1338,33 @@
         });
         state.timelineDragSceneId = "";
         await loadProjects();
-        setStatus("镜头顺序已更新。需要看画面时点“刷新 Studio 预览”。");
+        setStatus("片段顺序已更新。需要看画面时点“刷新 Studio 预览”。");
         renderProject();
       };
     }
-    for (const clip of timeline.querySelectorAll(".ttv-clip.scene")) {
-      clip.ondragstart = () => {
-        state.timelineDragSceneId = clip.dataset.scene || "";
+    for (const block of strip.querySelectorAll(".ttv-segment-block")) {
+      block.ondragstart = () => {
+        state.timelineDragSceneId = block.dataset.segment || "";
       };
-      clip.ondragend = () => {
+      block.ondragend = () => {
         state.timelineDragSceneId = "";
       };
     }
-    const timebar = timeline.querySelector("[data-timebar]");
-    if (timebar) {
-      timebar.onclick = (event) => {
-        const rect = timebar.getBoundingClientRect();
+    if (lane) {
+      lane.onclick = (event) => {
+        if (event.target.closest("[data-segment]")) return;
+        const rect = lane.getBoundingClientRect();
         const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-        state.playheadMs = ratio * durationMs;
-        const scene = project.scenes.find((item) => state.playheadMs >= item.startMs && state.playheadMs <= item.endMs);
+        const index = Math.max(0, Math.min(segments.length - 1, Math.floor(ratio * segments.length)));
+        const scene = project.scenes.find((item) => item.id === segments[index]?.id);
         if (scene) {
           state.selectedSceneId = scene.id;
+          state.playheadMs = scene.startMs || 0;
           seekPreview(scene);
         }
         renderProject();
       };
     }
-    for (const trim of timeline.querySelectorAll("[data-trim]")) {
-      trim.onmousedown = (event) => startTrim(event, project, trim.dataset.scene, trim.dataset.trim);
-    }
-  }
-
-  function startTrim(event, project, sceneId, side) {
-    event.preventDefault();
-    event.stopPropagation();
-    const scene = project.scenes.find((item) => item.id === sceneId);
-    if (!scene || scene.locked) return;
-    const lane = event.currentTarget.closest(".ttv-track-lane");
-    const rect = lane.getBoundingClientRect();
-    const durationMs = Math.max(Number(project.durationMs || 0), ...((project.tracks || []).flatMap((track) => track.clips.map((clip) => Number(clip.endMs || 0)))));
-    const onMove = (moveEvent) => {
-      const ratio = clamp((moveEvent.clientX - rect.left) / rect.width, 0, 1);
-      const nextMs = Math.round(ratio * durationMs);
-      state.playheadMs = nextMs;
-      if (side === "left") {
-        s("#ttv-start-ms").value = Math.min(nextMs, Number(s("#ttv-end-ms").value) - 300);
-      } else {
-        s("#ttv-end-ms").value = Math.max(nextMs, Number(s("#ttv-start-ms").value) + 300);
-      }
-    };
-    const onUp = async () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      const patch = {
-        startMs: Number(s("#ttv-start-ms").value),
-        endMs: Number(s("#ttv-end-ms").value),
-      };
-      state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(project.id)}/scenes/${encodeURIComponent(scene.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patch }),
-      });
-      await loadProjects();
-      setStatus("片段裁剪已保存。需要看画面时点“刷新 Studio 预览”。");
-      renderProject();
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
   }
 
   function renderSceneEditor(scene) {
@@ -1482,8 +1394,8 @@
         </label>
       </div>
       <div class="ttv-grid">
-        <button class="ttv-button primary" id="ttv-save-scene" type="button">保存分镜</button>
-        <button class="ttv-button" id="ttv-rematch" type="button">重配素材</button>
+        <button class="ttv-button primary" id="ttv-save-scene" type="button">保存片段</button>
+        <button class="ttv-button" id="ttv-rematch" type="button">重配画面</button>
       </div>
       <div id="ttv-candidates">${renderCandidates()}</div>
     `;
@@ -1516,17 +1428,17 @@
         endMs: Number(s("#ttv-end-ms").value),
         props: { body: s("#ttv-scene-text").value },
       };
-      state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/scenes/${encodeURIComponent(scene.id)}`, {
+      state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ patch }),
       });
-      setStatus("分镜已保存。需要看画面时点“刷新 Studio 预览”。");
+      setStatus("片段已保存。需要看画面时点“刷新 Studio 预览”。");
       renderProject();
     };
     s("#ttv-lock").onclick = async () => {
       state.project = await fetchJson(
-        `${API}/api/projects/${encodeURIComponent(state.project.id)}/scenes/${encodeURIComponent(scene.id)}/lock`,
+        `${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}/lock`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1537,7 +1449,7 @@
     };
     s("#ttv-rematch").onclick = async () => {
       const data = await fetchJson(
-        `${API}/api/projects/${encodeURIComponent(state.project.id)}/scenes/${encodeURIComponent(scene.id)}/rematch-material`,
+        `${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}/rematch-visual`,
         { method: "POST" },
       );
       state.candidates = data.candidates || [];
@@ -1548,14 +1460,14 @@
         const candidate = state.candidates.find((item) => item.id === button.dataset.candidate);
         if (!candidate) return;
         state.project = await fetchJson(
-          `${API}/api/projects/${encodeURIComponent(state.project.id)}/scenes/${encodeURIComponent(scene.id)}/replace-material`,
+          `${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}/replace-visual`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ candidate }),
           },
         );
-        setStatus("素材已替换。");
+        setStatus("片段画面已替换。");
         renderProject();
       };
     }
@@ -1648,7 +1560,7 @@
             setStoryboardOpen(true);
             await applyProjectToStudioPreview(job.result.projectId);
           } else {
-            setStatus("单模板视频已生成；自动分镜预览仅用于 MultiSceneVideo 项目。");
+            setStatus("单模板视频已生成；片段预览仅用于 MultiSceneVideo 项目。");
           }
         } else {
           setStatus("视频已生成，但没有项目数据。");
