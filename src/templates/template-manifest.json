@@ -1,0 +1,149 @@
+[
+  {
+    "id": "DocumentReveal",
+    "displayName": "历史文件揭示",
+    "category": "document",
+    "bestFor": ["条约", "和约", "协定", "策论", "文件", "法令", "转让", "租借地", "利权", "档案"],
+    "avoidFor": ["战争过程", "人物身份介绍", "抽象概念解释", "地理路线"],
+    "visualMetaphor": "一张旧纸文件展开，展示标题、正文、高亮词和印章",
+    "requiredProps": {
+      "title": "文件标题",
+      "body": "纸上显示的核心内容",
+      "highlightWords": "需要强调的词"
+    },
+    "durationRangeSec": [4, 8],
+    "sceneRole": ["evidence", "document", "quote"]
+  },
+  {
+    "id": "QuoteReveal",
+    "displayName": "引文揭示",
+    "category": "quote",
+    "bestFor": ["引用", "原文", "名言", "他说", "写道", "圈点", "一行字", "犹如", "仿佛", "比喻"],
+    "avoidFor": ["地理路线", "完整战争过程", "人物履历"],
+    "visualMetaphor": "深色背景中逐步显现引文，重点词被高亮，来源压在画面下方",
+    "requiredProps": {
+      "quote": "要展示的引文",
+      "source": "引文来源",
+      "highlightWords": "需要强调的词"
+    },
+    "durationRangeSec": [4, 7],
+    "sceneRole": ["quote", "emphasis", "metaphor"]
+  },
+  {
+    "id": "PortraitFocus",
+    "displayName": "人物身份卡",
+    "category": "person",
+    "bestFor": ["人物", "官员", "将领", "作者", "课长", "大臣", "太郎", "参谋", "负责人", "他"],
+    "avoidFor": ["条约正文", "地理路线", "抽象概念"],
+    "visualMetaphor": "人物剪影卡片，突出姓名、职务、时代和一句身份说明",
+    "requiredProps": {
+      "name": "人物姓名",
+      "title": "职务或身份",
+      "description": "人物在叙事中的作用"
+    },
+    "durationRangeSec": [4, 6],
+    "sceneRole": ["character", "identity", "context"]
+  },
+  {
+    "id": "ConceptDiagram",
+    "displayName": "概念关系图",
+    "category": "concept",
+    "bestFor": ["概念", "本质", "意味着", "关系", "结构", "利权", "势力范围", "铁路附属地", "控制", "机制"],
+    "avoidFor": ["单句引用", "人物身份", "具体港口路线"],
+    "visualMetaphor": "中心概念向外连接多个节点，用线条解释抽象关系",
+    "requiredProps": {
+      "concept": "中心概念",
+      "definition": "概念解释",
+      "nodes": "关系节点"
+    },
+    "durationRangeSec": [5, 8],
+    "sceneRole": ["concept", "explain", "relationship"]
+  },
+  {
+    "id": "MetaphorVisual",
+    "displayName": "隐喻可视化",
+    "category": "metaphor",
+    "bestFor": ["像", "仿佛", "犹如", "好比", "怀表", "衣袋", "刀", "刃", "牛", "比喻"],
+    "avoidFor": ["纯地名罗列", "人物履历", "条约正文"],
+    "visualMetaphor": "一个对象从左侧主体移动到右侧主体，用图形解释文本隐喻",
+    "requiredProps": {
+      "metaphor": "隐喻名称",
+      "fromLabel": "来源主体",
+      "toLabel": "目标主体",
+      "objectLabel": "被转移或被比较的对象"
+    },
+    "durationRangeSec": [5, 8],
+    "sceneRole": ["metaphor", "transition", "explain"]
+  },
+  {
+    "id": "AtlasMapFlyover",
+    "displayName": "世界地图飞越",
+    "category": "map",
+    "bestFor": ["港", "铁路", "路线", "大陆", "关东州", "南满", "旅顺", "大连", "黄海", "东京", "霞关", "俄国", "日本", "满洲", "地图"],
+    "avoidFor": ["条约原文", "人物身份", "单句引用"],
+    "visualMetaphor": "真实世界地图纹理上出现路线和地理标签，表现地点关系和权益流向",
+    "requiredProps": {
+      "title": "地理主题",
+      "subtitle": "地理关系说明",
+      "keywords": "地名或路线关键词"
+    },
+    "durationRangeSec": [5, 8],
+    "sceneRole": ["map", "route", "geography", "establishing"]
+  },
+  {
+    "id": "MapRouteFlyover",
+    "displayName": "路线地图飞越",
+    "category": "map",
+    "bestFor": ["路线", "铁路", "运输", "流向", "节点", "港口", "连接", "轴线"],
+    "avoidFor": ["条约正文", "人物身份", "抽象定义"],
+    "visualMetaphor": "简化地图上的路线被点亮，适合解释港口、铁路和利益轴线",
+    "requiredProps": {
+      "title": "路线标题",
+      "subtitle": "路线说明",
+      "visualFocus": "route"
+    },
+    "durationRangeSec": [5, 8],
+    "sceneRole": ["route", "map", "process"]
+  },
+  {
+    "id": "HistoricalGlobeTexture1938",
+    "displayName": "1938 历史地球",
+    "category": "map",
+    "bestFor": ["战争", "战役", "硝烟", "军", "参谋", "作战", "焦土", "铁锈", "占领", "东亚", "世界局势"],
+    "avoidFor": ["单句引用", "条约正文", "人物卡片"],
+    "visualMetaphor": "可旋转历史地球表现大范围地缘格局",
+    "requiredProps": {
+      "title": "历史局势标题",
+      "subtitle": "时间或空间说明"
+    },
+    "durationRangeSec": [5, 9],
+    "sceneRole": ["establishing", "war", "geopolitics"]
+  },
+  {
+    "id": "PromptTextRotation",
+    "displayName": "关键词轮播",
+    "category": "concept",
+    "bestFor": ["关键词", "概念", "总结", "递进", "转折", "并非", "而是", "关键"],
+    "avoidFor": ["具体文件", "具体人物", "路线说明"],
+    "visualMetaphor": "多个关键词轮流出现，适合做概念转场和抽象总结",
+    "requiredProps": {
+      "keywords": "需要轮播的关键词"
+    },
+    "durationRangeSec": [4, 7],
+    "sceneRole": ["concept", "transition", "summary"]
+  },
+  {
+    "id": "NarratedScene",
+    "displayName": "旁白兜底镜头",
+    "category": "narration",
+    "bestFor": ["叙述", "铺垫", "过渡", "无法归类"],
+    "avoidFor": [],
+    "visualMetaphor": "深色旁白卡片承载文字，作为无法匹配模板时的稳定兜底",
+    "requiredProps": {
+      "title": "镜头标题",
+      "body": "旁白摘要"
+    },
+    "durationRangeSec": [4, 7],
+    "sceneRole": ["narration", "fallback"]
+  }
+]

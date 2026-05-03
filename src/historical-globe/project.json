@@ -2,7 +2,7 @@
   "name": "historical-globe-engine",
   "displayName": "Historical Globe Engine",
   "repository": "https://github.com/emptyinkpot/FuckVideo",
-  "description": "A programmable Remotion historical globe video engine built from GeoJSON, d3-geo orthographic projection, and frame-driven animation.",
+  "description": "A programmable Remotion historical globe and template-directed video engine. It combines GeoJSON/d3-geo historical rendering with a manifest-driven automatic scene planner, Remotion template registry, TTS narration, subtitles, and MultiSceneVideo timeline composition.",
   "root": "src/historical-globe",
   "status": "engine-prototype",
   "primaryComposition": {
@@ -40,7 +40,15 @@
     "historyDbAdapter": "src/historical-globe/history-db/adapters/toWarTimeline.ts",
     "sinoJapaneseWarDataset": "src/historical-globe/history-db/datasets/sino-japanese-war.ts",
     "cameraHelpers": "src/historical-globe/camera/cameraPresets.ts",
-    "worldState": "src/historical-globe/timeline/getWorldState.ts"
+    "worldState": "src/historical-globe/timeline/getWorldState.ts",
+    "templateManifest": "src/templates/template-manifest.json",
+    "autoSceneTemplates": "src/templates/AutoSceneTemplates.tsx",
+    "sceneRegistry": "src/templates/sceneRegistry.tsx",
+    "multiSceneVideo": "src/templates/MultiSceneVideo.tsx",
+    "scenePlanner": "scripts/scene-planner.mjs",
+    "textToScenesVideo": "scripts/text-to-scenes-video.mjs",
+    "textToScenesTtsVideo": "scripts/text-to-scenes-tts-video.mjs",
+    "studioVideoPlugin": "frontend/remotion-studio-plugin.js"
   },
   "historyDataFlow": {
     "principle": "Historical facts are maintained in history-db datasets. AI-generated scenes should consume the database and should not invent territorial control or battle lines.",
@@ -125,7 +133,19 @@
     "world-state-time-function",
     "territory-color-overrides",
     "territory-color-interpolation",
-    "frontline-crossfade"
+    "frontline-crossfade",
+    "template-manifest-scene-selection",
+    "visual-intent-scenes",
+    "common-auto-scene-props",
+    "automatic-template-rotation",
+    "multi-scene-remotion-sequence-timeline",
+    "document-evidence-template",
+    "quote-reveal-template",
+    "portrait-focus-template",
+    "concept-diagram-template",
+    "metaphor-visual-template",
+    "tts-to-multiscene-video-pipeline",
+    "studio-integrated-video-generation"
   ],
   "mainConfigFields": {
     "geoJsonSrc": "World GeoJSON source path under public/.",
@@ -169,9 +189,8 @@
     "renderSinoJapaneseWarStillExample": "npx remotion still src/index.ts SinoJapaneseWarDemo --frame=180 --output=screenshots/sino-japanese-war-frame.png"
   },
   "knownLimitations": [
-    "WorldState exists for the SinoJapaneseWarDemo, but there is no general scene DSL yet.",
+    "The automatic scene DSL exists for template-directed videos, but historical fact extraction is still rule/manifest-driven rather than a fully sourced research agent.",
     "Only lightweight camera interpolation exists; no full camera keyframe system yet.",
-    "No scene or timeline DSL yet.",
     "Engine layers are not fully split into CountriesLayer, ProvincesLayer, DisputedLayer, LabelsLayer, and LightingLayer.",
     "Scenario configuration is still TypeScript-based rather than external JSON.",
     "China overlay is currently province-level only; city/county-level and historical administrative GeoJSON are not yet integrated.",
@@ -185,6 +204,7 @@
     "Add a geometry registry for country, province, prefecture, county, historical-admin, and custom-polygon datasets.",
     "Integrate city/county-level or historical administrative GeoJSON before rendering partial historical regions such as Manchukuo's western edge.",
     "Move historical scenario config to JSON with TypeScript validation.",
-    "Add a declarative scene timeline for AI-generated historical videos."
+    "Add optional LLM-assisted visual-beat selection on top of the current template manifest scorer.",
+    "Add a geometry-aware template decision layer so map scenes can distinguish routes, regions, leaseholds, ports, and front lines."
   ]
 }

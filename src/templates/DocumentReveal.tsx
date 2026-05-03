@@ -6,7 +6,7 @@ export type DocumentRevealProps = {
   body?: string;
   sealText?: string;
   highlightWords?: string[];
-  tone?: "aged" | "clean";
+  tone?: "aged" | "historical" | "dramatic" | "dark" | "clean";
 };
 
 const splitHighlightedText = (body: string, highlightWords: string[]) => {
@@ -43,9 +43,10 @@ export const DocumentReveal = ({
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const paperColor = tone === "aged" ? "#ead8ab" : "#fafafa";
-  const inkColor = tone === "aged" ? "#2d2115" : "#171717";
-  const backgroundColor = tone === "aged" ? "#17120d" : "#111827";
+  const agedTone = tone === "aged" || tone === "historical" || tone === "dramatic";
+  const paperColor = agedTone ? "#ead8ab" : "#fafafa";
+  const inkColor = agedTone ? "#2d2115" : "#171717";
+  const backgroundColor = agedTone ? "#17120d" : "#111827";
   const textParts = splitHighlightedText(body, highlightWords);
 
   return (

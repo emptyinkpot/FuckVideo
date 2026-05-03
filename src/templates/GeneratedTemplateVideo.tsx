@@ -26,9 +26,14 @@ import {
 } from "./ThreeDTemplates";
 import type { NarratedCaption } from "./NarratedVideo";
 import { DocumentReveal } from "./DocumentReveal";
+import { ConceptDiagram, MetaphorVisual, PortraitFocus, QuoteReveal } from "./AutoSceneTemplates";
 
 export type ExistingTemplateId =
   | "DocumentReveal"
+  | "QuoteReveal"
+  | "PortraitFocus"
+  | "ConceptDiagram"
+  | "MetaphorVisual"
   | "SinoJapaneseWarDemo"
   | "HistoricalGlobeTexture1938"
   | "AtlasMapFlyover"
@@ -66,6 +71,10 @@ const asTemplate = <Props extends object>(Component: React.ComponentType<Props>)
 
 const templates: Record<ExistingTemplateId, React.FC> = {
   DocumentReveal: asTemplate(DocumentReveal),
+  QuoteReveal: asTemplate(QuoteReveal),
+  PortraitFocus: asTemplate(PortraitFocus),
+  ConceptDiagram: asTemplate(ConceptDiagram),
+  MetaphorVisual: asTemplate(MetaphorVisual),
   SinoJapaneseWarDemo: asTemplate(SinoJapaneseWarDemo),
   HistoricalGlobeTexture1938: asTemplate(HistoricalGlobeTexture1938),
   AtlasMapFlyover: asTemplate(AtlasMapFlyover),
@@ -90,6 +99,10 @@ const templates: Record<ExistingTemplateId, React.FC> = {
 
 export const templateOptions: Array<{ id: ExistingTemplateId; label: string }> = [
   { id: "DocumentReveal", label: "历史文件揭示" },
+  { id: "QuoteReveal", label: "引文揭示" },
+  { id: "PortraitFocus", label: "人物身份卡" },
+  { id: "ConceptDiagram", label: "概念关系图" },
+  { id: "MetaphorVisual", label: "隐喻可视化" },
   { id: "SinoJapaneseWarDemo", label: "中日战争历史地球" },
   { id: "HistoricalGlobeTexture1938", label: "1938 历史地球纹理" },
   { id: "AtlasMapFlyover", label: "世界地图飞越" },

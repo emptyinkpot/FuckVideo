@@ -2,6 +2,10 @@
   const API = "http://127.0.0.1:3037";
   const templates = [
     ["DocumentReveal", "历史文件揭示"],
+    ["QuoteReveal", "引文揭示"],
+    ["PortraitFocus", "人物身份卡"],
+    ["ConceptDiagram", "概念关系图"],
+    ["MetaphorVisual", "隐喻可视化"],
     ["SinoJapaneseWarDemo", "中日战争历史地球"],
     ["HistoricalGlobeTexture1938", "1938 历史地球纹理"],
     ["AtlasMapFlyover", "世界地图飞越"],

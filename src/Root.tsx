@@ -40,9 +40,19 @@ import {
   defaultMultiSceneVideoProps,
   MultiSceneVideo,
 } from "./templates/MultiSceneVideo";
+import {
+  ConceptDiagram,
+  MetaphorVisual,
+  PortraitFocus,
+  QuoteReveal,
+} from "./templates/AutoSceneTemplates";
 
 const templateIdSchema = z.enum([
   "DocumentReveal",
+  "QuoteReveal",
+  "PortraitFocus",
+  "ConceptDiagram",
+  "MetaphorVisual",
   "SinoJapaneseWarDemo",
   "HistoricalGlobeTexture1938",
   "AtlasMapFlyover",
@@ -87,11 +97,57 @@ const documentRevealSchema = z.object({
   body: z.string().optional(),
   sealText: z.string().optional(),
   highlightWords: z.array(z.string()).optional(),
-  tone: z.enum(["aged", "clean"]).optional(),
+  tone: z.enum(["aged", "historical", "dramatic", "dark", "clean"]).optional(),
+});
+
+const portraitFocusSchema = z.object({
+  name: z.string().optional(),
+  title: z.string().optional(),
+  roleTitle: z.string().optional(),
+  subtitle: z.string().optional(),
+  description: z.string().optional(),
+  era: z.string().optional(),
+  body: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
+  tone: z.enum(["historical", "dark", "clean", "dramatic"]).optional(),
+});
+
+const quoteRevealSchema = z.object({
+  quote: z.string().optional(),
+  source: z.string().optional(),
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  body: z.string().optional(),
+  highlightWords: z.array(z.string()).optional(),
+  tone: z.enum(["historical", "dark", "clean", "dramatic"]).optional(),
+});
+
+const conceptDiagramSchema = z.object({
+  concept: z.string().optional(),
+  title: z.string().optional(),
+  definition: z.string().optional(),
+  body: z.string().optional(),
+  nodes: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
+  tone: z.enum(["historical", "dark", "clean", "dramatic"]).optional(),
+});
+
+const metaphorVisualSchema = z.object({
+  metaphor: z.string().optional(),
+  title: z.string().optional(),
+  fromLabel: z.string().optional(),
+  toLabel: z.string().optional(),
+  objectLabel: z.string().optional(),
+  body: z.string().optional(),
+  tone: z.enum(["historical", "dark", "clean", "dramatic"]).optional(),
 });
 
 const autoSceneTemplateIdSchema = z.enum([
   "DocumentReveal",
+  "QuoteReveal",
+  "PortraitFocus",
+  "ConceptDiagram",
+  "MetaphorVisual",
   "AtlasMapFlyover",
   "MapRouteFlyover",
   "HistoricalGlobeTexture1938",
@@ -103,10 +159,16 @@ const autoSceneSchema = z.object({
   id: z.string(),
   index: z.number(),
   text: z.string(),
+  sceneType: z.string().optional(),
+  narrationText: z.string().optional(),
+  visualIntent: z.string().optional(),
   templateId: autoSceneTemplateIdSchema,
+  category: z.string().optional(),
+  durationSec: z.number().optional(),
   fromFrame: z.number().int().min(0),
   durationInFrames: z.number().int().min(1),
   keywords: z.array(z.string()).optional(),
+  decisionReason: z.string().optional(),
   props: z.record(z.string(), z.unknown()),
 });
 
@@ -327,6 +389,37 @@ const documentRevealDefaultProps: z.input<typeof documentRevealSchema> = {
   tone: "aged",
 };
 
+const portraitFocusDefaultProps: z.input<typeof portraitFocusSchema> = {
+  name: "宇都宫太郎",
+  roleTitle: "参谋本部作战课长",
+  description: "战后经营策论中的关键人物，代表军事视角下的大陆经营想象。",
+  era: "明治三十八年",
+  keywords: ["参谋本部", "作战课长"],
+  tone: "historical",
+};
+
+const quoteRevealDefaultProps: z.input<typeof quoteRevealSchema> = {
+  quote: "战争所获之利权，犹如新得之刃。",
+  source: "《日俄战后经营策论》",
+  highlightWords: ["利权", "新得之刃"],
+  tone: "dark",
+};
+
+const conceptDiagramDefaultProps: z.input<typeof conceptDiagramSchema> = {
+  concept: "铁路附属地",
+  definition: "铁路沿线形成的特殊权益空间，连接港口、租借地与军政控制。",
+  nodes: ["铁路", "港口", "租借地", "利权", "军政控制"],
+  tone: "dark",
+};
+
+const metaphorVisualDefaultProps: z.input<typeof metaphorVisualSchema> = {
+  metaphor: "怀表易手",
+  fromLabel: "俄国",
+  toLabel: "日本",
+  objectLabel: "南满铁路与关东州权益",
+  tone: "historical",
+};
+
 const claudeTyperDefaultProps: z.input<typeof claudeTyperSchema> = {
   prompt: "生成一套可复用的 Remotion 动画模板系统。",
   backgroundColor: "#15130f",
@@ -495,6 +588,46 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={documentRevealDefaultProps}
+      />
+      <Composition
+        id="QuoteReveal"
+        component={QuoteReveal}
+        schema={quoteRevealSchema}
+        durationInFrames={180}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={quoteRevealDefaultProps}
+      />
+      <Composition
+        id="PortraitFocus"
+        component={PortraitFocus}
+        schema={portraitFocusSchema}
+        durationInFrames={180}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={portraitFocusDefaultProps}
+      />
+      <Composition
+        id="ConceptDiagram"
+        component={ConceptDiagram}
+        schema={conceptDiagramSchema}
+        durationInFrames={210}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={conceptDiagramDefaultProps}
+      />
+      <Composition
+        id="MetaphorVisual"
+        component={MetaphorVisual}
+        schema={metaphorVisualSchema}
+        durationInFrames={210}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={metaphorVisualDefaultProps}
       />
       <Composition
         id="MultiSceneVideo"

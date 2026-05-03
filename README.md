@@ -27,7 +27,7 @@ Remotion Studio 模板预览与参数编辑
 
 - `src/Root.tsx` 注册全部 Remotion compositions。
 - 每个 composition 都有 `schema` 和 `defaultProps`。
-- Remotion Studio 中 25 个合成都能显示 props 编辑区。
+- Remotion Studio 中 29 个合成都能显示 props 编辑区。
 - 多数模板参数会真实影响画面，不是只挂一个空 schema。
 
 第二层是文本生成视频链路：
@@ -201,7 +201,9 @@ remotion-project/
       GeneratedTemplateVideo.tsx    生成视频包装器：现有模板 + 音频 + 字幕
       MultiSceneVideo.tsx           多镜头视频容器：Sequence 时间轴拼接
       DocumentReveal.tsx            条约/文件/档案类镜头模板
+      AutoSceneTemplates.tsx        人物、引文、概念、隐喻四类解释型镜头模板
       sceneRegistry.tsx             自动镜头 templateId -> Remotion 组件映射
+      template-manifest.json        模板语义说明书，供 planner 理解模板用途
       NarratedVideo.tsx             通用旁白视频模板
       MapTemplates.tsx              地图飞越模板
       MotionTemplates.tsx           二维动态图形模板
@@ -320,9 +322,9 @@ src/Root.tsx
 当前合成总数：
 
 ```text
-25 个 Composition
-25 个 schema
-25 个 defaultProps
+29 个 Composition
+29 个 schema
+29 个 defaultProps
 ```
 
 也就是说，每个合成都能在 Remotion Studio 里显示可编辑 props 面板。
@@ -367,6 +369,54 @@ src/Root.tsx
 - `body`
 - `sealText`
 - `highlightWords`
+- `tone`
+
+`QuoteReveal`
+
+用途：原文引用、关键句、被圈点的策论文字、需要强调的比喻句。
+
+主要参数：
+
+- `quote`
+- `source`
+- `highlightWords`
+- `tone`
+
+`PortraitFocus`
+
+用途：人物、官员、将领、作者、组织负责人等身份介绍。
+
+主要参数：
+
+- `name`
+- `roleTitle`
+- `description`
+- `era`
+- `keywords`
+- `tone`
+
+`ConceptDiagram`
+
+用途：利权、租借地、铁路附属地、势力范围、控制结构等抽象关系解释。
+
+主要参数：
+
+- `concept`
+- `definition`
+- `nodes`
+- `keywords`
+- `tone`
+
+`MetaphorVisual`
+
+用途：把“犹如、仿佛、像、好比”这类文本隐喻转换为对象移动或关系变化。
+
+主要参数：
+
+- `metaphor`
+- `fromLabel`
+- `toLabel`
+- `objectLabel`
 - `tone`
 
 `MultiSceneVideo`
@@ -582,6 +632,7 @@ src/Root.tsx
    - `src/templates/GeneratedTemplateVideo.tsx` 的 `ExistingTemplateId`
    - `src/templates/sceneRegistry.tsx` 的 `AutoSceneTemplateId` 和 `renderSceneTemplate`
    - `scripts/scene-planner.mjs` 的模板匹配规则
+   - `src/templates/template-manifest.json` 的模板语义说明
    - `templates` 映射
    - `templateOptions`
    - `frontend/remotion-studio-plugin.js` 的模板下拉
@@ -1069,6 +1120,10 @@ Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:3037/api/jobs" -ContentTyp
 
 ```text
 DocumentReveal                历史文件揭示
+QuoteReveal                   引文揭示
+PortraitFocus                 人物身份卡
+ConceptDiagram                概念关系图
+MetaphorVisual                隐喻可视化
 SinoJapaneseWarDemo          中日战争历史地球
 HistoricalGlobeTexture1938   1938 历史地球纹理
 AtlasMapFlyover              世界地图飞越
@@ -1118,7 +1173,9 @@ src/templates/NarratedVideo.tsx
 src/templates/GeneratedTemplateVideo.tsx
 src/templates/MultiSceneVideo.tsx
 src/templates/DocumentReveal.tsx
+src/templates/AutoSceneTemplates.tsx
 src/templates/sceneRegistry.tsx
+src/templates/template-manifest.json
 ```
 
 4. 在 `src/Root.tsx` 注册所有 Composition。
@@ -1241,7 +1298,7 @@ npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
 
-预期能看到 25 个合成。
+预期能看到 29 个合成。
 
 schema 覆盖验证：
 
@@ -1257,9 +1314,9 @@ $root = Get-Content -Raw src\Root.tsx
 当前应为：
 
 ```text
-CompositionTags : 25
-SchemaProps     : 25
-DefaultProps    : 25
+CompositionTags : 29
+SchemaProps     : 29
+DefaultProps    : 29
 ```
 
 运行态验证：
@@ -1386,7 +1443,7 @@ http://127.0.0.1:3037
 
 - Remotion Studio 可运行。
 - 生成视频扩展已集成到 Studio 页面。
-- 25 个合成都已注册 schema 和 defaultProps。
+- 29 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
 - 自动镜头系统使用 `MultiSceneVideo`，可以把长文拆成多镜头时间轴。
 - TTS 音频会统一转成标准 MP3。
@@ -1409,7 +1466,11 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 
 ```text
 文本
-  -> scripts/scene-planner.mjs 拆句与模板匹配
+  -> scripts/scene-planner.mjs 拆句
+  -> semanticBlocks
+  -> visualBeats
+  -> template-manifest.json 召回候选模板
+  -> manifest 打分与模板轮换
   -> scenes JSON
   -> MultiSceneVideo
   -> Remotion Sequence 按时间轴拼接多个模板
@@ -1417,20 +1478,105 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 
 新增文件：
 
-- `scripts/scene-planner.mjs`：文本拆块、关键词提取、规则式模板匹配、scene props 生成。
+- `scripts/scene-planner.mjs`：文本拆块、关键词提取、视觉意图生成、manifest 打分、模板轮换、scene props 生成。
 - `scripts/text-to-scenes-video.mjs`：生成 scenes/props，并可直接渲染 `MultiSceneVideo`。
 - `src/templates/DocumentReveal.tsx`：条约、文件、策论、档案类镜头模板。
+- `src/templates/AutoSceneTemplates.tsx`：`PortraitFocus`、`QuoteReveal`、`ConceptDiagram`、`MetaphorVisual` 四类解释型镜头模板。
 - `src/templates/sceneRegistry.tsx`：把 `templateId` 映射到现有 Remotion 模板。
 - `src/templates/MultiSceneVideo.tsx`：多镜头容器，使用 Remotion `Sequence` 拼接时间轴。
+- `src/templates/template-manifest.json`：模板说明书，记录每个模板的适用场景、避免场景、视觉隐喻、必需 props、时长范围和镜头角色。
 
-目前规则式匹配：
+### 22.1 模板说明书
+
+`template-manifest.json` 是 planner 理解模板库的根，不再只看模板名猜用途。每个模板至少包含：
+
+```json
+{
+  "id": "DocumentReveal",
+  "displayName": "历史文件揭示",
+  "category": "document",
+  "bestFor": ["条约", "和约", "协定", "策论", "文件", "转让"],
+  "avoidFor": ["战争过程", "人物身份介绍", "地理路线"],
+  "visualMetaphor": "一张旧纸文件展开，展示标题、正文、高亮词和印章",
+  "requiredProps": {
+    "title": "文件标题",
+    "body": "纸上显示的核心内容",
+    "highlightWords": "需要强调的词"
+  },
+  "durationRangeSec": [4, 8],
+  "sceneRole": ["evidence", "document", "quote"]
+}
+```
+
+### 22.2 统一 props
+
+自动镜头模板统一吃一组通用字段，再由 `sceneRegistry.tsx` 适配到具体模板：
+
+```ts
+type CommonSceneProps = {
+  title?: string;
+  subtitle?: string;
+  body?: string;
+  keywords?: string[];
+  highlightWords?: string[];
+  visualFocus?: string;
+  tone?: "historical" | "dark" | "clean" | "dramatic";
+};
+```
+
+例如：
+
+- `DocumentReveal` 使用 `title/body/highlightWords/tone`。
+- `AtlasMapFlyover` 使用 `title/subtitle/keywords/visualFocus`。
+- `QuoteReveal` 使用 `body/highlightWords/source`。
+- `ConceptDiagram` 使用 `title/body/keywords` 生成节点关系。
+
+### 22.3 镜头语言结构
+
+planner 输出的 scene 不再只是 `{ templateId, props }`，而是包含视觉意图：
+
+```json
+{
+  "id": "scene-005",
+  "sceneType": "document_evidence",
+  "narrationText": "这“牛”，便是被《朴茨茅斯和约》悄然易手的关东州租借地与南满铁路。",
+  "visualIntent": "用文件/条约视觉呈现证据，突出关键措辞：朴茨茅斯和约、关东州、南满铁路",
+  "templateId": "DocumentReveal",
+  "durationSec": 6,
+  "decisionReason": "历史文件揭示: 一张旧纸文件展开，展示标题、正文、高亮词和印章",
+  "props": {
+    "title": "朴茨茅斯和约",
+    "body": "关东州租借地与南满铁路权益转让",
+    "highlightWords": ["关东州", "南满铁路", "转让"]
+  }
+}
+```
+
+### 22.4 模板轮换策略
+
+`scene-planner.mjs` 当前实现了确定性轮换和平滑：
+
+- 从 `template-manifest.json` 读取全部模板。
+- 根据 `bestFor`、`avoidFor`、`sceneRole`、`category`、当前 `sceneType` 计算分数。
+- 连续镜头如果命中同一个模板，会优先选择分数接近但不同的候选模板。
+- 同类别镜头连续出现会扣分，避免全片只用文件或只用地图。
+- 长历史叙事默认偏向这类节奏：
 
 ```text
-条约/和约/协定/策论/转让/租借地 -> DocumentReveal
-港/铁路/关东州/南满/旅顺/大连/黄海 -> AtlasMapFlyover
-战争/战役/硝烟/参谋/作战/占领 -> HistoricalGlobeTexture1938
-本质/犹如/仿佛/关键/逻辑 -> PromptTextRotation
-其他文本 -> NarratedScene
+establishing map -> portrait/person -> document evidence -> quote -> concept explain -> map route -> metaphor visual -> narrated fallback
+```
+
+当前 `sceneType` 识别与 manifest 召回线索：
+
+```text
+条约/和约/协定/策论/转让/租借地 -> document_evidence -> DocumentReveal 候选
+引用/原文/圈点/写道 -> quote_evidence -> QuoteReveal 候选
+人物/官员/将领/课长/太郎/参谋 -> character_focus -> PortraitFocus 候选
+利权/铁路附属地/势力范围/控制结构 -> concept_explain -> ConceptDiagram 候选
+像/仿佛/犹如/怀表/衣袋/新得之刃 -> metaphor_visual -> MetaphorVisual 候选
+港/铁路/关东州/南满/旅顺/大连/黄海 -> geo_context -> AtlasMapFlyover / MapRouteFlyover 候选
+战争/战役/硝烟/作战/占领 -> establishing_map -> HistoricalGlobeTexture1938 候选
+其他文本 -> narration_bridge -> NarratedScene 候选
 ```
 
 只生成镜头规划，不渲染：
@@ -1486,10 +1632,15 @@ npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-
       "id": "scene-001",
       "index": 0,
       "text": "《朴茨茅斯和约》悄然易手。",
+      "sceneType": "document_evidence",
+      "narrationText": "《朴茨茅斯和约》悄然易手。",
+      "visualIntent": "用文件/条约视觉呈现证据，突出关键措辞：朴茨茅斯和约、转让",
       "templateId": "DocumentReveal",
+      "durationSec": 6,
       "fromFrame": 0,
       "durationInFrames": 180,
       "keywords": ["朴茨茅斯和约", "转让"],
+      "decisionReason": "历史文件揭示: 一张旧纸文件展开，展示标题、正文、高亮词和印章",
       "props": {
         "title": "朴茨茅斯和约",
         "subtitle": "历史文件",
