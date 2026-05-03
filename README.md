@@ -6,7 +6,7 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 
 ```text
 Remotion Studio 模板预览与参数编辑
-  + 右上角“生成视频”扩展
+  + 右侧栏“分镜”扩展页签
   + 千问 TTS 旁白生成
   + 自动镜头规划
   + 现有 Remotion 模板复用
@@ -15,11 +15,11 @@ Remotion Studio 模板预览与参数编辑
   + 可选字幕文件
   + 本地素材库检索与素材镜头混合
   + 生成可编辑 video project
-  + 项目编辑器微调与总导出
+  + Studio 内嵌分镜微调与总导出
   + 一键渲染 MP4
 ```
 
-它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，在 Studio 页面右上角注入一个“生成视频”扩展按钮；视频预览区仍然只显示视频，生成控制作为 Studio 外层扩展存在。
+它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，在右侧栏 `参数 / 渲染` 旁边注入 `分镜` 页签；中央画布仍然使用 Remotion Studio 原生预览屏幕。生成成功后，插件会把项目转换成 `MultiSceneVideo` props，写入 Remotion 的 input props override，并切到 `MultiSceneVideo` composition 预览。
 
 本文档按“给一个不了解项目的人复现出近似工程”的标准编写，包含运行环境、目录结构、端口、数据流、模板系统、参数系统、API 合约、排障和验证方式。
 
@@ -48,25 +48,24 @@ Remotion Studio 模板预览与参数编辑
 - 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
 - 调用 Remotion CLI 渲染 MP4。
 
-第三层是 Studio 内嵌扩展：
+第三层是 Studio 内嵌分镜扩展：
 
 - `npm run dev:video` 会启动 Remotion Studio、生成视频 API、Studio 代理。
 - 访问 `http://127.0.0.1:3057`。
 - 代理会把 `frontend/remotion-studio-plugin.js` 注入 Studio 页面。
-- 页面右上角出现“生成视频”按钮。
+- Remotion Studio 右侧栏 `参数 / 渲染` 旁边会出现 `分镜` 页签。
 - 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动镜头规划 -> `MultiSceneVideo` -> MP4。
 - 插件也保留“单模板”模式：文本 -> 千问 TTS -> 选定 Remotion 模板 -> MP4。
 - 插件提交任务到 `http://127.0.0.1:3037/api/jobs`。
 - 生成完成后会保存 `.runtime/video-projects/<id>.json`。
-- 点击“编辑项目”会进入 `/video-project/:id`，继续改分镜、字幕、素材和导出。
+- 生成完成后自动把项目加载到 Remotion Studio 中央预览，继续在 `分镜` 页签里改分镜、字幕、素材和导出。
 
-第四层是项目编辑器：
+第四层是项目编辑能力：
 
-- 左侧分镜列表。
-- 中间已导出视频预览。
-- 右侧当前分镜属性。
-- 底部时间线。
-- 支持保存字幕/旁白、锁定分镜、重配素材、替换素材、上移/下移、总导出。
+- 内嵌在 Remotion Studio 右侧栏，不另起一个主控制台。
+- 中央区域复用 Remotion Studio 原生 composition 预览。
+- 支持保存字幕/旁白、修改视觉意图、修改模板、修改时间、锁定分镜、重配素材、替换素材、总导出。
+- `/video-project/:id` 独立页面仍保留为备用调试入口，但主工作流不再依赖它。
 
 ## 2. 运行环境
 
@@ -1066,6 +1065,8 @@ failed
 }
 ```
 
+`projectUrl` 是备用独立编辑页。Studio 主工作流使用 `projectId` 调 `GET /api/projects/:id/props`，然后把项目加载到右侧栏 `分镜` 页签和中央 `MultiSceneVideo` 预览。
+
 ### 13.3 获取视频文件
 
 ```http
@@ -1093,6 +1094,14 @@ GET /video-project/:id
 ```http
 GET /api/projects/:id
 ```
+
+把项目转换成 Remotion `MultiSceneVideo` props：
+
+```http
+GET /api/projects/:id/props
+```
+
+这个接口供 Studio 内嵌 `分镜` 页签刷新中央预览使用。
 
 更新单个分镜：
 
@@ -1213,13 +1222,14 @@ frontend/remotion-studio-plugin.js
 
 插件做了三件事：
 
-- 在右上角加“生成视频”按钮。
-- 展开一个生成视频抽屉。
+- 在 Remotion Studio 右侧栏 `参数 / 渲染` 旁边加 `分镜` 页签。
+- 在 `分镜` 页签内完成文案生成、分镜列表、当前分镜编辑、素材重配和总导出。
+- 生成成功后调用 `GET /api/projects/:id/props`，把项目写入 Remotion input props override，并切到 `/MultiSceneVideo`，复用中央预览屏幕。
 - 用 MutationObserver 把常见 Remotion Studio 英文 UI 替换成中文。
 
 中文化是运行时替换，不改 `node_modules`。这样升级 Remotion 时更安全。
 
-## 15. 生成视频扩展 UI
+## 15. 分镜扩展 UI
 
 扩展包含这些字段：
 
@@ -1238,7 +1248,10 @@ frontend/remotion-studio-plugin.js
 2. 本地任务 API 启动 `scripts/text-to-scenes-tts-video.mjs`。
 3. 脚本生成 TTS、自动镜头 scenes、`MultiSceneVideo` props 和 MP4。
 4. 前端每 2 秒轮询 `GET /api/jobs/:id`。
-5. 成功后显示“打开视频”和“下载视频”。
+5. 成功后保存 `.runtime/video-projects/<id>.json`。
+6. 插件拉取 `GET /api/projects/:id/props`。
+7. 插件把 props 写入 `remotion_inputPropsOverride<studio-origin>`，并切换到 `/MultiSceneVideo`。
+8. 中央预览屏幕显示自动分镜视频，右侧 `分镜` 页签继续编辑项目。
 
 如果把“生成模式”改成“单模板”，则任务 API 会启动旧链路 `scripts/text-to-video.mjs`。
 
@@ -1782,18 +1795,24 @@ type TimelineScene = {
 http://127.0.0.1:3037/video-project/:id
 ```
 
-Studio 插件里生成完成后会出现“编辑项目”链接。编辑器当前是最小闭环：
+主入口现在是 Remotion Studio 右侧栏的 `分镜` 页签：
 
-- 左侧：分镜列表。
-- 中间：当前导出视频预览。
-- 右侧：当前分镜属性。
-- 底部：时间线块。
-- 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定分镜、重配素材、替换素材、上移/下移、总导出。
+```text
+http://127.0.0.1:3057/MultiSceneVideo
+```
+
+生成完成后，Studio 插件会自动加载项目 props 并切到 `MultiSceneVideo`。`/video-project/:id` 仍保留为备用调试页面，但它不是主工作流。当前内嵌编辑闭环：
+
+- 右侧栏：文案生成、分镜列表、当前分镜属性、素材候选。
+- 中央画布：Remotion Studio 原生 `MultiSceneVideo` 预览。
+- 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定分镜、重配素材、替换素材、总导出。
+- 修改分镜后点击“刷新 Studio 预览”，插件会重新写入 Remotion input props override 并刷新 Studio。
 
 核心文件：
 
 ```text
 frontend/video-project.html
+frontend/remotion-studio-plugin.js
 scripts/project-store.mjs
 scripts/export-video-project.mjs
 ```

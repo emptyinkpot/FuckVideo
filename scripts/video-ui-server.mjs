@@ -9,6 +9,7 @@ import {
   createProjectFromJob,
   loadProject,
   patchScene,
+  projectToMultiSceneProps,
   rematchScene,
   reorderScenes,
   replaceSceneMaterial,
@@ -136,6 +137,10 @@ async function handleProjectApi(req, res, url) {
 
   if (req.method === "GET" && parts.length === 3) {
     return sendJson(res, { success: true, data: publicProject(project) });
+  }
+
+  if (req.method === "GET" && parts.length === 4 && parts[3] === "props") {
+    return sendJson(res, { success: true, data: projectToMultiSceneProps(project) });
   }
 
   if (req.method === "PATCH" && parts.length === 5 && parts[3] === "scenes") {
@@ -336,7 +341,7 @@ function sendJson(res, value, statusCode = 200) {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   });
   res.end(JSON.stringify(value));
