@@ -1236,13 +1236,15 @@ frontend/remotion-studio-plugin.js
 
 ## 15. 前端交互与像素规格
 
-当前前端全部集中在：
+Studio 内嵌扩展前端集中在：
 
 ```text
 frontend/remotion-studio-plugin.js
 ```
 
-它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。复刻时应保持三个工作区分离：
+它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“分镜编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 30 个 Composition 画布 UI。
+
+复刻 Studio 内嵌工作流时应保持三个工作区分离：
 
 ```text
 左侧 Remotion explorer sidebar
@@ -1558,6 +1560,337 @@ GET  http://127.0.0.1:3037/files/:id
 - 左侧负责“项目和分镜编辑”。
 - 中央负责“Remotion 原生预览”。
 - 右侧 Remotion 原生参数栏属于 Remotion，不放本项目 UI。
+
+### 15.7 全量前端清单
+
+当前工程能看到的前端一共有 5 类。README 后续新增前端时必须先归入这 5 类之一，除非确实出现新的独立产品面。
+
+```text
+1. Remotion Studio 原生前端
+2. Remotion Studio 注入插件前端
+3. 备用独立生成页 frontend/video-generator.html
+4. 备用独立项目编辑页 frontend/video-project.html
+5. Remotion Composition / Template 画布前端
+```
+
+#### 15.7.1 Remotion Studio 原生前端
+
+入口：
+
+```text
+http://127.0.0.1:3000        原生 Remotion Studio
+http://127.0.0.1:3057        代理后的 Remotion Studio，带插件注入
+```
+
+Remotion Studio 自带的前端不要重写，它是主预览和参数编辑外壳：
+
+- 左侧 explorer：显示 `合成列表 / 素材`。
+- 中央 preview canvas：显示当前 Composition 的真实 Remotion 画面。
+- 右侧原生 props 面板：读取 `src/Root.tsx` 中每个 `<Composition>` 的 `schema` 和 `defaultProps`，生成可交互参数编辑器。
+- 顶部 / 底部 Studio 控件：播放、暂停、帧定位、渲染入口等仍由 Remotion 原生 UI 负责。
+
+本项目只通过 `frontend/studio-plugin-proxy.mjs` 代理 HTML，并注入 `frontend/remotion-studio-plugin.js`。不要改 `node_modules`，不要复制一套 Studio。中文化也是运行时 `MutationObserver` 替换常见英文文案，例如 `Compositions` -> `合成列表`、`Assets` -> `素材`、`Render` -> `渲染`。
+
+参数编辑的真实来源是 `src/Root.tsx`：
+
+```tsx
+<Composition
+  id="DocumentReveal"
+  component={DocumentReveal}
+  schema={documentRevealSchema}
+  defaultProps={{ ... }}
+/>
+```
+
+只要某个合成缺少 `schema`，Studio 右侧就不会出现可编辑参数。新增模板时必须在 `Root.tsx` 同时补 `schema`、`defaultProps` 和 `<Composition>` 注册。
+
+#### 15.7.2 Remotion Studio 注入插件前端
+
+文件：
+
+```text
+frontend/remotion-studio-plugin.js
+```
+
+它只加两块 UI：
+
+- 右侧固定浮层：`button.ttv-generator-launcher` + `aside.ttv-generator-panel`。
+- 左侧 explorer 页签：`button.ttv-side-tab` + `section.ttv-storyboard-panel`。
+
+右侧浮层是生成控制台，像素规格见 `15.1`。它的位置必须是：
+
+```css
+top: 58px;
+right: 18px;
+bottom: 18px;
+width: 390px;
+border-radius: 14px;
+z-index: 2147483001;
+```
+
+左侧 `分镜` 页签插在 Remotion 原生 `合成列表 / 素材` 旁边，像素规格见 `15.2`。它不能放到右侧原生 props 面板，也不能和生成控制台混在一起。用户操作空间应该是：
+
+```text
+左侧：合成列表 / 素材 / 分镜
+中央：Remotion 原生预览画布
+右侧：本项目生成控制台浮层 + Remotion 原生 props 面板各自保留
+```
+
+插件状态全部在 `ttv.*` 命名空间：
+
+```js
+localStorage["ttv.generatorPanel"];
+localStorage["ttv.storyboardPanel"];
+localStorage["ttv.lastProjectId"];
+localStorage["ttv.lastProgress"];
+```
+
+唯一允许写入 Remotion 命名空间的是预览 props override：
+
+```js
+localStorage["remotion_inputPropsOverride" + window.location.origin] = JSON.stringify(props);
+```
+
+#### 15.7.3 备用独立生成页
+
+文件：
+
+```text
+frontend/video-generator.html
+```
+
+入口：
+
+```text
+http://127.0.0.1:3037/video-generator
+```
+
+这是一个备用独立页面，不是主入口。主入口已经是 `http://127.0.0.1:3057` 的 Remotion Studio 插件。保留它的目的：
+
+- API 调试。
+- 不打开 Studio 时快速生成视频。
+- 作为右侧生成控制台的完整页面参考。
+
+复刻布局：
+
+```css
+.page {
+  width: min(100% - 36px, 1260px);
+  margin: 0 auto;
+  padding: 28px 0;
+  display: grid;
+  gap: 16px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(560px, 1fr) minmax(390px, 470px);
+  gap: 16px;
+  align-items: start;
+}
+
+.panel {
+  border: 1px solid #ded8ce;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.06);
+}
+```
+
+页面结构：
+
+- 顶部 header：左侧标题 `文本生成视频`，右侧状态 pill。
+- 左侧 panel：文案 textarea、生成模式、模板、标题、副标题、TTS 指令、视觉参数、字幕选项、生成按钮。
+- 右侧 sticky output：`video` 预览、状态块、打开视频 / 打开项目 / 下载视频链接、日志。
+
+关键尺寸：
+
+- textarea 高 `260px`，行高 `1.75`。
+- input / select 高 `40px`，圆角 `10px`。
+- button 高 `42px`，圆角 `10px`。
+- video `aspect-ratio: 16 / 9`，圆角 `12px`。
+- log `max-height: 260px`。
+- 右侧 output `position: sticky; top: 18px`。
+- 小于 `1020px` 时 `.workspace` 变成单列；小于 `620px` 时 page 宽度变为 `min(100% - 24px, 1260px)`。
+
+交互：
+
+```http
+POST /api/jobs
+GET  /api/jobs/:id
+```
+
+成功后更新 `video.src`、打开视频链接、项目编辑链接和下载链接。这个页面可以打开 `/video-project/:id`，但在 Studio 主工作流里应改为把项目载入左侧 `分镜` 页签。
+
+#### 15.7.4 备用独立项目编辑页
+
+文件：
+
+```text
+frontend/video-project.html
+```
+
+入口：
+
+```text
+http://127.0.0.1:3037/video-project/:id
+```
+
+这是备用项目编辑器，不是 Studio 主编辑器。主编辑器是 Remotion Studio 左侧的 `分镜` 页签。保留它的目的：
+
+- 调试 `.runtime/video-projects/<id>.json`。
+- Studio 插件加载失败时仍能编辑项目。
+- 为左侧 `分镜` 页签提供交互参考。
+
+复刻布局：
+
+```css
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+header {
+  height: 58px;
+  padding: 0 18px;
+  border-bottom: 1px solid #deded9;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 290px minmax(360px, 1fr) 340px;
+  gap: 12px;
+  padding: 12px;
+}
+
+.panel {
+  border: 1px solid #dfdfda;
+  border-radius: 12px;
+  background: #fff;
+}
+```
+
+页面结构：
+
+- 顶部 header：项目标题、状态、打开视频、总导出。
+- 左列 `290px`：分镜列表，`.scenes` 高 `calc(100vh - 174px)`。
+- 中列：预览 panel，`.preview` margin `12px`、圆角 `12px`、黑底、最小高 `360px`；有导出视频时显示 `<video controls>`。
+- 右列 `340px`：当前分镜表单，`.form` 高 `calc(100vh - 174px)`。
+- 底部 footer：timeline 高 `58px`，每个 `.block` 最小宽 `82px`。
+
+交互：
+
+```http
+GET   /api/projects/:id
+PATCH /api/projects/:id/scenes/:sceneId
+POST  /api/projects/:id/scenes/:sceneId/lock
+POST  /api/projects/:id/scenes/:sceneId/rematch-material
+POST  /api/projects/:id/scenes/:sceneId/replace-material
+POST  /api/projects/:id/reorder-scenes
+POST  /api/projects/:id/export
+```
+
+可编辑字段必须和 Studio 左侧 `分镜` 页签一致：旁白、字幕、视觉意图、模板 ID、场景类型、开始 / 结束毫秒、锁定、素材候选、替换素材。不要在这个备用页面新增只有它有、Studio 内嵌编辑器没有的核心能力。
+
+#### 15.7.5 Composition / Template 画布前端
+
+文件入口：
+
+```text
+src/Root.tsx
+src/templates/*.tsx
+src/historical-globe/compositions/*.tsx
+```
+
+这是项目真正的视频画布前端。每个 Composition 都是一个可预览、可渲染、可通过 schema 编辑参数的 React UI。它们显示在 Remotion Studio 左侧 `合成列表`，画面显示在中央 preview canvas，参数显示在右侧原生 props 面板。
+
+当前 `src/Root.tsx` 注册 30 个合成：
+
+自动视频 / 分镜系统：
+
+```text
+DocumentReveal
+QuoteReveal
+PortraitFocus
+ConceptDiagram
+MetaphorVisual
+FootageScene
+MultiSceneVideo
+GeneratedTemplateVideo
+NarratedVideo
+```
+
+动态图形模板：
+
+```text
+ClaudeTyper
+SpotlightReveal
+ProceduralFish
+RulerProgress
+SvgAssembly
+Wechat2D
+ThreeDTicker
+VinylPlayer
+```
+
+提示词动态图形：
+
+```text
+PromptTextRotation
+PromptProgressBar
+PromptHistogram
+PromptAnimatedShapes
+```
+
+三维模板：
+
+```text
+ThreeProductStage
+ThreeBouncingSpheres
+ThreeParticleNebula
+ThreeCardCascade
+```
+
+地图 / 地球 / 历史模板：
+
+```text
+MapRouteFlyover
+AtlasMapFlyover
+EarthGlobe
+HistoricalGlobeTexture1938
+SinoJapaneseWarDemo
+```
+
+复刻规则：
+
+- `MultiSceneVideo` 是自动镜头主合成；它读取 `scenes`、`audioSrc`、`captions`，用 `Sequence` 拼接多个镜头。
+- `GeneratedTemplateVideo` 是单模板包装器；它读取 `templateId`、`audioSrc`、`captions` 和时长。
+- `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`FootageScene` 是自动镜头可调度的基础模板。
+- 地图和历史模板应通过 `sceneRegistry.tsx` 和 `template-manifest.json` 接入自动镜头，不要让前端下拉框硬编码“文本里有某词就选某模板”。
+- 所有画布 UI 的细颗粒参数都放在 Remotion 原生 props 面板，不要在右侧生成控制台或左侧分镜重复实现完整模板参数编辑器。
+
+#### 15.7.6 前端复用原则
+
+以后扩展前端时按这个优先级复用：
+
+1. 需要预览视频：复用 Remotion Studio 中央 canvas 和 `MultiSceneVideo`。
+2. 需要改 Composition 参数：复用 `Root.tsx` 的 `schema/defaultProps` 和 Remotion 右侧原生 props 面板。
+3. 需要创建视频项目：复用右侧 `ttv-generator-panel` 和 `/api/jobs`。
+4. 需要改分镜：复用左侧 `ttv-storyboard-panel` 和 `/api/projects/:id` 系列接口。
+5. 需要备用独立页面：才使用 `video-generator.html` 或 `video-project.html`，但不能让它们成为能力唯一来源。
+6. 需要新增模板：先补 `src/templates/*`、`Root.tsx`、`template-manifest.json`、`sceneRegistry.tsx`，再决定是否在生成控制台的模板下拉中暴露。
+
+禁止的重复建设：
+
+- 不再另起一个主控制台。
+- 不把生成控制台塞进中央视频预览框。
+- 不把分镜编辑塞进右侧生成控制台。
+- 不占用 Remotion 原生右侧 props 面板承载项目分镜。
+- 不自建主预览播放器替代 Remotion Studio 画布。
+- 不创建第二套 project store 或第二套素材匹配状态。
 
 ## 16. 一站式自动镜头入口验证
 
