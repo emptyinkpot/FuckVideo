@@ -2787,7 +2787,8 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 新增文件：
 
 - `scripts/scene-planner.mjs`：文本拆块、caption 驱动片段生成、关键词提取、语义卡、视觉合约、调用 Visual Resolver 生成 scene。
-- `scripts/visual-resolver.mjs`：统一调度 `VisualProvider`，按 `programmatic / template / footage` 三类资源执行握手、打分、填参和决策追踪。
+- `scripts/visual-resolver.mjs`：统一调度 `VisualProvider`，按 `programmatic / footage / static / fallback` 四类资源执行握手、打分、填参和决策追踪。
+- `scripts/sound-resolver.mjs`：根据 `visualContract.kind`、事件动作和叙事角色生成 `soundDesign` 元数据。
 - `scripts/timeline-aligner.mjs`：旧兼容工具；新一站式生成不再用它把 captions 按文本长度分组到 scenes。
 - `scripts/asset-indexer.mjs`：扫描 `public/footage/`，生成素材索引草稿。
 - `scripts/asset-matcher.mjs`：旧兼容工具，给已有 scenes 单独追加 footage 候选；一站式生成主链路优先走 `visual-resolver.mjs`。
@@ -2801,7 +2802,7 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 - `src/templates/FootageScene.tsx`：本地素材片段模板。
 - `src/templates/sceneRegistry.tsx`：把 `templateId` 映射到现有 Remotion 模板。
 - `src/templates/MultiSceneVideo.tsx`：多镜头容器，使用 Remotion `Sequence` 拼接时间轴。
-- `src/templates/visual-provider-manifest.json`：当前主说明书，记录每个可调度视觉资源的 `providerType`、`accepts`、`rejectIf`、`capabilities`、`propMapping`、`score` 和时长范围。
+- `src/templates/visual-provider-manifest.json`：当前主说明书，记录每个可调度视觉资源的 `providerType`、`accepts/rejects`、`capabilities`、`propSchema`、`propMapping`、`scoring`、时长和声音能力。
 - `src/templates/template-manifest.json`：旧兼容说明书，保留给历史脚本和人工查阅，不再是一站式自动片段的主调度入口。
 
 ### 23.1 Visual Provider 说明书
@@ -2809,14 +2810,15 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 `visual-provider-manifest.json` 是 planner 和 resolver 理解视觉资源的根。视觉资源统一叫 `VisualProvider`，不是只分“模板”和“素材”：
 
 ```ts
-type VisualProviderType = "programmatic" | "template" | "footage";
+type VisualProviderType = "programmatic" | "footage" | "static" | "fallback";
 ```
 
 含义：
 
 - `programmatic`：Remotion 程序动画资产，当前产品的主打能力，优先调度。
-- `template`：稳定解释兜底，比如 `NarratedScene`。
 - `footage`：本地影视/实拍素材，适合强命中、氛围增强或真实素材引用。
+- `static`：静态图片、地图、档案图。
+- `fallback`：低置信兜底，比如 `NarratedScene`。
 
 每个 provider 至少包含：
 
@@ -2827,36 +2829,30 @@ type VisualProviderType = "programmatic" | "template" | "footage";
   "displayName": "历史文件揭示",
   "category": "document",
   "accepts": {
-    "visualKinds": ["document", "quote"],
-    "requiredAny": ["documents", "objects"],
-    "allowedActions": ["show_evidence", "transfer", "quote", "explain"]
+    "visualKinds": ["document", "quote", "telegram"],
+    "requiredAnyEntityGroups": ["documents", "objects"],
+    "allowedActions": ["show_evidence", "transfer", "quote"],
+    "requiredCapabilities": ["render_text", "highlight_text", "show_document"]
   },
-  "rejectIf": {
+  "rejects": {
     "mustNotShowConflicts": true
   },
-  "capabilities": {
-    "canRenderText": true,
-    "canHighlightWords": true,
-    "canShowMovement": true,
-    "canShowMap": false,
-    "canShowRelationship": false,
-    "canLoop": true
-  },
+  "capabilities": ["render_text", "highlight_text", "show_document", "show_movement", "loopable"],
   "propMapping": {
     "title": "semanticCard.entities.documents[0] || semanticCard.summary",
-    "body": "segment.text || semanticCard.summary",
-    "highlightText": "visualContract.mustShow[0] || semanticCard.event.object",
+    "body": "snippetFromSegment",
+    "highlightText": "visualContract.mustShow[0]",
     "highlightWords": "visualContract.mustShow",
     "style": "'old_paper'",
     "highlightMode": "'underline'"
   },
-  "score": {
+  "scoring": {
     "kindMatch": 52,
     "requiredEntityMatch": 35,
     "mustShowMatch": 24,
     "actionMatch": 12
   },
-  "duration": { "minSec": 5, "idealSec": 7, "maxSec": 8 }
+  "duration": { "minSec": 4, "idealSec": 7, "maxSec": 12, "canLoop": true }
 }
 ```
 
@@ -3150,7 +3146,23 @@ Caption Segment
 核心结构：
 
 ```ts
-type SegmentSemanticCard = {
+type Segment = {
+  id: string;
+  index: number;
+  text: string;
+  narrationText: string;
+  subtitleText: string;
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  semanticCard: SemanticCard;
+  visualContract: VisualContract;
+  visualDecision?: VisualDecision;
+  soundDesign?: SoundDesign;
+  status: "ok" | "low_confidence" | "needs_review" | "missing_visual";
+};
+
+type SemanticCard = {
   summary: string;
   entities: {
     people: string[];
@@ -3159,21 +3171,71 @@ type SegmentSemanticCard = {
     documents: string[];
     objects: string[];
     dates: string[];
+    events: string[];
   };
   event: {
-    action: string;
+    action:
+      | "establish" | "quote" | "show_evidence" | "transfer" | "expand"
+      | "occupy" | "explode" | "assassinate" | "debate" | "mobilize"
+      | "resist" | "retreat" | "found_state" | "extract_resource"
+      | "reflect" | "unknown";
     subject?: string;
     object?: string;
     from?: string;
     to?: string;
+    location?: string;
   };
+  tone: "cold" | "tense" | "documentary" | "tragic" | "analytical" | "ominous" | "climax" | "reflective";
+  narrativeRole:
+    | "opening_atmosphere" | "background" | "evidence" | "quote" | "character"
+    | "concept_explain" | "geo_explain" | "event_action" | "climax"
+    | "transition" | "ending_reflection";
   visualNeed: {
-    kind: "document" | "map" | "person" | "quote" | "concept" | "metaphor" | "atmosphere" | "fallback";
+    kind:
+      | "atmosphere" | "document" | "quote" | "person" | "concept"
+      | "map" | "route" | "event" | "explosion" | "battle"
+      | "crowd" | "newspaper" | "telegram" | "train" | "industry"
+      | "ruins" | "ending" | "fallback";
     mustShow: string[];
     shouldShow: string[];
     mustNotShow: string[];
   };
-  searchQueries: string[];
+  searchQueries: {
+    entity: string[];
+    visual: string[];
+    mood: string[];
+  };
+};
+
+type VisualContract = {
+  kind: SemanticCard["visualNeed"]["kind"];
+  required: {
+    entities?: Partial<SemanticCard["entities"]>;
+    props?: string[];
+    capabilities?: VisualCapability[];
+  };
+  mustShow: string[];
+  shouldShow: string[];
+  mustNotShow: string[];
+  allowedProviderTypes: VisualProviderType[];
+  grounding: {
+    mode: "explicit_text" | "asset_match" | "programmatic_abstraction" | "atmosphere_only";
+    evidence: string[];
+    hallucinationRisk: "low" | "medium" | "high";
+  };
+  timing: {
+    minSec: number;
+    idealSec: number;
+    maxSec: number;
+    canHoldLonger: boolean;
+    canLoop: boolean;
+  };
+  style: {
+    era?: string;
+    palette?: "sepia" | "dark" | "mono" | "paper" | "modern";
+    motion?: "slow_push" | "handheld" | "flash_cut" | "typewriter" | "map_pan" | "static_hold";
+    density?: "low" | "medium" | "high";
+  };
 };
 ```
 
@@ -3205,15 +3267,31 @@ type SegmentSemanticCard = {
       "shouldShow": ["关东州", "南满铁路", "租借地"],
       "mustNotShow": ["战场爆炸", "现代城市", "现代办公室", "炮火"]
     },
-    "searchQueries": ["朴茨茅斯和约 关东州 南满铁路", "document 朴茨茅斯和约 关东州 南满铁路"]
+    "tone": "documentary",
+    "narrativeRole": "evidence",
+    "searchQueries": {
+      "entity": ["朴茨茅斯和约", "关东州", "南满铁路"],
+      "visual": ["document", "朴茨茅斯和约", "关东州", "南满铁路"],
+      "mood": ["历史", "严肃", "纪录片"]
+    }
   },
   "visualContract": {
     "kind": "document",
+    "required": {
+      "entities": { "documents": ["朴茨茅斯和约"] },
+      "capabilities": ["render_text", "highlight_text", "show_document"]
+    },
     "mustShow": ["朴茨茅斯和约"],
     "shouldShow": ["关东州", "南满铁路", "租借地"],
     "mustNotShow": ["战场爆炸", "现代城市", "现代办公室", "炮火"],
-    "evidenceMode": "explicit_text",
-    "allowedSources": ["programmatic", "footage", "template"]
+    "allowedProviderTypes": ["programmatic", "static", "footage"],
+    "grounding": {
+      "mode": "explicit_text",
+      "evidence": ["朴茨茅斯和约", "关东州", "南满铁路"],
+      "hallucinationRisk": "low"
+    },
+    "timing": { "minSec": 4, "idealSec": 7, "maxSec": 12, "canHoldLonger": true, "canLoop": true },
+    "style": { "palette": "paper", "motion": "slow_push", "density": "medium" }
   },
   "visualGrounding": {
     "source": "explicit_text",
@@ -3223,7 +3301,21 @@ type SegmentSemanticCard = {
   "templateId": "DocumentReveal",
   "providerType": "programmatic",
   "visualProviderId": "DocumentReveal",
+  "visualDecision": {
+    "providerType": "programmatic",
+    "providerId": "DocumentReveal",
+    "templateId": "DocumentReveal",
+    "score": 84
+  },
   "durationSec": 6,
+  "soundDesign": {
+    "ambient": { "id": "room_tone", "volume": 0.18 },
+    "fx": [
+      { "id": "paper_rustle", "at": "start", "volume": 0.35 },
+      { "id": "pen_underline", "at": "highlight", "volume": 0.32 }
+    ],
+    "music": { "mood": "documentary", "intensity": 0.35 }
+  },
   "decisionTrace": {
     "rejectedProviders": [
       { "id": "PortraitFocus", "providerType": "programmatic", "reason": "缺少必需实体组：people" }
@@ -3264,7 +3356,7 @@ type SegmentSemanticCard = {
 Segment 语义
   -> Visual Contract
   -> Visual Resolver
-  -> Programmatic Asset / Template / Footage
+  -> Programmatic Asset / Footage / Static / Fallback
 ```
 
 Resolver 优先级：
@@ -3281,22 +3373,29 @@ Resolver 优先级：
 
 - 从 `visual-provider-manifest.json` 读取全部 provider。
 - `programmatic` 是 Remotion 程序动画资产，默认比 footage 更优先，因为它能稳定表达抽象关系、地图、文件、隐喻和人物卡。
-- `template` 只做稳定兜底，当前主要是 `NarratedScene`。
+- `fallback` 只做低置信兜底，当前主要是 `NarratedScene`。
+- `static` 作为档案图、地图图、图片素材入口保留在合约里。
 - `footage` 必须有素材路径，并且必须通过 `mustNotShow / avoidFor / copyright` 硬过滤。
-- 如果 `visualContract.kind` 是 `document / quote / concept / metaphor / map / person`，分数足够的 programmatic provider 直接胜出。
-- 如果 `kind` 是 `atmosphere / war / place / object`，footage 强命中可以胜出；否则仍可回到 programmatic 抽象表达。
-- 每个 scene 都写入 `providerType`、`visualProviderId`、`visualCandidates` 和 `decisionTrace`，前端显示“为什么这么配”。
+- 如果 `visualContract.kind` 是 `document / quote / person / concept / map / route / newspaper / telegram / train / ending / explosion`，分数足够的 programmatic provider 直接胜出。
+- 如果 `kind` 是 `battle / crowd / ruins / industry / atmosphere`，footage 强命中可以胜出；否则仍可回到 programmatic 抽象表达。
+- 每个 scene 都写入 `visualDecision`、`providerType`、`visualProviderId`、`visualCandidates`、`decisionTrace` 和 `soundDesign`，前端显示“为什么这么配”。
 
 当前 `sceneType` 到 `visualContract.kind` 的主映射：
 
 ```text
-条约/和约/协定/策论/转让/租借地 -> document -> DocumentReveal
-引用/原文/圈点/写道 -> quote -> QuoteReveal
+深秋/海风/硝烟/焦土/铁锈/迷雾 -> atmosphere -> ColdOpenAtmosphere
+条约/和约/协定/策论/报告/条例/转让/租借地 -> document -> DocumentReveal
+引用/原文/圈点/写道/宣言/公告 -> quote -> DocumentReveal / QuoteReveal
 人物/官员/将领/课长/太郎/参谋 -> person -> PortraitFocus
-利权/铁路附属地/势力范围/控制结构 -> concept -> ConceptDiagram / PromptHistogram / SvgAssembly
-像/仿佛/犹如/怀表/衣袋/新得之刃 -> metaphor -> MetaphorVisual / SvgAssembly
-港/铁路/关东州/南满/旅顺/大连/黄海 -> map -> AtlasMapFlyover / MapRouteFlyover
-战争/战役/硝烟/作战/占领 -> map/atmosphere -> HistoricalGlobeTexture1938 或强命中 footage
+利权/铁路附属地/势力范围/控制结构/隐喻 -> concept -> ConceptDiagram / MetaphorVisual
+港/关东州/旅顺/大连/黄海/东京/霞关 -> map -> MapRouteFlyover
+铁路/铁轨/沿线/路线/南满铁路 -> route -> MapRouteFlyover
+报纸/号外/舆论/媒体 -> newspaper -> NewspaperReveal
+电文/电报/通电 -> telegram -> DocumentReveal
+爆炸/炸药/闷响/柳条湖 -> explosion -> ExplosionFlash
+火车/列车/铁轨转场 -> train -> TrainTrackEnding
+历史的车轮/无人能够预料/答案/驶向 -> ending -> TrainTrackEnding
+战争/战役/作战/占领 -> battle -> 强命中 footage 或 programmatic 抽象表达
 其他文本 -> fallback -> NarratedScene
 ```
 

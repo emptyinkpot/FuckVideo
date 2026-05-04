@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadVisualProviders, resolveVisualForSegment } from "./visual-resolver.mjs";
+import { resolveSoundDesign } from "./sound-resolver.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -80,6 +81,7 @@ export function makeVisualBeat(blockText, index) {
     id: `scene-${String(index + 1).padStart(3, "0")}`,
     index,
     narrationText: blockText,
+    subtitleText: blockText,
     text: blockText,
     sceneType,
     visualIntent,
@@ -273,12 +275,18 @@ export function planScenes(text, options = {}) {
   return blocks.map((blockText, index) => {
     const beat = makeVisualBeat(blockText, index);
     const resolved = resolveVisualForSegment(beat, { providers, assets, previous: previousScene });
+    const soundDesign = resolveSoundDesign(resolved);
     const [minDuration, maxDuration] = resolved.durationRangeSec || [4, 8];
     const durationSec = Math.max(minDuration, Math.min(maxDuration, Math.ceil(blockText.length / 28)));
     const durationInFrames = durationSec * fps;
+    const startMs = Math.round((cursor / fps) * 1000);
+    const endMs = Math.round(((cursor + durationInFrames) / fps) * 1000);
     const scene = {
       ...beat,
       ...resolved,
+      startMs,
+      endMs,
+      durationMs: endMs - startMs,
       templateId: resolved.templateId || "NarratedScene",
       category: resolved.category || beat.sceneType,
       durationSec,
@@ -289,6 +297,7 @@ export function planScenes(text, options = {}) {
         ...buildSceneProps(resolved.templateId || "NarratedScene", beat),
         ...(resolved.props || {}),
       },
+      soundDesign,
     };
     if (scene.decisionTrace?.finalChoice) scene.decisionTrace.finalChoice.mappedProps = scene.props;
     cursor += durationInFrames;
@@ -309,6 +318,7 @@ export function planScenesFromCaptions(captions, options = {}) {
   return microSegments.map((item, index) => {
     const beat = makeVisualBeat(item.text, index);
     const resolved = resolveVisualForSegment(beat, { providers, assets, previous: previousScene });
+    const soundDesign = resolveSoundDesign(resolved);
     const fromFrame = Math.max(0, Math.round((item.startMs / 1000) * fps));
     const durationInFrames = Math.max(1, Math.round(((item.endMs - item.startMs) / 1000) * fps));
     const durationSec = Math.round((durationInFrames / fps) * 100) / 100;
@@ -316,6 +326,9 @@ export function planScenesFromCaptions(captions, options = {}) {
       ...beat,
       ...resolved,
       captionIndex: item.captionIndex,
+      startMs: item.startMs,
+      endMs: item.endMs,
+      durationMs: item.endMs - item.startMs,
       templateId: resolved.templateId || "NarratedScene",
       category: resolved.category || beat.sceneType,
       durationSec,
@@ -332,6 +345,7 @@ export function planScenesFromCaptions(captions, options = {}) {
         ...buildSceneProps(resolved.templateId || "NarratedScene", beat),
         ...(resolved.props || {}),
       },
+      soundDesign,
     };
     if (scene.decisionTrace?.finalChoice) scene.decisionTrace.finalChoice.mappedProps = scene.props;
     previousScene = scene;
@@ -355,13 +369,20 @@ export async function writeScenesFile({ text, outputPath, options = {} }) {
 }
 
 function inferSceneType(text) {
-  if (/“[^”]{4,}”|"[^"]{4,}"/.test(text) || /一行字|圈点|写道/.test(text)) return "quote_evidence";
-  if (/太郎|课长|大臣|首相|将军|参谋本部/.test(text)) return "character_focus";
+  if (/历史的车轮|无人能够预料|答案|迷雾|新年|驶向|结尾|回望|反思/.test(text)) return "ending_reflection";
+  if (/爆炸|炸药|闷响|炸飞|柳条湖/.test(text)) return "explosion_action";
+  if (/报纸|号外|舆论|媒体|标题|日报/.test(text)) return "newspaper_evidence";
+  if (/电文|电报|通电/.test(text)) return "telegram_evidence";
+  if (/火车|快车|列车|车窗|轰鸣/.test(text)) return "train_transition";
+  if (/深秋|海风|硝烟|焦土|铁锈|寒风|废墟|迷雾/.test(text)) return "opening_atmosphere";
+  if (/“[^”]{4,}”|"[^"]{4,}"/.test(text) || /一行字|圈点|写道|论述道|回忆中写道|宣言|公告/.test(text)) return "quote_evidence";
+  if (/太郎|课长|大臣|首相|将军|参谋本部|司令官|记者|学者|大佐|少佐/.test(text)) return "character_focus";
+  if (/铁路|铁轨|沿线|路线|延伸|南满铁路/.test(text)) return "route_explain";
   if (/像|仿佛|犹如|好比|怀表|衣袋|新得之刃|庖丁解牛/.test(text)) return "metaphor_visual";
-  if (/利权|铁路附属地|势力范围|控制|本质|意味着|关系|结构|机制/.test(text)) return "concept_explain";
-  if (/条约|和约|协定|策论|文件|法令|转让|租借地/.test(text)) return "document_evidence";
-  if (/港|铁路|路线|大陆|关东州|南满|旅顺|大连|黄海|东京|霞关|俄国|日本|满洲/.test(text)) return "geo_context";
-  if (/战争|战役|硝烟|军|作战|焦土|铁锈|占领/.test(text)) return "establishing_map";
+  if (/利权|铁路附属地|势力范围|控制|本质|意味着|关系|结构|机制|资源|煤矿|工业/.test(text)) return "concept_explain";
+  if (/条约|和约|协定|策论|报告|条例|纲领|奏折|计划|文件|法令|转让|租借地/.test(text)) return "document_evidence";
+  if (/港|大陆|关东州|旅顺|大连|黄海|东京|霞关|沈阳|奉天|长春|锦州|齐齐哈尔|山海关|俄国|日本|满洲/.test(text)) return "geo_context";
+  if (/战争|战役|军|作战|占领|战场|炮火/.test(text)) return "battle_context";
   return "narration_bridge";
 }
 
@@ -583,6 +604,14 @@ function buildVisualIntent(sceneType, text, keywords) {
     concept_explain: `把抽象概念拆成节点关系，帮助理解结构：${focus}`,
     geo_context: `用地图说明地点、路线或势力范围之间的关系：${focus}`,
     establishing_map: `建立历史地理背景，让观众知道事件发生的空间范围：${focus}`,
+    opening_atmosphere: `用空镜建立冷峻氛围，让观众进入历史现场：${focus}`,
+    route_explain: `用路线或铁轨运动说明空间延伸与权益流向：${focus}`,
+    newspaper_evidence: `用报纸号外或舆论画面展示公共反应：${focus}`,
+    telegram_evidence: `用电文视觉呈现消息传递和证据：${focus}`,
+    explosion_action: `用强节奏爆点画面表现事件突变：${focus}`,
+    train_transition: `用列车或铁轨运动承接叙事转场：${focus}`,
+    ending_reflection: `用低密度空镜收束叙事并保留反思余韵：${focus}`,
+    battle_context: `用战争或废墟素材建立冲突背景：${focus}`,
     narration_bridge: `承接旁白信息，作为下一组视觉解释的过渡：${focus}`,
   };
   return map[sceneType] || map.narration_bridge;
@@ -612,6 +641,19 @@ function buildVisualIntentData(sceneType, text, keywords) {
       locations: keywords,
     };
   }
+  if (sceneType === "route_explain") {
+    return {
+      ...base,
+      action: /转让|流向|移交/.test(value) ? "transfer" : "expand",
+      locations: keywords,
+    };
+  }
+  if (sceneType === "explosion_action") return { ...base, action: "explode" };
+  if (sceneType === "newspaper_evidence") return { ...base, action: /动员|集会|游行/.test(value) ? "mobilize" : "debate" };
+  if (sceneType === "telegram_evidence") return { ...base, action: "show_evidence", evidenceType: "telegram" };
+  if (sceneType === "train_transition") return { ...base, action: /驶向|延伸|扩张/.test(value) ? "expand" : "establish" };
+  if (sceneType === "opening_atmosphere") return { ...base, action: "establish" };
+  if (sceneType === "ending_reflection") return { ...base, action: "reflect" };
   if (sceneType === "document_evidence" || sceneType === "quote_evidence") {
     return {
       ...base,
@@ -636,12 +678,29 @@ export function buildSemanticCard(text, sceneType = inferSceneType(text), keywor
   const event = inferEvent(value, entities, visualIntentData);
   const visualNeed = inferVisualNeed(sceneType, value, entities, keywords);
   const searchQueries = buildSearchQueries(visualNeed, entities, keywords);
+  const tone = inferTone(value, sceneType, visualNeed.kind);
+  const narrativeRole = inferNarrativeRole(sceneType, value, visualNeed.kind);
   return {
     summary: summarizeBody(value),
     entities,
     event,
+    tone,
+    narrativeRole,
     visualNeed,
     searchQueries,
+    confidence: {
+      entity: confidenceFromCount([
+        ...entities.people,
+        ...entities.locations,
+        ...entities.organizations,
+        ...entities.documents,
+        ...entities.objects,
+        ...entities.dates,
+        ...entities.events,
+      ].length),
+      event: event.action && event.action !== "unknown" ? 0.78 : 0.42,
+      visualNeed: visualNeed.mustShow.length ? 0.84 : 0.52,
+    },
   };
 }
 
@@ -655,11 +714,23 @@ function buildVisualContract(semanticCard) {
   ].filter(Boolean);
   return {
     kind: visualNeed.kind || "fallback",
+    required: {
+      entities: requiredEntitiesForKind(visualNeed.kind, semanticCard.entities || {}),
+      capabilities: requiredCapabilitiesForKind(visualNeed.kind),
+    },
     mustShow: visualNeed.mustShow || [],
     shouldShow: visualNeed.shouldShow || [],
     mustNotShow: visualNeed.mustNotShow || [],
-    evidenceMode: evidence.length ? "explicit_text" : "template_abstraction",
-    allowedSources: ["programmatic", "footage", "template"],
+    allowedProviderTypes: allowedProviderTypesForKind(visualNeed.kind),
+    grounding: {
+      mode: groundingModeForKind(visualNeed.kind, evidence),
+      evidence,
+      hallucinationRisk: hallucinationRiskForKind(visualNeed.kind, semanticCard.entities || {}, evidence),
+    },
+    timing: timingForKind(visualNeed.kind),
+    style: styleForSemantic(semanticCard, visualNeed.kind),
+    evidenceMode: evidence.length ? "explicit_text" : "programmatic_abstraction",
+    allowedSources: ["programmatic", "footage", "static", "fallback"],
     evidence,
   };
 }
@@ -707,6 +778,7 @@ function extractEntities(text, keywords) {
     ...(value.match(/转让|租借地|铁路权益|军政控制|势力范围/g) || []),
   ];
   const dates = [...value.matchAll(/明治[一二三四五六七八九十百零〇\d]+年|\d{4}\s*年?/g)].map((match) => match[0]);
+  const events = value.match(/柳条湖|九一八|满洲事变|日俄战争|辛亥革命|爆炸|刺杀|建国|撤退/g) || [];
   return {
     people: uniqueClean(people),
     locations: uniqueClean(locations),
@@ -714,29 +786,75 @@ function extractEntities(text, keywords) {
     documents: uniqueClean(documents),
     objects: uniqueClean(objects),
     dates: uniqueClean(dates),
+    events: uniqueClean(events),
   };
 }
 
 function inferEvent(text, entities, visualIntentData) {
   const value = String(text || "");
-  const action =
-    visualIntentData.action ||
-    (/转让|易手|移交|放入|流向/.test(value)
-      ? "transfer"
-      : /占领|作战|战争/.test(value)
-        ? "conflict"
-        : /连接|路线|铁路/.test(value)
-          ? "route"
-          : /写道|引用|圈点/.test(value)
-            ? "quote"
-            : "explain");
+  const hintedAction = normalizeEventAction(visualIntentData.action);
+  let action = hintedAction;
+  if (!action) {
+    if (/爆炸|炸药|闷响|炸飞/.test(value)) action = "explode";
+    else if (/刺杀|暗杀/.test(value)) action = "assassinate";
+    else if (/报纸|号外|舆论|争论|争辩/.test(value)) action = "debate";
+    else if (/动员|集会|游行/.test(value)) action = "mobilize";
+    else if (/抵抗|反抗|抗争/.test(value)) action = "resist";
+    else if (/撤退|退却/.test(value)) action = "retreat";
+    else if (/建国|成立|建立/.test(value)) action = "found_state";
+    else if (/开采|资源|煤矿|矿/.test(value)) action = "extract_resource";
+    else if (/反思|回望|答案|历史的车轮/.test(value)) action = "reflect";
+    else if (/转让|易手|移交|放入|流向/.test(value)) action = "transfer";
+    else if (/占领|占据/.test(value)) action = "occupy";
+    else if (/扩张|扩展|延伸|连接|路线|铁路/.test(value)) action = "expand";
+    else if (/写道|引用|圈点/.test(value)) action = "quote";
+    else if (/深秋|海风|硝烟|开头|现场/.test(value)) action = "establish";
+    else action = "unknown";
+  }
   return {
     action,
     subject: entities.people[0] || entities.organizations[0] || "",
     object: entities.objects[0] || entities.documents[0] || entities.locations[0] || "",
     from: visualIntentData.from || (/俄国/.test(value) ? "俄国" : ""),
     to: visualIntentData.to || (/日本/.test(value) ? "日本" : ""),
+    location: visualIntentData.location || entities.locations[0] || "",
   };
+}
+
+function normalizeEventAction(action) {
+  const value = String(action || "");
+  const aliases = {
+    locate: "establish",
+    route: "expand",
+    diagram: "expand",
+    structure: "expand",
+    explain: "unknown",
+    compare: "reflect",
+    intro: "establish",
+    summary: "reflect",
+    process: "expand",
+    progress: "expand",
+  };
+  const normalized = aliases[value] || value;
+  const allowed = new Set([
+    "establish",
+    "quote",
+    "show_evidence",
+    "transfer",
+    "expand",
+    "occupy",
+    "explode",
+    "assassinate",
+    "debate",
+    "mobilize",
+    "resist",
+    "retreat",
+    "found_state",
+    "extract_resource",
+    "reflect",
+    "unknown",
+  ]);
+  return allowed.has(normalized) ? normalized : "";
 }
 
 function inferVisualNeed(sceneType, text, entities, keywords) {
@@ -745,9 +863,17 @@ function inferVisualNeed(sceneType, text, entities, keywords) {
     quote_evidence: "quote",
     character_focus: "person",
     concept_explain: "concept",
-    metaphor_visual: "metaphor",
+    metaphor_visual: "concept",
     geo_context: "map",
+    route_explain: "route",
     establishing_map: "map",
+    opening_atmosphere: "atmosphere",
+    explosion_action: "explosion",
+    newspaper_evidence: "newspaper",
+    telegram_evidence: "telegram",
+    train_transition: "train",
+    battle_context: "battle",
+    ending_reflection: "ending",
     footage_context: "atmosphere",
     narration_bridge: "fallback",
   };
@@ -757,8 +883,16 @@ function inferVisualNeed(sceneType, text, entities, keywords) {
     quote: [...entities.documents, ...keywords],
     person: entities.people,
     concept: entities.objects,
-    metaphor: entities.objects,
     map: entities.locations,
+    route: [...entities.locations, ...entities.objects],
+    newspaper: keywords,
+    telegram: [...entities.documents, ...keywords],
+    explosion: [...entities.events, ...entities.locations, ...keywords],
+    battle: [...entities.events, ...entities.locations, ...keywords],
+    train: [...entities.objects, ...entities.locations, ...keywords],
+    industry: [...entities.objects, ...entities.organizations, ...keywords],
+    ruins: [...entities.locations, ...keywords],
+    ending: [...entities.objects, ...entities.locations, ...keywords],
     atmosphere: keywords,
     fallback: keywords,
   };
@@ -772,8 +906,9 @@ function inferVisualNeed(sceneType, text, entities, keywords) {
   ]).filter((item) => !mustShow.includes(item)).slice(0, 6);
   const mustNotShow = [];
   if (kind === "document" || kind === "quote") mustNotShow.push("战场爆炸", "现代城市", "现代办公室");
-  if (kind === "map") mustNotShow.push("现代城市", "抽象光效", "无地名素材");
+  if (kind === "map" || kind === "route") mustNotShow.push("现代城市", "抽象光效", "无地名素材");
   if (kind === "person") mustNotShow.push("真实肖像照片", "现代人物照片");
+  if (kind === "explosion") mustNotShow.push("核爆", "现代城市爆炸");
   if (!/战争|战役|硝烟|炮火|作战/.test(text)) mustNotShow.push("战场爆炸", "炮火");
   return {
     kind,
@@ -784,10 +919,174 @@ function inferVisualNeed(sceneType, text, entities, keywords) {
 }
 
 function buildSearchQueries(visualNeed, entities, keywords) {
-  const entityQuery = [...entities.documents, ...entities.people, ...entities.locations].slice(0, 4).join(" ");
-  const visualQuery = [visualNeed.kind, ...(visualNeed.mustShow || []), ...(visualNeed.shouldShow || [])].slice(0, 6).join(" ");
-  const moodQuery = "历史 严肃 档案";
-  return uniqueClean([entityQuery, visualQuery, moodQuery, keywords.slice(0, 5).join(" ")]).filter(Boolean);
+  return {
+    entity: uniqueClean([...entities.documents, ...entities.people, ...entities.locations]).slice(0, 4),
+    visual: uniqueClean([visualNeed.kind, ...(visualNeed.mustShow || []), ...(visualNeed.shouldShow || []), ...keywords]).slice(0, 6),
+    mood: uniqueClean(["历史", "严肃", "纪录片", visualNeed.kind === "ending" ? "反思" : "", visualNeed.kind === "explosion" ? "紧张" : ""]).filter(Boolean),
+  };
+}
+
+function inferTone(text, sceneType, kind) {
+  const value = String(text || "");
+  if (kind === "explosion" || /爆炸|闷响|刺杀|炸药|炮火/.test(value)) return "climax";
+  if (kind === "battle" || /战争|战役|作战|占领|紧张/.test(value)) return "tense";
+  if (kind === "ending" || /反思|回望|答案|历史的车轮|无人能够预料/.test(value)) return "reflective";
+  if (/死亡|废墟|撤退|悲剧|血/.test(value)) return "tragic";
+  if (/深秋|硝烟|焦土|铁锈|迷雾|寒风|阴冷/.test(value)) return "ominous";
+  if (kind === "concept" || /本质|结构|机制|意味着/.test(value)) return "analytical";
+  if (kind === "document" || kind === "quote" || kind === "map" || sceneType.includes("evidence")) return "documentary";
+  return "cold";
+}
+
+function inferNarrativeRole(sceneType, text, kind) {
+  const bySceneType = {
+    opening_atmosphere: "opening_atmosphere",
+    document_evidence: "evidence",
+    quote_evidence: "quote",
+    telegram_evidence: "evidence",
+    newspaper_evidence: "evidence",
+    character_focus: "character",
+    concept_explain: "concept_explain",
+    metaphor_visual: "concept_explain",
+    geo_context: "geo_explain",
+    route_explain: "geo_explain",
+    establishing_map: "geo_explain",
+    explosion_action: "climax",
+    battle_context: "event_action",
+    train_transition: "transition",
+    ending_reflection: "ending_reflection",
+  };
+  if (bySceneType[sceneType]) return bySceneType[sceneType];
+  if (kind === "ending") return "ending_reflection";
+  if (kind === "atmosphere") return "opening_atmosphere";
+  if (kind === "map" || kind === "route") return "geo_explain";
+  if (kind === "explosion") return "climax";
+  if (kind === "person") return "character";
+  if (kind === "concept" || kind === "metaphor") return "concept_explain";
+  return /然后|此后|与此同时|而/.test(String(text || "")) ? "transition" : "background";
+}
+
+function confidenceFromCount(count) {
+  return Math.round(Math.min(0.92, 0.45 + Math.max(0, Number(count || 0)) * 0.08) * 100) / 100;
+}
+
+function requiredEntitiesForKind(kind, entities) {
+  const out = {};
+  const add = (group) => {
+    if (entities[group]?.length) out[group] = entities[group];
+  };
+  if (kind === "document" || kind === "quote" || kind === "telegram") add("documents");
+  if (kind === "person") add("people");
+  if (kind === "map" || kind === "route") add("locations");
+  if (["concept", "metaphor", "train", "industry", "ending"].includes(kind)) add("objects");
+  if (["explosion", "battle", "ruins"].includes(kind)) {
+    add("events");
+    add("locations");
+  }
+  return out;
+}
+
+function requiredCapabilitiesForKind(kind) {
+  const table = {
+    atmosphere: ["loopable", "show_movement"],
+    document: ["render_text", "highlight_text", "show_document"],
+    quote: ["render_text", "highlight_text", "show_quote"],
+    person: ["render_text", "show_person"],
+    concept: ["show_relationship", "render_text"],
+    metaphor: ["show_relationship", "render_text", "show_movement"],
+    map: ["show_map"],
+    route: ["show_map", "show_route", "show_movement"],
+    newspaper: ["render_text", "highlight_text"],
+    telegram: ["render_text", "highlight_text"],
+    explosion: ["show_explosion", "sound_sync"],
+    train: ["show_train", "loopable"],
+    ending: ["show_train", "loopable"],
+    battle: ["loopable"],
+    crowd: ["loopable"],
+    ruins: ["loopable"],
+    industry: ["loopable"],
+  };
+  return table[kind] || ["render_text"];
+}
+
+function allowedProviderTypesForKind(kind) {
+  const table = {
+    document: ["programmatic", "static", "footage"],
+    quote: ["programmatic", "static"],
+    person: ["programmatic", "static"],
+    concept: ["programmatic"],
+    metaphor: ["programmatic"],
+    map: ["programmatic", "static"],
+    route: ["programmatic"],
+    atmosphere: ["programmatic", "footage"],
+    explosion: ["programmatic", "footage"],
+    battle: ["footage", "programmatic"],
+    crowd: ["footage", "programmatic"],
+    newspaper: ["programmatic", "static"],
+    telegram: ["programmatic", "static"],
+    train: ["programmatic", "footage"],
+    ruins: ["footage", "programmatic"],
+    industry: ["footage", "programmatic"],
+    ending: ["programmatic", "footage"],
+    fallback: ["fallback"],
+  };
+  return table[kind] || ["programmatic", "footage", "static", "fallback"];
+}
+
+function groundingModeForKind(kind, evidence) {
+  if (["document", "quote", "newspaper", "telegram"].includes(kind)) return "explicit_text";
+  if (["battle", "crowd", "ruins", "industry"].includes(kind)) return "asset_match";
+  if (kind === "atmosphere" || kind === "ending") return "atmosphere_only";
+  return evidence.length ? "programmatic_abstraction" : "atmosphere_only";
+}
+
+function hallucinationRiskForKind(kind, entities, evidence) {
+  if (kind === "person" && !entities.people?.length) return "high";
+  if ((kind === "map" || kind === "route") && !entities.locations?.length) return "high";
+  if ((kind === "document" || kind === "quote") && !entities.documents?.length && !evidence.length) return "medium";
+  if (["atmosphere", "ending", "concept", "metaphor"].includes(kind)) return "low";
+  return evidence.length ? "low" : "medium";
+}
+
+function timingForKind(kind) {
+  const table = {
+    atmosphere: { minSec: 4, idealSec: 7, maxSec: 12, canHoldLonger: true, canLoop: true },
+    document: { minSec: 4, idealSec: 7, maxSec: 12, canHoldLonger: true, canLoop: true },
+    quote: { minSec: 3, idealSec: 6, maxSec: 9, canHoldLonger: true, canLoop: true },
+    person: { minSec: 3, idealSec: 5, maxSec: 8, canHoldLonger: true, canLoop: true },
+    concept: { minSec: 4, idealSec: 7, maxSec: 12, canHoldLonger: true, canLoop: true },
+    map: { minSec: 4, idealSec: 8, maxSec: 14, canHoldLonger: true, canLoop: true },
+    route: { minSec: 4, idealSec: 8, maxSec: 14, canHoldLonger: true, canLoop: true },
+    newspaper: { minSec: 3, idealSec: 6, maxSec: 10, canHoldLonger: true, canLoop: true },
+    telegram: { minSec: 3, idealSec: 6, maxSec: 10, canHoldLonger: true, canLoop: true },
+    explosion: { minSec: 1, idealSec: 3, maxSec: 5, canHoldLonger: false, canLoop: false },
+    train: { minSec: 4, idealSec: 7, maxSec: 12, canHoldLonger: true, canLoop: true },
+    ending: { minSec: 5, idealSec: 9, maxSec: 16, canHoldLonger: true, canLoop: true },
+  };
+  return table[kind] || { minSec: 3, idealSec: 6, maxSec: 10, canHoldLonger: true, canLoop: true };
+}
+
+function styleForSemantic(card, kind) {
+  const text = `${card.summary || ""} ${(card.visualNeed?.mustShow || []).join(" ")}`;
+  const era = card.entities?.dates?.[0] || (/明治|1905/.test(text) ? "1905" : undefined);
+  const palette = ["document", "quote", "newspaper", "telegram"].includes(kind)
+    ? "paper"
+    : ["explosion", "battle", "ruins"].includes(kind)
+      ? "dark"
+      : kind === "concept"
+        ? "modern"
+        : "sepia";
+  const motion = kind === "route" || kind === "map"
+    ? "map_pan"
+    : kind === "explosion"
+      ? "flash_cut"
+      : ["document", "quote", "newspaper", "telegram"].includes(kind)
+        ? "slow_push"
+        : kind === "fallback"
+          ? "static_hold"
+          : "slow_push";
+  const density = ["document", "concept", "map", "route"].includes(kind) ? "medium" : "low";
+  return { era, palette, motion, density };
 }
 
 function scoreTemplateHandshake(beat, template, previousScene) {

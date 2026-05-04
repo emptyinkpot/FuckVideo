@@ -1,436 +1,342 @@
 [
   {
+    "id": "ColdOpenAtmosphere",
+    "templateId": "MixkitReveal",
+    "displayName": "空镜氛围开场",
+    "providerType": "programmatic",
+    "category": "atmosphere",
+    "accepts": {
+      "visualKinds": ["atmosphere", "ending"],
+      "allowedActions": ["establish", "reflect"],
+      "requiredCapabilities": ["loopable"]
+    },
+    "capabilities": ["loopable", "show_movement", "sound_sync", "render_text"],
+    "propMapping": {
+      "presetId": "'simple-slideshow-logo-609'",
+      "title": "visualContract.mustShow[0] || semanticCard.summary",
+      "subtitle": "semanticCard.summary",
+      "logoText": "'VL'",
+      "body": "segment.text",
+      "accentColor": "'#f4d35e'",
+      "secondaryColor": "'#4f8cff'",
+      "backgroundColor": "'#07070a'",
+      "intensity": 0.85,
+      "showSourceLabel": false
+    },
+    "duration": { "minSec": 4, "idealSec": 7, "maxSec": 12, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["wind", "low_rumble", "distant_metal"]
+    },
+    "scoring": { "kindMatch": 45, "actionMatch": 15, "providerPriority": 20 }
+  },
+  {
     "id": "DocumentReveal",
+    "displayName": "文件证据展示",
     "providerType": "programmatic",
     "category": "document",
-    "displayName": "历史文件揭示",
     "accepts": {
-      "visualKinds": ["document", "quote"],
-      "requiredAny": ["documents", "objects"],
-      "allowedActions": ["show_evidence", "quote", "transfer", "explain"]
+      "visualKinds": ["document", "quote", "telegram"],
+      "requiredAnyEntityGroups": ["documents", "objects"],
+      "allowedActions": ["show_evidence", "quote", "transfer"],
+      "requiredCapabilities": ["render_text", "highlight_text", "show_document"]
     },
-    "rejectIf": {
+    "rejects": {
+      "visualKinds": ["battle", "explosion", "crowd"],
       "mustNotShowConflicts": true
     },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": true,
-      "canShowMovement": true,
-      "canShowMap": false,
-      "canShowRelationship": false,
-      "canLoop": true
-    },
+    "capabilities": ["render_text", "highlight_text", "show_document", "show_movement", "loopable"],
     "propMapping": {
       "title": "semanticCard.entities.documents[0] || semanticCard.summary",
       "subtitle": "semanticCard.entities.dates[0] || '历史文件'",
-      "body": "segment.text || semanticCard.summary",
-      "highlightText": "visualContract.mustShow[0] || semanticCard.event.object",
+      "body": "snippetFromSegment",
+      "highlightText": "visualContract.mustShow[0]",
       "highlightWords": "visualContract.mustShow",
       "style": "'old_paper'",
       "highlightMode": "'underline'",
       "maxSnippetChars": 120,
       "sealText": "'ARCHIVE'"
     },
-    "score": {
-      "kindMatch": 52,
-      "requiredEntityMatch": 35,
-      "mustShowMatch": 24,
-      "actionMatch": 12,
-      "entityMatch": 10
+    "duration": { "minSec": 4, "idealSec": 7, "maxSec": 12, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["paper_rustle", "pen_underline"]
     },
-    "duration": { "minSec": 5, "idealSec": 7, "maxSec": 8 }
+    "scoring": {
+      "kindMatch": 50,
+      "requiredEntityMatch": 32,
+      "mustShowMatch": 24,
+      "capabilityMatch": 12,
+      "actionMatch": 12,
+      "entityMatch": 10,
+      "providerPriority": 25
+    }
   },
   {
     "id": "QuoteReveal",
+    "displayName": "原句摘抄展示",
     "providerType": "programmatic",
     "category": "quote",
-    "displayName": "引文揭示",
     "accepts": {
-      "visualKinds": ["quote", "document", "metaphor"],
-      "allowedActions": ["quote", "show_evidence", "transfer", "compare"]
+      "visualKinds": ["quote", "document"],
+      "allowedActions": ["quote", "show_evidence"],
+      "requiredCapabilities": ["render_text", "highlight_text", "show_quote"]
     },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": true,
-      "canShowMovement": false,
-      "canShowMap": false,
-      "canShowRelationship": false,
-      "canLoop": true
-    },
+    "capabilities": ["render_text", "highlight_text", "show_quote", "loopable"],
     "propMapping": {
-      "quote": "quote || semanticCard.summary",
+      "quote": "quotedText || visualContract.mustShow[0] || semanticCard.summary",
       "source": "semanticCard.entities.documents[0] || '原文摘录'",
       "highlightWords": "visualContract.mustShow",
       "tone": "'historical'"
     },
-    "score": { "kindMatch": 42, "mustShowMatch": 16, "actionMatch": 12 },
-    "duration": { "minSec": 4, "idealSec": 6, "maxSec": 7 }
+    "duration": { "minSec": 3, "idealSec": 6, "maxSec": 9, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["typewriter", "paper_rustle"]
+    },
+    "scoring": { "kindMatch": 45, "mustShowMatch": 20, "capabilityMatch": 15, "providerPriority": 20 }
   },
   {
     "id": "PortraitFocus",
-    "providerType": "programmatic",
-    "category": "person",
     "displayName": "人物身份卡",
+    "providerType": "programmatic",
+    "category": "portrait",
     "accepts": {
       "visualKinds": ["person"],
-      "requiredEntityGroups": ["people"],
-      "allowedActions": ["explain", "identify"]
+      "requiredAllEntityGroups": ["people"],
+      "requiredCapabilities": ["render_text", "show_person"]
     },
-    "rejectIf": {
-      "missingEntityGroups": ["people"],
-      "mustNotShowConflicts": true
-    },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": true,
-      "canShowMovement": false,
-      "canShowMap": false,
-      "canShowRelationship": false,
-      "canLoop": true
-    },
+    "rejects": { "mustNotShowConflicts": true },
+    "capabilities": ["render_text", "show_person", "highlight_text", "loopable"],
     "propMapping": {
       "name": "semanticCard.entities.people[0]",
-      "roleTitle": "semanticCard.event.subject || '关键人物'",
-      "description": "semanticCard.summary",
+      "roleTitle": "semanticCard.summary",
+      "description": "segment.text",
       "era": "semanticCard.entities.dates[0] || '历史现场'",
-      "keywords": "visualContract.mustShow",
-      "tone": "'historical'"
+      "keywords": "visualContract.mustShow"
     },
-    "score": { "kindMatch": 44, "requiredEntityMatch": 30, "mustShowMatch": 14 },
-    "duration": { "minSec": 4, "idealSec": 5, "maxSec": 6 }
+    "duration": { "minSec": 3, "idealSec": 5, "maxSec": 8, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["soft_hit", "room_tone"]
+    },
+    "scoring": { "kindMatch": 45, "requiredEntityMatch": 35, "providerPriority": 18 }
   },
   {
     "id": "ConceptDiagram",
+    "displayName": "概念关系图",
     "providerType": "programmatic",
     "category": "concept",
-    "displayName": "概念关系图",
     "accepts": {
-      "visualKinds": ["concept", "fallback"],
-      "requiredAny": ["objects", "organizations", "locations", "documents"],
-      "allowedActions": ["explain", "diagram", "explain_relation", "structure", "control", "transfer"]
+      "visualKinds": ["concept"],
+      "requiredAnyEntityGroups": ["objects", "organizations", "locations", "documents"],
+      "allowedActions": ["expand", "transfer", "mobilize", "extract_resource", "unknown"],
+      "requiredCapabilities": ["show_relationship", "render_text"]
     },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": true,
-      "canShowMovement": false,
-      "canShowMap": false,
-      "canShowRelationship": true,
-      "canLoop": true
-    },
+    "capabilities": ["show_relationship", "render_text", "highlight_text", "loopable"],
     "propMapping": {
-      "concept": "semanticCard.visualNeed.mustShow[0] || semanticCard.event.object || semanticCard.summary",
+      "concept": "visualContract.mustShow[0] || semanticCard.summary",
       "definition": "semanticCard.summary",
       "nodes": "semanticCard.entities.objects + semanticCard.entities.locations + semanticCard.entities.organizations + semanticCard.entities.documents",
       "keywords": "visualContract.mustShow",
       "tone": "'dark'"
     },
-    "score": { "kindMatch": 40, "relationMatch": 25, "entityMatch": 15 },
-    "duration": { "minSec": 5, "idealSec": 7, "maxSec": 8 }
+    "duration": { "minSec": 4, "idealSec": 7, "maxSec": 12, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["node_pop", "line_draw"]
+    },
+    "scoring": { "kindMatch": 45, "requiredEntityMatch": 20, "capabilityMatch": 20, "providerPriority": 22 }
   },
   {
     "id": "MetaphorVisual",
+    "displayName": "对象转移隐喻",
     "providerType": "programmatic",
-    "category": "metaphor",
-    "displayName": "隐喻可视化",
+    "category": "concept",
     "accepts": {
-      "visualKinds": ["metaphor", "object"],
-      "requiredAny": ["objects", "locations", "organizations"],
-      "allowedActions": ["transfer", "compare", "transform"]
+      "visualKinds": ["concept"],
+      "requiredAnyEntityGroups": ["objects", "organizations", "locations", "documents"],
+      "allowedActions": ["transfer", "expand", "reflect"],
+      "requiredCapabilities": ["show_relationship", "render_text", "show_movement"]
     },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": true,
-      "canShowMovement": true,
-      "canShowMap": false,
-      "canShowRelationship": true,
-      "canLoop": true
-    },
+    "capabilities": ["show_relationship", "render_text", "show_movement", "loopable"],
     "propMapping": {
       "metaphor": "semanticCard.summary",
       "fromLabel": "semanticCard.event.from || '来源'",
       "toLabel": "semanticCard.event.to || '去向'",
-      "objectLabel": "semanticCard.event.object || semanticCard.visualNeed.mustShow[0] || '权益'",
+      "objectLabel": "semanticCard.event.object || visualContract.mustShow[0] || '权益'",
       "tone": "'historical'"
     },
-    "score": { "kindMatch": 42, "entityMatch": 18, "actionMatch": 18 },
-    "duration": { "minSec": 5, "idealSec": 7, "maxSec": 8 }
-  },
-  {
-    "id": "AtlasMapFlyover",
-    "providerType": "programmatic",
-    "category": "map",
-    "displayName": "世界地图飞越",
-    "accepts": {
-      "visualKinds": ["map", "geo"],
-      "requiredEntityGroups": ["locations"],
-      "allowedActions": ["locate", "route", "transfer"]
+    "duration": { "minSec": 4, "idealSec": 7, "maxSec": 10, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["node_pop", "line_draw"]
     },
-    "rejectIf": {
-      "missingEntityGroups": ["locations"],
-      "mustNotShowConflicts": true
-    },
-    "capabilities": {
-      "canShowMap": true,
-      "canShowMovement": true,
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowRelationship": true,
-      "canLoop": true
-    },
-    "propMapping": {
-      "title": "semanticCard.entities.locations[0] || semanticCard.summary",
-      "subtitle": "semanticCard.entities.locations.join(' · ') || '地理关系'",
-      "textureSrc": "'maps/natural-earth-world-4096.jpg'",
-      "routeColor": "'#f4d35e'",
-      "overlayOpacity": 0.76
-    },
-    "score": { "kindMatch": 42, "requiredEntityMatch": 26, "mustShowMatch": 16, "actionMatch": 8 },
-    "duration": { "minSec": 5, "idealSec": 7, "maxSec": 8 }
+    "scoring": { "kindMatch": 40, "requiredEntityMatch": 18, "actionMatch": 22, "capabilityMatch": 16, "providerPriority": 23 }
   },
   {
     "id": "MapRouteFlyover",
+    "displayName": "地图路线推进",
     "providerType": "programmatic",
-    "category": "map",
-    "displayName": "路线地图飞越",
+    "category": "route",
     "accepts": {
-      "visualKinds": ["map", "geo"],
-      "requiredEntityGroups": ["locations"],
-      "allowedActions": ["locate", "route", "transfer"]
+      "visualKinds": ["map", "route"],
+      "requiredAnyEntityGroups": ["locations"],
+      "allowedActions": ["transfer", "expand", "occupy", "establish"],
+      "requiredCapabilities": ["show_map", "show_route", "show_movement"]
     },
-    "capabilities": {
-      "canShowMap": true,
-      "canShowMovement": true,
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowRelationship": true,
-      "canLoop": true
-    },
+    "capabilities": ["show_map", "show_route", "show_movement", "render_text", "loopable"],
     "propMapping": {
       "title": "semanticCard.entities.locations[0] || semanticCard.summary",
-      "subtitle": "semanticCard.entities.locations.join(' · ') || '路线关系'",
+      "subtitle": "semanticCard.entities.locations.join(' · ')",
+      "keywords": "semanticCard.entities.locations",
       "backgroundColor": "'#09111f'",
       "routeColor": "'#f4d35e'",
       "glowColor": "'#4f8cff'",
       "visualFocus": "'route'"
     },
-    "score": { "kindMatch": 40, "requiredEntityMatch": 24, "mustShowMatch": 14, "actionMatch": 14 },
-    "duration": { "minSec": 5, "idealSec": 7, "maxSec": 8 }
+    "duration": { "minSec": 4, "idealSec": 8, "maxSec": 14, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["map_whoosh", "low_rumble"]
+    },
+    "scoring": { "kindMatch": 45, "requiredEntityMatch": 30, "actionMatch": 15, "capabilityMatch": 15, "providerPriority": 24 }
   },
   {
-    "id": "HistoricalGlobeTexture1938",
+    "id": "NewspaperReveal",
+    "templateId": "MixkitReveal",
+    "displayName": "报纸号外展示",
     "providerType": "programmatic",
-    "category": "map",
-    "displayName": "1938 历史地球",
+    "category": "newspaper",
     "accepts": {
-      "visualKinds": ["map", "geo", "war", "atmosphere"],
-      "allowedActions": ["locate", "route", "conflict", "explain"]
+      "visualKinds": ["newspaper", "crowd"],
+      "allowedActions": ["mobilize", "debate", "show_evidence"],
+      "requiredCapabilities": ["render_text", "highlight_text"]
     },
-    "capabilities": {
-      "canShowMap": true,
-      "canShowMovement": true,
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowRelationship": false,
-      "canLoop": true
-    },
-    "propMapping": {
-      "title": "semanticCard.visualNeed.mustShow[0] || semanticCard.summary",
-      "subtitle": "semanticCard.summary",
-      "startLongitude": -104,
-      "rotationDegreesPerFrame": 1.2,
-      "projectionScale": 292,
-      "projectionTranslateX": 0,
-      "projectionTranslateY": 12,
-      "showLabels": true
-    },
-    "score": { "kindMatch": 36, "mustShowMatch": 10, "actionMatch": 10 },
-    "duration": { "minSec": 5, "idealSec": 8, "maxSec": 9 }
-  },
-  {
-    "id": "SvgAssembly",
-    "providerType": "programmatic",
-    "category": "object_motion",
-    "displayName": "对象组装动画",
-    "accepts": {
-      "visualKinds": ["metaphor", "concept", "object"],
-      "requiredAny": ["objects", "locations", "documents"],
-      "allowedActions": ["assemble", "transform", "transfer", "explain", "diagram"]
-    },
-    "capabilities": {
-      "canShowMovement": true,
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowRelationship": true,
-      "canShowMap": false,
-      "canLoop": true
-    },
-    "propMapping": {
-      "title": "semanticCard.summary",
-      "backgroundColor": "'#070914'",
-      "glowColor": "'rgba(94,231,255,0.7)'",
-      "partColorA": "'#d6b36a'",
-      "partColorB": "'#7ea7ff'"
-    },
-    "score": { "kindMatch": 30, "entityMatch": 16, "actionMatch": 18 },
-    "duration": { "minSec": 4, "idealSec": 5, "maxSec": 7 }
-  },
-  {
-    "id": "PromptHistogram",
-    "providerType": "programmatic",
-    "category": "data_visual",
-    "displayName": "提示词柱状图",
-    "accepts": {
-      "visualKinds": ["concept"],
-      "requiredAny": ["objects", "organizations", "locations"],
-      "allowedActions": ["compare", "structure", "explain", "diagram"]
-    },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowMovement": true,
-      "canShowRelationship": true,
-      "canShowMap": false,
-      "canLoop": true
-    },
-    "propMapping": {
-      "title": "semanticCard.summary",
-      "firstLabel": "semanticCard.entities.objects[0] || '文本'",
-      "secondLabel": "semanticCard.entities.locations[0] || '地点'",
-      "thirdLabel": "semanticCard.entities.organizations[0] || '组织'",
-      "fourthLabel": "semanticCard.entities.documents[0] || '文件'",
-      "fifthLabel": "semanticCard.visualNeed.mustShow[0] || '概念'",
-      "backgroundColor": "'#050505'"
-    },
-    "score": { "kindMatch": 30, "entityMatch": 14, "actionMatch": 10 },
-    "duration": { "minSec": 4, "idealSec": 6, "maxSec": 7 }
-  },
-  {
-    "id": "RulerProgress",
-    "providerType": "programmatic",
-    "category": "process",
-    "displayName": "进度尺",
-    "accepts": {
-      "visualKinds": ["concept"],
-      "allowedActions": ["process", "progress", "explain", "structure"]
-    },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowMovement": true,
-      "canShowRelationship": false,
-      "canShowMap": false,
-      "canLoop": true
-    },
-    "propMapping": {
-      "title": "semanticCard.summary",
-      "targetProgress": 0.72,
-      "backgroundColor": "'#f4efe5'",
-      "fillColorA": "'#21a87a'",
-      "fillColorB": "'#5ee7ac'"
-    },
-    "score": { "kindMatch": 22, "actionMatch": 10 },
-    "duration": { "minSec": 4, "idealSec": 6, "maxSec": 7 }
-  },
-  {
-    "id": "PromptTextRotation",
-    "providerType": "programmatic",
-    "category": "concept",
-    "displayName": "关键词轮播",
-    "accepts": {
-      "visualKinds": ["concept"],
-      "allowedActions": ["explain", "summary", "transition"]
-    },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": true,
-      "canShowMovement": true,
-      "canShowRelationship": false,
-      "canShowMap": false,
-      "canLoop": true
-    },
-    "propMapping": {
-      "words": "visualContract.mustShow.join(',') || semanticCard.summary",
-      "backgroundColor": "'#111111'",
-      "textColor": "'#f5f5f5'",
-      "fontSize": 72
-    },
-    "score": { "kindMatch": 24, "mustShowMatch": 12, "actionMatch": 8 },
-    "duration": { "minSec": 4, "idealSec": 6, "maxSec": 7 }
-  },
-  {
-    "id": "MixkitReveal",
-    "providerType": "programmatic",
-    "category": "reveal",
-    "displayName": "Mixkit 揭示预设",
-    "accepts": {
-      "visualKinds": ["concept", "metaphor", "quote", "atmosphere", "fallback"],
-      "allowedActions": ["transition", "summary", "explain", "quote", "compare", "intro", "structure"]
-    },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowMovement": true,
-      "canShowRelationship": false,
-      "canShowMap": false,
-      "canLoop": true
-    },
+    "capabilities": ["render_text", "highlight_text", "loopable", "show_movement"],
     "propMapping": {
       "presetId": "'bar-transition-text-625'",
       "title": "visualContract.mustShow[0] || semanticCard.summary",
-      "subtitle": "semanticCard.summary",
-      "logoText": "visualContract.mustShow[0] || 'VL'",
-      "body": "segment.text || semanticCard.summary",
-      "accentColor": "'#f97316'",
-      "secondaryColor": "'#2563eb'",
-      "backgroundColor": "'#07070a'",
+      "subtitle": "semanticCard.entities.dates[0] || '号外'",
+      "logoText": "'号外'",
+      "body": "segment.text",
+      "accentColor": "'#f4d35e'",
+      "secondaryColor": "'#111827'",
+      "backgroundColor": "'#09090b'",
       "intensity": 1,
       "showSourceLabel": false
     },
-    "score": { "kindMatch": 28, "mustShowMatch": 10, "actionMatch": 8 },
-    "duration": { "minSec": 4, "idealSec": 6, "maxSec": 7 }
+    "duration": { "minSec": 3, "idealSec": 6, "maxSec": 10, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["newspaper_flip", "crowd_murmur"]
+    },
+    "scoring": { "kindMatch": 45, "mustShowMatch": 20, "providerPriority": 18 }
+  },
+  {
+    "id": "ExplosionFlash",
+    "templateId": "MixkitReveal",
+    "displayName": "爆点闪切",
+    "providerType": "programmatic",
+    "category": "explosion",
+    "accepts": {
+      "visualKinds": ["explosion"],
+      "allowedActions": ["explode"],
+      "requiredCapabilities": ["show_explosion", "sound_sync"]
+    },
+    "capabilities": ["show_explosion", "show_movement", "sound_sync", "render_text"],
+    "propMapping": {
+      "presetId": "'dynamic-motion-openers-560'",
+      "title": "semanticCard.summary",
+      "subtitle": "semanticCard.entities.locations[0] || semanticCard.entities.events[0]",
+      "logoText": "'!'",
+      "body": "segment.text",
+      "accentColor": "'#f97316'",
+      "secondaryColor": "'#ef4444'",
+      "backgroundColor": "'#09090b'",
+      "intensity": 1.15,
+      "showSourceLabel": false
+    },
+    "duration": { "minSec": 1, "idealSec": 3, "maxSec": 5, "canLoop": false },
+    "sound": {
+      "supportsAmbient": false,
+      "supportsFx": true,
+      "suggestedFx": ["explosion", "metal_break", "short_silence"]
+    },
+    "scoring": { "kindMatch": 60, "actionMatch": 30, "capabilityMatch": 20, "providerPriority": 30 }
+  },
+  {
+    "id": "TrainTrackEnding",
+    "templateId": "MixkitReveal",
+    "displayName": "铁轨结尾空镜",
+    "providerType": "programmatic",
+    "category": "ending",
+    "accepts": {
+      "visualKinds": ["ending", "train"],
+      "allowedActions": ["reflect", "establish", "expand"],
+      "requiredCapabilities": ["show_train", "loopable"]
+    },
+    "capabilities": ["show_train", "show_movement", "loopable", "sound_sync", "render_text"],
+    "propMapping": {
+      "presetId": "'cinematic-trailer-596'",
+      "title": "semanticCard.summary",
+      "subtitle": "visualContract.mustShow.join(',')",
+      "logoText": "'END'",
+      "body": "segment.text",
+      "accentColor": "'#94a3b8'",
+      "secondaryColor": "'#f4d35e'",
+      "backgroundColor": "'#050505'",
+      "intensity": 0.9,
+      "showSourceLabel": false
+    },
+    "duration": { "minSec": 5, "idealSec": 9, "maxSec": 16, "canLoop": true },
+    "sound": {
+      "supportsAmbient": true,
+      "supportsFx": true,
+      "suggestedFx": ["wind", "distant_train", "low_drone"]
+    },
+    "scoring": { "kindMatch": 45, "mustShowMatch": 20, "providerPriority": 28 }
   },
   {
     "id": "FootageScene",
-    "providerType": "footage",
-    "category": "footage",
     "displayName": "本地素材片段",
+    "providerType": "footage",
+    "category": "battle",
     "accepts": {
-      "visualKinds": ["atmosphere", "war", "place", "object", "document", "map"],
-      "requiresAssetPath": true
+      "visualKinds": ["battle", "atmosphere", "ruins", "crowd", "industry", "train"],
+      "requiredCapabilities": ["loopable"]
     },
-    "capabilities": {
-      "canRenderText": false,
-      "canHighlightWords": false,
-      "canShowMovement": true,
-      "canShowRelationship": false,
-      "canShowMap": false,
-      "canLoop": true
-    },
-    "duration": { "minSec": 4, "idealSec": 6, "maxSec": 8 }
+    "capabilities": ["loopable"],
+    "duration": { "minSec": 2, "idealSec": 5, "maxSec": 10, "canLoop": true },
+    "sound": { "supportsAmbient": true, "supportsFx": false },
+    "scoring": { "kindMatch": 35, "mustShowMatch": 30, "providerPriority": 12 }
   },
   {
     "id": "NarratedScene",
-    "providerType": "template",
-    "category": "fallback",
-    "displayName": "旁白兜底镜头",
+    "templateId": "NarratedScene",
+    "displayName": "低置信兜底镜头",
+    "providerType": "fallback",
+    "category": "ending",
     "accepts": {
-      "visualKinds": ["fallback", "atmosphere", "concept", "document", "map", "quote", "person", "metaphor", "war", "geo", "object"],
-      "allowedActions": ["explain", "quote", "transfer", "compare", "locate", "route", "conflict", "diagram"]
+      "visualKinds": ["fallback"],
+      "requiredCapabilities": ["render_text"]
     },
-    "capabilities": {
-      "canRenderText": true,
-      "canHighlightWords": false,
-      "canShowMovement": false,
-      "canShowRelationship": false,
-      "canShowMap": false,
-      "canLoop": true
-    },
+    "capabilities": ["render_text", "loopable"],
     "propMapping": {
-      "title": "semanticCard.visualNeed.mustShow[0] || '旁白'",
+      "title": "visualContract.mustShow[0] || '旁白'",
       "bodyText": "semanticCard.summary",
       "body": "semanticCard.summary"
     },
-    "score": { "kindMatch": 8, "mustShowMatch": 2, "actionMatch": 1 },
-    "duration": { "minSec": 4, "idealSec": 5, "maxSec": 7 }
+    "duration": { "minSec": 3, "idealSec": 6, "maxSec": 10, "canLoop": true },
+    "sound": { "supportsAmbient": true, "supportsFx": false },
+    "scoring": { "kindMatch": 10, "providerPriority": 0 }
   }
 ]
