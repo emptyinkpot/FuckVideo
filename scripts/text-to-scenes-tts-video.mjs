@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { planScenesFromCaptions, writeScenesFile } from "./scene-planner.mjs";
 import { loadAssetIndex } from "./asset-matcher.mjs";
 import { stretchScenesToFrames } from "./timeline-aligner.mjs";
+import { shouldUseDashScopeTts, synthesizeDashScopeTtsToFile } from "./dashscope-tts.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -18,6 +19,7 @@ const defaults = {
   title: "自动片段文本视频",
   language: "Chinese",
   voice: "my-clone",
+  ttsProvider: "auto",
   instruction: "标准播音风格，吐字清晰，语速平稳，停顿自然",
   output: path.join(projectRoot, "out", "auto-scenes-tts-video.mp4"),
   skipSrt: false,
@@ -57,15 +59,18 @@ async function main() {
 
   const stamp = safeStamp();
   console.log("[1/6] 正在生成千问 TTS 旁白音频...");
-  const tts = await generateTts(input);
+  const tts = await generateTts(input, stamp);
   const audioUrl = absolutizeUrl(input.apiBase, tts.audio?.url);
-  if (!audioUrl) {
-    throw new Error("千问 TTS 没有返回 audio.url。");
+  const directAudioFile = tts.audio?.filePath ? path.resolve(projectRoot, tts.audio.filePath) : "";
+  if (!audioUrl && !directAudioFile) {
+    throw new Error("千问 TTS 没有返回 audio.url 或本地音频文件。");
   }
 
-  const audioExt = extensionFromUrl(audioUrl) || ".wav";
-  const rawAudioFile = path.join(rawAudioDir, `tts-raw-${stamp}${audioExt}`);
-  await downloadToFile(audioUrl, rawAudioFile);
+  const audioExt = directAudioFile ? path.extname(directAudioFile) || ".mp3" : extensionFromUrl(audioUrl) || ".wav";
+  const rawAudioFile = directAudioFile || path.join(rawAudioDir, `tts-raw-${stamp}${audioExt}`);
+  if (!directAudioFile) {
+    await downloadToFile(audioUrl, rawAudioFile);
+  }
   const audioFile = path.join(generatedDir, `tts-${stamp}.mp3`);
   await normalizeAudioForRemotion(rawAudioFile, audioFile);
   const audioSrc = toPublicPath(audioFile);
@@ -75,7 +80,7 @@ async function main() {
 
   let srtText = "";
   let captions = [];
-  if (!input.skipSrt) {
+  if (!input.skipSrt && audioUrl) {
     console.log("[3/6] 正在请求语音对齐字幕...");
     try {
       const srt = await generateSrt(input, audioUrl);
@@ -91,8 +96,10 @@ async function main() {
         }`,
       );
     }
-  } else {
+  } else if (input.skipSrt) {
     console.log("[3/6] 已按要求跳过字幕。");
+  } else {
+    console.log("[3/6] DashScope 直连音频暂无公网 audioUrl，已跳过字幕。");
   }
 
   console.log("[4/6] 正在规划自动片段...");
@@ -158,9 +165,17 @@ async function main() {
   });
 }
 
-async function generateTts(input) {
+async function generateTts(input, stamp = safeStamp()) {
   const route = countTextUnits(input.text) > 800 ? "/custom-voice/long" : "/custom-voice";
   const providerVoice = input.voice === "my-clone" ? myCloneVoice : input.voice;
+  if (shouldUseDashScopeTts(input)) {
+    console.log("[TTS] 使用 DashScope 直连接口。");
+    return synthesizeDashScopeTtsToFile(
+      { ...input, providerVoice },
+      path.join(rawAudioDir, `tts-raw-${stamp}.mp3`),
+    );
+  }
+  console.log("[TTS] 使用兼容中转接口。");
   const payload = await postJson(
     `${trimSlash(input.apiBase)}${route}`,
     {

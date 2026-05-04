@@ -832,6 +832,7 @@ out/*.mp4
 --instruction      TTS 风格指令
 --language         语言，默认 Chinese
 --voice            音色，默认 my-clone
+--tts-provider     TTS provider，auto / dashscope / proxy
 --max-chars        每个镜头块的目标最大字符数，默认 130
 --skip-srt         是否跳过字幕
 --match-assets     是否匹配 public/generated/asset-index.json，默认 true
@@ -843,13 +844,48 @@ out/*.mp4
 
 ## 10. 千问 TTS 接入方式
 
-默认 TTS API：
+当前脚本支持两种 TTS provider：
+
+```text
+auto       默认。检测到 DASHSCOPE_API_KEY 时直连 DashScope，否则使用兼容中转。
+dashscope  强制直连阿里云 DashScope CosyVoice WebSocket API。
+proxy      强制使用旧兼容中转。
+```
+
+推荐直连 DashScope，避免中转服务超时：
+
+```console
+set DASHSCOPE_API_KEY=你的 DashScope API Key
+npm run text-to-scenes-tts-video -- --tts-provider=dashscope --text-file input.txt
+```
+
+可选环境变量：
+
+```text
+DASHSCOPE_TTS_MODEL   默认 cosyvoice-v3.5-plus
+DASHSCOPE_TTS_VOICE   覆盖 --voice / my-clone 映射后的音色 ID
+DASHSCOPE_WS_URL      默认 wss://dashscope.aliyuncs.com/api-ws/v1/inference/
+```
+
+直连模式会直接把 WebSocket 返回的音频写入：
+
+```text
+.runtime/text-to-video/raw-audio/tts-raw-*.mp3
+```
+
+然后仍统一转成 Remotion 稳定识别的：
+
+```text
+public/generated/tts-*.mp3
+```
+
+兼容中转 API：
 
 ```text
 https://<private-tts-relay>/api/qwen3-tts
 ```
 
-这是当前工程可用的服务地址。复刻工程时，你必须满足二选一：
+复刻工程时，如果不使用 DashScope 直连，你必须满足二选一：
 
 - 继续使用兼容这个合约的服务。
 - 修改 `scripts/text-to-video.mjs` 和 `scripts/text-to-scenes-tts-video.mjs` 顶部 `defaults.apiBase`。
