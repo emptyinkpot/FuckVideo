@@ -16,6 +16,9 @@ __pycache__/
 
 # Do not vendor nested Git metadata from downloaded source repositories.
 asset-source/**/.git/
+asset-source/mixkit-reveal/originals/
+asset-source/mixkit-reveal/previews/
+asset-source/mixkit-reveal/posters/
 
 # Local visual/debug artifacts.
 screenshots/

@@ -7,6 +7,8 @@
     ["ConceptDiagram", "概念关系图"],
     ["MetaphorVisual", "隐喻可视化"],
     ["FootageScene", "本地素材片段"],
+    ["MixkitReveal", "Mixkit 揭示预设"],
+    ["RemotionLabShowcaseAsset", "RemotionLab 素材库"],
     ["SinoJapaneseWarDemo", "中日战争历史地球"],
     ["HistoricalGlobeTexture1938", "1938 历史地球纹理"],
     ["AtlasMapFlyover", "世界地图飞越"],

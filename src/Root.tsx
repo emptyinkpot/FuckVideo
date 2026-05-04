@@ -34,8 +34,13 @@ import {
   defaultGeneratedTemplateProps,
   GeneratedTemplateVideo,
 } from "./templates/GeneratedTemplateVideo";
-import { NarratedVideo, type NarratedVideoProps } from "./templates/NarratedVideo";
+import {
+  NarratedVideo,
+  type NarratedVideoProps,
+} from "./templates/NarratedVideo";
 import { DocumentReveal } from "./templates/DocumentReveal";
+import { MixkitReveal } from "./templates/MixkitReveal";
+import { MIXKIT_REVEAL_PRESET_IDS } from "./templates/mixkitRevealPresets";
 import {
   defaultMultiSceneVideoProps,
   MultiSceneVideo,
@@ -55,6 +60,7 @@ const templateIdSchema = z.enum([
   "ConceptDiagram",
   "MetaphorVisual",
   "FootageScene",
+  "MixkitReveal",
   "SinoJapaneseWarDemo",
   "HistoricalGlobeTexture1938",
   "AtlasMapFlyover",
@@ -158,6 +164,19 @@ const footageSceneSchema = z.object({
   showTitle: z.boolean().optional(),
 });
 
+const mixkitRevealSchema = z.object({
+  presetId: z.enum(MIXKIT_REVEAL_PRESET_IDS).optional(),
+  title: z.string().optional(),
+  subtitle: z.string().optional(),
+  logoText: z.string().optional(),
+  body: z.string().optional(),
+  accentColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  intensity: z.number().min(0.2).max(2).optional(),
+  showSourceLabel: z.boolean().optional(),
+});
+
 const autoSceneTemplateIdSchema = z.enum([
   "DocumentReveal",
   "QuoteReveal",
@@ -171,6 +190,7 @@ const autoSceneTemplateIdSchema = z.enum([
   "PromptHistogram",
   "RulerProgress",
   "PromptTextRotation",
+  "MixkitReveal",
   "FootageScene",
   "NarratedScene",
 ]);
@@ -426,8 +446,7 @@ const defaultNarratedVideoProps = {
 const documentRevealDefaultProps: z.input<typeof documentRevealSchema> = {
   title: "《朴茨茅斯和约》",
   subtitle: "历史文件",
-  body:
-    "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。关东州租借地与南满铁路，成为战后日本经营大陆的新支点。",
+  body: "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。关东州租借地与南满铁路，成为战后日本经营大陆的新支点。",
   highlightText: "所谓“转让”遮住了更复杂的权力关系",
   highlightWords: ["转让", "关东州", "南满铁路"],
   style: "old_paper",
@@ -476,6 +495,16 @@ const footageSceneDefaultProps: z.input<typeof footageSceneSchema> = {
   darken: 0.26,
   zoom: 1.06,
   showTitle: true,
+};
+
+const mixkitRevealDefaultProps: z.input<typeof mixkitRevealSchema> = {
+  presetId: "bar-transition-text-625",
+  title: "VideoLab",
+  subtitle: "26 Mixkit reveal assets rebuilt as Remotion presets",
+  logoText: "VL",
+  body: "A single reusable composition can switch between bars, lower thirds, particles, neon, glitch, seasonal, sports, news, and logo reveal styles.",
+  intensity: 1,
+  showSourceLabel: true,
 };
 
 const claudeTyperDefaultProps: z.input<typeof claudeTyperSchema> = {
@@ -538,12 +567,13 @@ const vinylPlayerDefaultProps: z.input<typeof vinylPlayerSchema> = {
   backgroundColor: "#080b0c",
 };
 
-const promptTextRotationDefaultProps: z.input<typeof promptTextRotationSchema> = {
-  words: "提示词,动画,图形,模板",
-  backgroundColor: "#111827",
-  textColor: "#f8fafc",
-  fontSize: 116,
-};
+const promptTextRotationDefaultProps: z.input<typeof promptTextRotationSchema> =
+  {
+    words: "提示词,动画,图形,模板",
+    backgroundColor: "#111827",
+    textColor: "#f8fafc",
+    fontSize: 116,
+  };
 
 const promptProgressBarDefaultProps: z.input<typeof promptProgressBarSchema> = {
   label: "生成动画中",
@@ -562,7 +592,9 @@ const promptHistogramDefaultProps: z.input<typeof promptHistogramSchema> = {
   fifthLabel: "界面",
 };
 
-const promptAnimatedShapesDefaultProps: z.input<typeof promptAnimatedShapesSchema> = {
+const promptAnimatedShapesDefaultProps: z.input<
+  typeof promptAnimatedShapesSchema
+> = {
   backgroundColor: "#0b0b0f",
   gap: 78,
   size: 128,
@@ -577,14 +609,18 @@ const threeProductStageDefaultProps: z.input<typeof threeProductStageSchema> = {
   rotationSpeed: 0.025,
 };
 
-const threeBouncingSpheresDefaultProps: z.input<typeof threeBouncingSpheresSchema> = {
+const threeBouncingSpheresDefaultProps: z.input<
+  typeof threeBouncingSpheresSchema
+> = {
   sphereCount: 4,
   backgroundColor: "#030712",
   bounceStrength: 3.2,
   cameraDistance: 8,
 };
 
-const threeParticleNebulaDefaultProps: z.input<typeof threeParticleNebulaSchema> = {
+const threeParticleNebulaDefaultProps: z.input<
+  typeof threeParticleNebulaSchema
+> = {
   particleCount: 90,
   backgroundColor: "#020617",
   coreColor: "#67e8f9",
@@ -614,7 +650,9 @@ const atlasMapFlyoverDefaultProps: z.input<typeof atlasMapFlyoverSchema> = {
   overlayOpacity: 0.86,
 };
 
-const historicalGlobeTexture1938DefaultProps: z.input<typeof historicalGlobeTexture1938Schema> = {
+const historicalGlobeTexture1938DefaultProps: z.input<
+  typeof historicalGlobeTexture1938Schema
+> = {
   title: "1938 世界历史矢量地球",
   subtitle: "国家区块可编辑填色，争议区斜线被地块边界裁切",
   startLongitude: -104,
@@ -625,7 +663,9 @@ const historicalGlobeTexture1938DefaultProps: z.input<typeof historicalGlobeText
   showLabels: true,
 };
 
-const sinoJapaneseWarDemoDefaultProps: z.input<typeof sinoJapaneseWarDemoSchema> = {
+const sinoJapaneseWarDemoDefaultProps: z.input<
+  typeof sinoJapaneseWarDemoSchema
+> = {
   title: "1931-1945 中日战争演化",
   subtitle: "时间线、镜头聚焦、战线与地图填色联动",
   cardLeft: 48,
@@ -698,6 +738,16 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={footageSceneDefaultProps}
       />
       <Composition
+        id="MixkitReveal"
+        component={MixkitReveal}
+        schema={mixkitRevealSchema}
+        durationInFrames={180}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={mixkitRevealDefaultProps}
+      />
+      <Composition
         id="MultiSceneVideo"
         component={MultiSceneVideo}
         schema={multiSceneVideoSchema}
@@ -708,7 +758,8 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={defaultMultiSceneVideoProps}
         calculateMetadata={({ props }) => {
           const endFrame = props.scenes.reduce(
-            (max, scene) => Math.max(max, scene.fromFrame + scene.durationInFrames),
+            (max, scene) =>
+              Math.max(max, scene.fromFrame + scene.durationInFrames),
             0,
           );
           return {
@@ -727,7 +778,10 @@ export const RemotionRoot: React.FC = () => {
         height={720}
         defaultProps={defaultGeneratedTemplateProps}
         calculateMetadata={({ props }) => ({
-          durationInFrames: Math.max(150, Math.ceil(Number(props.durationSeconds || 12) * 30)),
+          durationInFrames: Math.max(
+            150,
+            Math.ceil(Number(props.durationSeconds || 12) * 30),
+          ),
           props,
         })}
       />
@@ -741,7 +795,10 @@ export const RemotionRoot: React.FC = () => {
         height={720}
         defaultProps={defaultNarratedVideoProps}
         calculateMetadata={({ props }) => ({
-          durationInFrames: Math.max(150, Math.ceil(Number(props.durationSeconds || 12) * 30)),
+          durationInFrames: Math.max(
+            150,
+            Math.ceil(Number(props.durationSeconds || 12) * 30),
+          ),
           props,
         })}
       />

@@ -32,7 +32,7 @@ Remotion Studio 模板预览与参数编辑
 
 - `src/Root.tsx` 注册全部 Remotion compositions。
 - 每个 composition 都有 `schema` 和 `defaultProps`。
-- Remotion Studio 中 30 个合成都能显示 props 编辑区。
+- Remotion Studio 中 31 个合成都能显示 props 编辑区。
 - 多数模板参数会真实影响画面，不是只挂一个空 schema。
 
 第二层是文本生成视频链路：
@@ -212,6 +212,7 @@ remotion-project/
     asset-indexer.mjs               扫描 public/footage 生成素材索引草稿
     asset-matcher.mjs               根据 semanticCard/visualContract 硬过滤、召回和解释素材候选
     scene-asset-planner.mjs         给已有 scenes JSON 补充 visualLayer 素材信息
+    import-mixkit-reveal.mjs        下载 Mixkit Reveal 26 个 AE 源模板并生成本地 manifest
     project-store.mjs               VideoProject 读写、scene patch、素材替换、props 转换
     export-video-project.mjs        project.json -> MultiSceneVideo props -> MP4
     text-to-scenes-video.mjs        只生成/渲染多镜头视频，不调用 TTS
@@ -227,6 +228,8 @@ remotion-project/
       GeneratedTemplateVideo.tsx    生成视频包装器：现有模板 + 音频 + 字幕
       MultiSceneVideo.tsx           多镜头视频容器：Sequence 时间轴拼接
       DocumentReveal.tsx            唯一文件证据展示模板：截取上下文、高亮、推镜、纸张质感
+      MixkitReveal.tsx              Mixkit Reveal 26 个 AE 素材复刻成一个可参数化 Remotion 模板
+      mixkitRevealPresets.ts        Mixkit Reveal presetId、颜色、effectKind 和来源映射
       AutoSceneTemplates.tsx        人物、引文、概念、隐喻四类解释型镜头模板
       FootageScene.tsx              本地素材片段镜头模板
       sceneRegistry.tsx             自动片段 templateId -> Remotion 组件映射
@@ -258,6 +261,7 @@ remotion-project/
   asset-source/
     historical-basemaps/            历史底图源数据、SVG、GeoJSON、示例素材
     natural-earth/                  Natural Earth 原始下载与解压素材
+    mixkit-reveal/                  Mixkit Reveal manifest；原始 zip/preview/poster 为本地忽略素材
 
   .runtime/
     text-to-video/
@@ -273,6 +277,7 @@ remotion-project/
 - `public/maps/`、`public/geojson/`、`public/historical-maps/` 是运行时直接读取的公开素材。
 - `asset-source/` 是工程素材源文件，也已经纳入仓库。
 - `asset-source/natural-earth/NE1_LR_LC_SR_W.zip` 和 `asset-source/natural-earth/natural-earth/NE1_LR_LC_SR_W.tif` 走 Git LFS。
+- `asset-source/mixkit-reveal/manifest.json` 记录 26 个 Mixkit Reveal AE 源模板；`originals/`、`previews/`、`posters/` 是下载缓存，默认被 `.gitignore` 忽略，避免把约 700MB 源资产塞进源码仓库。
 - `public/generated/` 当前包含已生成示例；新运行任务也会继续往这里写 MP3、SRT、props、scenes。
 - `.runtime/` 是本机运行状态和 raw audio 缓存，不作为复刻所需源码。
 - `out/` 是渲染产物目录，不作为源码必需项。
@@ -352,9 +357,9 @@ src/Root.tsx
 当前合成总数：
 
 ```text
-30 个 Composition
-30 个 schema
-30 个 defaultProps
+31 个 Composition
+31 个 schema
+31 个 defaultProps
 ```
 
 也就是说，每个合成都能在 Remotion Studio 里显示可编辑 props 面板。
@@ -462,6 +467,23 @@ src/Root.tsx
 - `darken`
 - `zoom`
 - `showTitle`
+
+`MixkitReveal`
+
+用途：把 Mixkit Reveal 分类下 26 个免费 After Effects 源素材拆成可复用的 Remotion reveal 预设。它不是把 `.aep` 二进制直接塞进运行时，而是把成熟 AE 模板的视觉结构重建为逐帧确定性的程序动画：遮罩入场、lower third、新闻扫光、像素框、3D 层叠、液体 splash、swirl、neon、glitch、radial wipe、audio visualizer、gaming shard、sport stripe、confetti、fireworks、seasonal、particles、food organic 等。
+
+主要参数：
+
+- `presetId`：26 个 Mixkit 源模板之一，例如 `bar-transition-text-625`。
+- `title`
+- `subtitle`
+- `logoText`
+- `body`
+- `accentColor`
+- `secondaryColor`
+- `backgroundColor`
+- `intensity`
+- `showSourceLabel`
 
 `MultiSceneVideo`
 
@@ -1310,7 +1332,7 @@ Studio 内嵌扩展前端集中在：
 frontend/remotion-studio-plugin.js
 ```
 
-它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“片段编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 30 个 Composition 画布 UI。
+它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“片段编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 31 个 Composition 画布 UI。
 
 复刻 Studio 内嵌工作流时应保持三个工作区分离：
 
@@ -1910,7 +1932,7 @@ src/historical-globe/compositions/*.tsx
 
 这是项目真正的视频画布前端。每个 Composition 都是一个可预览、可渲染、可通过 schema 编辑参数的 React UI。它们显示在 Remotion Studio 左侧 `合成列表`，画面显示在中央 preview canvas，参数显示在右侧原生 props 面板。
 
-当前 `src/Root.tsx` 注册 30 个合成：
+当前 `src/Root.tsx` 注册 31 个合成：
 
 自动视频 / 片段系统：
 
@@ -1921,6 +1943,7 @@ PortraitFocus
 ConceptDiagram
 MetaphorVisual
 FootageScene
+MixkitReveal
 MultiSceneVideo
 GeneratedTemplateVideo
 NarratedVideo
@@ -1971,7 +1994,7 @@ SinoJapaneseWarDemo
 
 - `MultiSceneVideo` 是自动片段主合成；它读取 `scenes`、`audioSrc`、`captions`，用 `Sequence` 拼接多个镜头。
 - `GeneratedTemplateVideo` 是单模板包装器；它读取 `templateId`、`audioSrc`、`captions` 和时长。
-- `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`AtlasMapFlyover`、`MapRouteFlyover`、`HistoricalGlobeTexture1938`、`SvgAssembly`、`PromptHistogram`、`RulerProgress`、`PromptTextRotation` 都可以作为 `programmatic` provider 被自动片段调度。
+- `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`AtlasMapFlyover`、`MapRouteFlyover`、`HistoricalGlobeTexture1938`、`SvgAssembly`、`PromptHistogram`、`RulerProgress`、`PromptTextRotation`、`MixkitReveal` 都可以作为 `programmatic` provider 被自动片段调度。
 - `FootageScene` 是 footage provider 的渲染壳，只有 `visual-resolver.mjs` 或手动替换素材给出真实 `asset.path` 时使用。
 - 地图、历史和程序动画模板应通过 `sceneRegistry.tsx` 和 `visual-provider-manifest.json` 接入自动片段，不要让前端下拉框硬编码“文本里有某词就选某模板”。
 - 所有画布 UI 的细颗粒参数都放在 Remotion 原生 props 面板，不要在右侧生成控制台或左侧片段重复实现完整模板参数编辑器。
@@ -2329,6 +2352,7 @@ PortraitFocus                 人物身份卡
 ConceptDiagram                概念关系图
 MetaphorVisual                隐喻可视化
 FootageScene                  本地素材片段
+MixkitReveal                  Mixkit 揭示预设
 SinoJapaneseWarDemo          中日战争历史地球
 HistoricalGlobeTexture1938   1938 历史地球纹理
 AtlasMapFlyover              世界地图飞越
@@ -2563,7 +2587,7 @@ npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
 
-预期能看到 30 个合成。
+预期能看到 31 个合成。
 
 schema 覆盖验证：
 
@@ -2712,7 +2736,7 @@ http://127.0.0.1:3037
 - Remotion Studio 可运行。
 - 生成视频扩展已集成到 Studio 页面：原生“渲染”按钮旁边是生成入口，右侧浮层是生成控制台，左侧 explorer 是片段页签。
 - 右侧 Remotion 原生参数栏保持给 `schema/defaultProps` 编辑使用，不承载本项目片段 UI。
-- 30 个合成都已注册 schema 和 defaultProps。
+- 31 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
 - 自动片段系统使用 `MultiSceneVideo`，可以把长文拆成一段话绑定一个画面的片段时间轴。
 - 自动片段系统会在有 captions/SRT 时使用音频真实时间轴对齐片段。
@@ -2761,7 +2785,10 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 - `scripts/asset-matcher.mjs`：旧兼容工具，给已有 scenes 单独追加 footage 候选；一站式生成主链路优先走 `visual-resolver.mjs`。
 - `scripts/scene-asset-planner.mjs`：给已有 scenes JSON 追加 `visualLayer`。
 - `scripts/text-to-scenes-video.mjs`：生成 scenes/props，并可直接渲染 `MultiSceneVideo`。
+- `scripts/import-mixkit-reveal.mjs`：抓取 Mixkit Reveal 分类两页，解析 26 个详情页、下载 AE zip/preview/poster，并写入可追踪 manifest。
 - `src/templates/DocumentReveal.tsx`：唯一文件证据展示模板，承接条约、文件、策论、档案、原文证据类片段。
+- `src/templates/MixkitReveal.tsx`：把 26 个 Mixkit reveal 源素材复刻为一个可参数化 Remotion composition，运行时通过 `presetId` 切换视觉结构。
+- `src/templates/mixkitRevealPresets.ts`：记录 26 个 Mixkit 源素材的 `presetId`、`mixkitId`、源链接、颜色和 `effectKind`。
 - `src/templates/AutoSceneTemplates.tsx`：`PortraitFocus`、`QuoteReveal`、`ConceptDiagram`、`MetaphorVisual` 四类解释型镜头模板。
 - `src/templates/FootageScene.tsx`：本地素材片段模板。
 - `src/templates/sceneRegistry.tsx`：把 `templateId` 映射到现有 Remotion 模板。
@@ -2879,6 +2906,63 @@ type DocumentRevealProps = {
 - 不引入另一个 `DocumentRevealPro`。
 - 不把 `framer-motion` 作为 Remotion 渲染主动画引擎；视频帧必须由 `frame`、`spring`、`interpolate`、`Easing.bezier` 决定。
 - 如果将来引入 `rough.js` 或真实纸张 PNG，必须仍保持可复现输入、可离线渲染，并在 `Root.tsx` schema 和 `visual-provider-manifest.json` 同步暴露参数。
+
+### 23.3 Mixkit Reveal 资产复刻流程
+
+Mixkit Reveal 的处理方式是“源素材下载 + 程序化复刻”，不是把 After Effects 工程文件直接当成 Remotion 运行时。当前已支持 Mixkit Reveal 分类的 26 个免费 AE 模板：
+
+```console
+npm run import-mixkit-reveal
+```
+
+脚本会读取：
+
+```text
+https://mixkit.co/free-after-effects-templates/reveal/
+https://mixkit.co/free-after-effects-templates/reveal/?page=2
+```
+
+输出：
+
+```text
+asset-source/mixkit-reveal/manifest.json
+asset-source/mixkit-reveal/originals/*.zip      本地忽略
+asset-source/mixkit-reveal/previews/*.mp4       本地忽略
+asset-source/mixkit-reveal/posters/*.jpg        本地忽略
+```
+
+`manifest.json` 会随源码提交，用来证明导入来源、license note、下载 URL、预览 URL、poster URL 和每个模板的 `effectKind`。原始 zip、preview、poster 是重资产下载缓存，默认不提交；需要在另一台机器复刻时重新运行 import 脚本即可。
+
+Remotion 侧只有一个公开 composition：
+
+```text
+MixkitReveal
+```
+
+它通过 `presetId` 切换 26 个源素材对应的视觉结构：
+
+```ts
+type MixkitRevealProps = {
+  presetId?: MixkitRevealPresetId;
+  title?: string;
+  subtitle?: string;
+  logoText?: string;
+  body?: string;
+  accentColor?: string;
+  secondaryColor?: string;
+  backgroundColor?: string;
+  intensity?: number;
+  showSourceLabel?: boolean;
+};
+```
+
+设计规则：
+
+- 不在 Remotion Studio 左侧注册 26 个重复 composition，避免模板列表膨胀。
+- `MixkitReveal` 是一个 programmatic `VisualProvider`，用于 intro、summary、transition、概念揭示、quote 氛围等片段；document evidence 仍优先走 `DocumentReveal`。
+- 复刻目标是 AE 模板的视觉公式：遮罩、光扫、图形推进、粒子、glitch、neon、radial wipe、lower third，而不是二进制 `.aep` 图层自动转换。
+- 视频渲染必须是 frame-driven：`useCurrentFrame()`、`spring()`、`interpolate()`、`Easing.bezier()`；手绘边框用 `roughjs` 的 deterministic generator 输出 SVG path，不依赖浏览器运行时动画。
+- 26 个 preset 的源 ID 和链接保存在 `mixkitRevealPresets.ts`，未来要做更接近 AE 的逐模板复刻时，以该文件作为唯一索引入口。
 
 ## 24. 可编辑项目系统
 

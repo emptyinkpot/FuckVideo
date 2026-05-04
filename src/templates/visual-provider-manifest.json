@@ -358,6 +358,38 @@
     "duration": { "minSec": 4, "idealSec": 6, "maxSec": 7 }
   },
   {
+    "id": "MixkitReveal",
+    "providerType": "programmatic",
+    "category": "reveal",
+    "displayName": "Mixkit 揭示预设",
+    "accepts": {
+      "visualKinds": ["concept", "metaphor", "quote", "atmosphere", "fallback"],
+      "allowedActions": ["transition", "summary", "explain", "quote", "compare", "intro", "structure"]
+    },
+    "capabilities": {
+      "canRenderText": true,
+      "canHighlightWords": false,
+      "canShowMovement": true,
+      "canShowRelationship": false,
+      "canShowMap": false,
+      "canLoop": true
+    },
+    "propMapping": {
+      "presetId": "'bar-transition-text-625'",
+      "title": "visualContract.mustShow[0] || semanticCard.summary",
+      "subtitle": "semanticCard.summary",
+      "logoText": "visualContract.mustShow[0] || 'VL'",
+      "body": "segment.text || semanticCard.summary",
+      "accentColor": "'#f97316'",
+      "secondaryColor": "'#2563eb'",
+      "backgroundColor": "'#07070a'",
+      "intensity": 1,
+      "showSourceLabel": false
+    },
+    "score": { "kindMatch": 28, "mustShowMatch": 10, "actionMatch": 8 },
+    "duration": { "minSec": 4, "idealSec": 6, "maxSec": 7 }
+  },
+  {
     "id": "FootageScene",
     "providerType": "footage",
     "category": "footage",
