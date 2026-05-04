@@ -32,7 +32,7 @@ Remotion Studio 模板预览与参数编辑
 
 - `src/Root.tsx` 注册全部 Remotion compositions。
 - 每个 composition 都有 `schema` 和 `defaultProps`。
-- Remotion Studio 中 31 个合成都能显示 props 编辑区。
+- Remotion Studio 中 32 个合成都能显示 props 编辑区。
 - 多数模板参数会真实影响画面，不是只挂一个空 schema。
 
 第二层是文本生成视频链路：
@@ -243,6 +243,11 @@ remotion-project/
       EarthGlobeTemplate.tsx        三维地球模板
       HistoricalMapTemplates.tsx    历史地图模板
 
+    remotionlab-showcase/
+      catalog.ts                    263 个 RemotionLab showcase 素材索引
+      RemotionLabShowcaseAsset.tsx  原生合成入口；通过 assetId 切换素材，不注册 263 个重复合成
+      types.ts                      RemotionLab 素材元数据类型
+
     historical-globe/
       compositions/
         HistoricalGlobeTexture1938.tsx
@@ -357,9 +362,9 @@ src/Root.tsx
 当前合成总数：
 
 ```text
-31 个 Composition
-31 个 schema
-31 个 defaultProps
+32 个 Composition
+32 个 schema
+32 个 defaultProps
 ```
 
 也就是说，每个合成都能在 Remotion Studio 里显示可编辑 props 面板。
@@ -1332,7 +1337,7 @@ Studio 内嵌扩展前端集中在：
 frontend/remotion-studio-plugin.js
 ```
 
-它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“片段编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 31 个 Composition 画布 UI。
+它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“片段编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 32 个 Composition 画布 UI。
 
 复刻 Studio 内嵌工作流时应保持三个工作区分离：
 
@@ -1932,7 +1937,7 @@ src/historical-globe/compositions/*.tsx
 
 这是项目真正的视频画布前端。每个 Composition 都是一个可预览、可渲染、可通过 schema 编辑参数的 React UI。它们显示在 Remotion Studio 左侧 `合成列表`，画面显示在中央 preview canvas，参数显示在右侧原生 props 面板。
 
-当前 `src/Root.tsx` 注册 31 个合成：
+当前 `src/Root.tsx` 注册 32 个合成：
 
 自动视频 / 片段系统：
 
@@ -1944,6 +1949,7 @@ ConceptDiagram
 MetaphorVisual
 FootageScene
 MixkitReveal
+RemotionLabShowcaseAsset
 MultiSceneVideo
 GeneratedTemplateVideo
 NarratedVideo
@@ -1995,6 +2001,7 @@ SinoJapaneseWarDemo
 - `MultiSceneVideo` 是自动片段主合成；它读取 `scenes`、`audioSrc`、`captions`，用 `Sequence` 拼接多个镜头。
 - `GeneratedTemplateVideo` 是单模板包装器；它读取 `templateId`、`audioSrc`、`captions` 和时长。
 - `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`AtlasMapFlyover`、`MapRouteFlyover`、`HistoricalGlobeTexture1938`、`SvgAssembly`、`PromptHistogram`、`RulerProgress`、`PromptTextRotation`、`MixkitReveal` 都可以作为 `programmatic` provider 被自动片段调度。
+- `RemotionLabShowcaseAsset` 是素材库预览合成：左侧只注册一个入口，右侧用 `assetId` 选择 263 个 RemotionLab showcase 素材，避免把 263 个条目直接堆进合成列表。
 - `FootageScene` 是 footage provider 的渲染壳，只有 `visual-resolver.mjs` 或手动替换素材给出真实 `asset.path` 时使用。
 - 地图、历史和程序动画模板应通过 `sceneRegistry.tsx` 和 `visual-provider-manifest.json` 接入自动片段，不要让前端下拉框硬编码“文本里有某词就选某模板”。
 - 所有画布 UI 的细颗粒参数都放在 Remotion 原生 props 面板，不要在右侧生成控制台或左侧片段重复实现完整模板参数编辑器。
@@ -2353,6 +2360,7 @@ ConceptDiagram                概念关系图
 MetaphorVisual                隐喻可视化
 FootageScene                  本地素材片段
 MixkitReveal                  Mixkit 揭示预设
+RemotionLabShowcaseAsset     RemotionLab showcase 素材预览入口
 SinoJapaneseWarDemo          中日战争历史地球
 HistoricalGlobeTexture1938   1938 历史地球纹理
 AtlasMapFlyover              世界地图飞越
@@ -2587,7 +2595,7 @@ npm run lint
 cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 ```
 
-预期能看到 31 个合成。
+预期能看到 32 个合成。
 
 schema 覆盖验证：
 
@@ -2736,7 +2744,7 @@ http://127.0.0.1:3037
 - Remotion Studio 可运行。
 - 生成视频扩展已集成到 Studio 页面：原生“渲染”按钮旁边是生成入口，右侧浮层是生成控制台，左侧 explorer 是片段页签。
 - 右侧 Remotion 原生参数栏保持给 `schema/defaultProps` 编辑使用，不承载本项目片段 UI。
-- 31 个合成都已注册 schema 和 defaultProps。
+- 32 个合成都已注册 schema 和 defaultProps。
 - 文本生成视频默认使用 `GeneratedTemplateVideo`。
 - 自动片段系统使用 `MultiSceneVideo`，可以把长文拆成一段话绑定一个画面的片段时间轴。
 - 自动片段系统会在有 captions/SRT 时使用音频真实时间轴对齐片段。

@@ -52,6 +52,11 @@ import {
   QuoteReveal,
 } from "./templates/AutoSceneTemplates";
 import { FootageScene } from "./templates/FootageScene";
+import {
+  DEFAULT_REMOTIONLAB_SHOWCASE_ASSET_ID,
+  RemotionLabShowcaseAsset,
+  REMOTIONLAB_SHOWCASE_ASSET_IDS,
+} from "./remotionlab-showcase";
 
 const templateIdSchema = z.enum([
   "DocumentReveal",
@@ -175,6 +180,13 @@ const mixkitRevealSchema = z.object({
   backgroundColor: z.string().optional(),
   intensity: z.number().min(0.2).max(2).optional(),
   showSourceLabel: z.boolean().optional(),
+});
+
+const remotionLabShowcaseAssetSchema = z.object({
+  assetId: z.enum(REMOTIONLAB_SHOWCASE_ASSET_IDS).optional(),
+  showMetadata: z.boolean().optional(),
+  fit: z.enum(["cover", "contain"]).optional(),
+  darken: z.number().min(0).max(0.8).optional(),
 });
 
 const autoSceneTemplateIdSchema = z.enum([
@@ -507,6 +519,15 @@ const mixkitRevealDefaultProps: z.input<typeof mixkitRevealSchema> = {
   showSourceLabel: true,
 };
 
+const remotionLabShowcaseAssetDefaultProps: z.input<
+  typeof remotionLabShowcaseAssetSchema
+> = {
+  assetId: DEFAULT_REMOTIONLAB_SHOWCASE_ASSET_ID,
+  showMetadata: true,
+  fit: "contain",
+  darken: 0.18,
+};
+
 const claudeTyperDefaultProps: z.input<typeof claudeTyperSchema> = {
   prompt: "生成一套可复用的 Remotion 动画模板系统。",
   backgroundColor: "#15130f",
@@ -746,6 +767,16 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={mixkitRevealDefaultProps}
+      />
+      <Composition
+        id="RemotionLabShowcaseAsset"
+        component={RemotionLabShowcaseAsset}
+        schema={remotionLabShowcaseAssetSchema}
+        durationInFrames={180}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={remotionLabShowcaseAssetDefaultProps}
       />
       <Composition
         id="MultiSceneVideo"

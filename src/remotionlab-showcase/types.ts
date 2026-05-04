@@ -1,0 +1,24 @@
+export type RemotionLabShowcaseAsset = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: readonly string[];
+  date: string;
+  featured: boolean;
+  fileName: string;
+  previewPath: string;
+  previewUrl: string;
+  thumbnailUrl: string;
+  sourceCodePath: string;
+  metadataPath: string;
+  promptPath: string;
+  sourceUrl: string;
+  durationSec: number;
+  license: "MIT-per-remotionlab-terms";
+  sourceStatus: string;
+  visualKinds: readonly string[];
+  bestFor: readonly string[];
+  providerCandidateId: string;
+};
