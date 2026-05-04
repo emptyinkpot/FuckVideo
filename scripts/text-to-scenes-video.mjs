@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { planScenesFromCaptions, writeScenesFile } from "./scene-planner.mjs";
-import { attachAssetsToScenes, loadAssetIndex } from "./asset-matcher.mjs";
+import { loadAssetIndex } from "./asset-matcher.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -48,22 +48,17 @@ async function main() {
 
   const stamp = safeStamp();
   const scenesPath = path.join(generatedDir, `scenes-${stamp}.json`);
+  const assets = input.matchAssets !== false ? loadAssetIndex(input.assetIndex) : [];
   const plan = await writeScenesFile({
     text,
     outputPath: scenesPath,
-    options: { fps: Number(input.fps), maxChars: Number(input.maxChars) },
+    options: { fps: Number(input.fps), maxChars: Number(input.maxChars), assets },
   });
   const captions = input.captionsFile ? parseSrt(await readFile(path.resolve(projectRoot, input.captionsFile), "utf8")) : [];
   let scenes = captions.length
-    ? planScenesFromCaptions(captions, { fps: Number(input.fps), sourceText: text, maxChars: Number(input.maxChars) })
+    ? planScenesFromCaptions(captions, { fps: Number(input.fps), sourceText: text, maxChars: Number(input.maxChars), assets })
     : plan.scenes;
   assertCaptionSceneLockstep(scenes, captions);
-  if (input.matchAssets !== false) {
-    const assets = loadAssetIndex(input.assetIndex);
-    if (assets.length) {
-      scenes = attachAssetsToScenes(scenes, assets);
-    }
-  }
   await writeFile(scenesPath, JSON.stringify({ ...plan, scenes, totalFrames: sceneEndFrame(scenes) }, null, 2), "utf8");
 
   const props = {

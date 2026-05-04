@@ -206,7 +206,8 @@ remotion-project/
 
   scripts/
     text-to-video.mjs               命令行生成视频主链路
-    scene-planner.mjs               caption/micro-segment 切分、语义卡、视觉合约、模板握手
+    scene-planner.mjs               caption/micro-segment 切分、语义卡、视觉合约、Visual Resolver 调用
+    visual-resolver.mjs             Programmatic / Template / Footage 三类 VisualProvider 调度器
     timeline-aligner.mjs            旧兼容：把已有 scenes 贴到音频真实时间轴
     asset-indexer.mjs               扫描 public/footage 生成素材索引草稿
     asset-matcher.mjs               根据 semanticCard/visualContract 硬过滤、召回和解释素材候选
@@ -225,11 +226,12 @@ remotion-project/
     templates/
       GeneratedTemplateVideo.tsx    生成视频包装器：现有模板 + 音频 + 字幕
       MultiSceneVideo.tsx           多镜头视频容器：Sequence 时间轴拼接
-      DocumentReveal.tsx            条约/文件/档案类镜头模板
+      DocumentReveal.tsx            唯一文件证据展示模板：截取上下文、高亮、推镜、纸张质感
       AutoSceneTemplates.tsx        人物、引文、概念、隐喻四类解释型镜头模板
       FootageScene.tsx              本地素材片段镜头模板
       sceneRegistry.tsx             自动片段 templateId -> Remotion 组件映射
-      template-manifest.json        模板握手说明书，供 planner 理解 accepts/rejectIf/propMapping
+      visual-provider-manifest.json 可执行 VisualProvider 握手说明书，供 resolver 调度三类 provider
+      template-manifest.json        旧兼容模板说明书
       NarratedVideo.tsx             通用旁白视频模板
       MapTemplates.tsx              地图飞越模板
       MotionTemplates.tsx           二维动态图形模板
@@ -673,8 +675,9 @@ src/Root.tsx
 8. 如果希望被“生成视频扩展”调用，还要加入：
    - `src/templates/GeneratedTemplateVideo.tsx` 的 `ExistingTemplateId`
    - `src/templates/sceneRegistry.tsx` 的 `AutoSceneTemplateId` 和 `renderSceneTemplate`
-   - `scripts/scene-planner.mjs` 的模板匹配规则
-   - `src/templates/template-manifest.json` 的模板语义说明
+   - `src/templates/visual-provider-manifest.json` 的 provider 握手说明
+   - `scripts/visual-resolver.mjs` 能识别的新 provider 能力
+   - `scripts/scene-planner.mjs` 生成的 `semanticCard / visualContract`
    - `templates` 映射
    - `templateOptions`
    - `frontend/remotion-studio-plugin.js` 的模板下拉
@@ -1526,7 +1529,7 @@ function findExplorerTabs() {
 - 当前片段旁白 / 字幕
 - 当前片段视觉意图
 - 当前片段理解：主体、动作、地点、文件、必须展示、禁止展示
-- 当前画面解释：模板/素材、置信度、命中原因
+- 当前画面解释：provider 类型、provider ID、置信度、命中原因
 - 当前片段画面 / 模板
 - 当前片段类型
 - 开始 / 结束毫秒
@@ -1648,9 +1651,10 @@ GET  http://127.0.0.1:3037/files/:id
 - 新片段操作复用左侧 `ttv-storyboard-panel`，不要把片段编辑塞回右侧。
 - 新预览能力复用 Remotion Studio 中央画布和 `MultiSceneVideo`，不要自建 `<video>` 预览替代主预览。
 - 新项目数据能力复用 `.runtime/video-projects/<id>.json` 和 `project-store.mjs`，不要另建平行 project store。
-- 新素材能力复用 `asset-indexer.mjs`、`asset-matcher.mjs`、`visualLayer` 和 `alternatives`，不要把素材路径散落在前端本地状态。
+- 新视觉资源能力复用 `visual-provider-manifest.json`、`visual-resolver.mjs`、`visualLayer`、`visualCandidates` 和 `decisionTrace`，不要把 provider 选择逻辑散落在前端本地状态。
+- 新 footage 素材能力复用 `asset-indexer.mjs`、`asset-matcher.mjs` 和 `asset-index.json`，不要把素材路径散落在前端本地状态。
 - 新导出能力复用 `export-video-project.mjs` 和 `projectToMultiSceneProps()`，不要在前端拼 Remotion render 参数。
-- 新模板能力复用 `template-manifest.json`、`scene-planner.mjs` 和 `sceneRegistry.tsx`，不要让前端硬编码模板语义。
+- 新程序动画能力复用 `visual-provider-manifest.json`、`scene-planner.mjs`、`visual-resolver.mjs` 和 `sceneRegistry.tsx`，不要让前端硬编码模板语义。
 - 新状态持久化优先使用现有 localStorage key 命名空间 `ttv.*`，不要写入 Remotion 自有 key，除非明确是 `remotion_inputPropsOverride<origin>`。
 
 前端边界：
@@ -1967,8 +1971,9 @@ SinoJapaneseWarDemo
 
 - `MultiSceneVideo` 是自动片段主合成；它读取 `scenes`、`audioSrc`、`captions`，用 `Sequence` 拼接多个镜头。
 - `GeneratedTemplateVideo` 是单模板包装器；它读取 `templateId`、`audioSrc`、`captions` 和时长。
-- `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`FootageScene` 是自动片段可调度的基础模板。
-- 地图和历史模板应通过 `sceneRegistry.tsx` 和 `template-manifest.json` 接入自动片段，不要让前端下拉框硬编码“文本里有某词就选某模板”。
+- `DocumentReveal`、`QuoteReveal`、`PortraitFocus`、`ConceptDiagram`、`MetaphorVisual`、`AtlasMapFlyover`、`MapRouteFlyover`、`HistoricalGlobeTexture1938`、`SvgAssembly`、`PromptHistogram`、`RulerProgress`、`PromptTextRotation` 都可以作为 `programmatic` provider 被自动片段调度。
+- `FootageScene` 是 footage provider 的渲染壳，只有 `visual-resolver.mjs` 或手动替换素材给出真实 `asset.path` 时使用。
+- 地图、历史和程序动画模板应通过 `sceneRegistry.tsx` 和 `visual-provider-manifest.json` 接入自动片段，不要让前端下拉框硬编码“文本里有某词就选某模板”。
 - 所有画布 UI 的细颗粒参数都放在 Remotion 原生 props 面板，不要在右侧生成控制台或左侧片段重复实现完整模板参数编辑器。
 
 #### 15.7.6 前端复用原则
@@ -1980,7 +1985,7 @@ SinoJapaneseWarDemo
 3. 需要创建视频项目：复用右侧 `ttv-generator-panel` 和 `/api/jobs`。
 4. 需要改片段：复用左侧 `ttv-storyboard-panel` 和 `/api/projects/:id` 系列接口。
 5. 需要备用独立页面：才使用 `video-generator.html` 或 `video-project.html`，但不能让它们成为能力唯一来源。
-6. 需要新增模板：先补 `src/templates/*`、`Root.tsx`、`template-manifest.json`、`sceneRegistry.tsx`，再决定是否在生成控制台的模板下拉中暴露。
+6. 需要新增模板或程序动画 provider：先补 `src/templates/*`、`Root.tsx`、`sceneRegistry.tsx`、`visual-provider-manifest.json`，再决定是否在生成控制台的模板下拉中暴露。
 
 禁止的重复建设：
 
@@ -2376,7 +2381,7 @@ src/templates/DocumentReveal.tsx
 src/templates/AutoSceneTemplates.tsx
 src/templates/FootageScene.tsx
 src/templates/sceneRegistry.tsx
-src/templates/template-manifest.json
+src/templates/visual-provider-manifest.json
 frontend/video-project.html
 ```
 
@@ -2407,10 +2412,12 @@ ffprobe 读时长
 7. 写 `scripts/scene-planner.mjs` 和 `scripts/text-to-scenes-tts-video.mjs`：
 
 ```text
-分句
-提取关键词
-匹配模板
-生成 scenes JSON
+分句 / 读取 captions
+把过长 caption 拆成 semantic micro-segments
+为每个 micro-segment 生成 semanticCard 和 visualContract
+调用 visual-resolver.mjs 做 VisualProvider 握手
+优先调度 Remotion 程序动画资产，footage 只作为强命中候选
+生成 scenes JSON，保留 visualCandidates 和 decisionTrace
 把 TTS 音频、字幕和 scenes 送入 MultiSceneVideo
 ```
 
@@ -2425,15 +2432,25 @@ ffprobe 读时长
 没有 captions 时才使用文本估算时长
 ```
 
-9. 写 `scripts/asset-indexer.mjs`、`scripts/asset-matcher.mjs` 和 `scripts/scene-asset-planner.mjs`：
+9. 写 `src/templates/visual-provider-manifest.json` 和 `scripts/visual-resolver.mjs`：
+
+```text
+把程序动画、兜底模板、footage 统一登记为 VisualProvider
+为每个 provider 写 accepts / rejectIf / capabilities / propMapping / score / duration
+resolver 对 Programmatic / Template / Footage 三类 provider 做硬过滤、打分、填参和决策追踪
+每个 scene 输出 providerType / visualProviderId / visualCandidates / decisionTrace
+```
+
+10. 写 `scripts/asset-indexer.mjs`、`scripts/asset-matcher.mjs` 和 `scripts/scene-asset-planner.mjs`：
 
 ```text
 扫描 public/footage
 生成 public/generated/asset-index.json
-用 sceneType / visualIntent / keywords / tags / bestFor 给 scenes 追加 visualLayer
+给 resolver 提供 footage 候选
+兼容旧流程：给已有 scenes 单独追加 visualLayer
 ```
 
-10. 写 `scripts/project-store.mjs` 和 `scripts/export-video-project.mjs`：
+11. 写 `scripts/project-store.mjs` 和 `scripts/export-video-project.mjs`：
 
 ```text
 把生成结果转成 VideoProject
@@ -2443,7 +2460,7 @@ ffprobe 读时长
 调用 Remotion 总导出
 ```
 
-11. 写 `scripts/video-ui-server.mjs`：
+12. 写 `scripts/video-ui-server.mjs`：
 
 ```text
 GET /video-generator
@@ -2700,7 +2717,7 @@ http://127.0.0.1:3037
 - 自动片段系统使用 `MultiSceneVideo`，可以把长文拆成一段话绑定一个画面的片段时间轴。
 - 自动片段系统会在有 captions/SRT 时使用音频真实时间轴对齐片段。
 - 自动片段系统会给每个片段写入 `semanticCard`、`visualContract`、`visualGrounding`、`visualCandidates` 和 `decisionTrace`。
-- 素材检索系统可以扫描 `public/footage/`，并把匹配到的画面写入 scene/segment 的 `visualLayer`/`visual`。
+- Visual Resolver 会优先调度 Remotion 程序动画 provider，并在 `asset-index.json` 存在时把本地 footage 作为强命中候选。
 - TTS 音频会统一转成标准 MP3。
 - 可选 SRT 字幕。
 - 输出视频落到 `out/`。
@@ -2726,8 +2743,9 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
   -> 过长 caption 拆成 semantic micro-segments
   -> SegmentSemanticCard
   -> Visual Contract / Evidence Mode
-  -> template-manifest.json 执行模板握手
-  -> asset-index.json 执行素材硬过滤和语义召回
+  -> visual-provider-manifest.json 执行 VisualProvider 握手
+  -> Visual Resolver 优先调度 Programmatic Asset
+  -> asset-index.json 作为 footage 候选参与强命中竞争
   -> visualCandidates + decisionTrace
   -> scenes JSON
   -> MultiSceneVideo
@@ -2736,40 +2754,131 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 
 新增文件：
 
-- `scripts/scene-planner.mjs`：文本拆块、caption 驱动片段生成、关键词提取、视觉意图生成、manifest 打分、模板轮换、scene props 生成。
+- `scripts/scene-planner.mjs`：文本拆块、caption 驱动片段生成、关键词提取、语义卡、视觉合约、调用 Visual Resolver 生成 scene。
+- `scripts/visual-resolver.mjs`：统一调度 `VisualProvider`，按 `programmatic / template / footage` 三类资源执行握手、打分、填参和决策追踪。
 - `scripts/timeline-aligner.mjs`：旧兼容工具；新一站式生成不再用它把 captions 按文本长度分组到 scenes。
 - `scripts/asset-indexer.mjs`：扫描 `public/footage/`，生成素材索引草稿。
-- `scripts/asset-matcher.mjs`：用 sceneType、visualIntent、keywords、tags、bestFor 给 scene 匹配素材。
+- `scripts/asset-matcher.mjs`：旧兼容工具，给已有 scenes 单独追加 footage 候选；一站式生成主链路优先走 `visual-resolver.mjs`。
 - `scripts/scene-asset-planner.mjs`：给已有 scenes JSON 追加 `visualLayer`。
 - `scripts/text-to-scenes-video.mjs`：生成 scenes/props，并可直接渲染 `MultiSceneVideo`。
-- `src/templates/DocumentReveal.tsx`：条约、文件、策论、档案类镜头模板。
+- `src/templates/DocumentReveal.tsx`：唯一文件证据展示模板，承接条约、文件、策论、档案、原文证据类片段。
 - `src/templates/AutoSceneTemplates.tsx`：`PortraitFocus`、`QuoteReveal`、`ConceptDiagram`、`MetaphorVisual` 四类解释型镜头模板。
 - `src/templates/FootageScene.tsx`：本地素材片段模板。
 - `src/templates/sceneRegistry.tsx`：把 `templateId` 映射到现有 Remotion 模板。
 - `src/templates/MultiSceneVideo.tsx`：多镜头容器，使用 Remotion `Sequence` 拼接时间轴。
-- `src/templates/template-manifest.json`：模板说明书，记录每个模板的适用场景、避免场景、视觉隐喻、必需 props、时长范围和镜头角色。
+- `src/templates/visual-provider-manifest.json`：当前主说明书，记录每个可调度视觉资源的 `providerType`、`accepts`、`rejectIf`、`capabilities`、`propMapping`、`score` 和时长范围。
+- `src/templates/template-manifest.json`：旧兼容说明书，保留给历史脚本和人工查阅，不再是一站式自动片段的主调度入口。
 
-### 23.1 模板说明书
+### 23.1 Visual Provider 说明书
 
-`template-manifest.json` 是 planner 理解模板库的根，不再只看模板名猜用途。每个模板至少包含：
+`visual-provider-manifest.json` 是 planner 和 resolver 理解视觉资源的根。视觉资源统一叫 `VisualProvider`，不是只分“模板”和“素材”：
+
+```ts
+type VisualProviderType = "programmatic" | "template" | "footage";
+```
+
+含义：
+
+- `programmatic`：Remotion 程序动画资产，当前产品的主打能力，优先调度。
+- `template`：稳定解释兜底，比如 `NarratedScene`。
+- `footage`：本地影视/实拍素材，适合强命中、氛围增强或真实素材引用。
+
+每个 provider 至少包含：
 
 ```json
 {
   "id": "DocumentReveal",
+  "providerType": "programmatic",
   "displayName": "历史文件揭示",
   "category": "document",
-  "bestFor": ["条约", "和约", "协定", "策论", "文件", "转让"],
-  "avoidFor": ["战争过程", "人物身份介绍", "地理路线"],
-  "visualMetaphor": "一张旧纸文件展开，展示标题、正文、高亮词和印章",
-  "requiredProps": {
-    "title": "文件标题",
-    "body": "纸上显示的核心内容",
-    "highlightWords": "需要强调的词"
+  "accepts": {
+    "visualKinds": ["document", "quote"],
+    "requiredAny": ["documents", "objects"],
+    "allowedActions": ["show_evidence", "transfer", "quote", "explain"]
   },
-  "durationRangeSec": [4, 8],
-  "sceneRole": ["evidence", "document", "quote"]
+  "rejectIf": {
+    "mustNotShowConflicts": true
+  },
+  "capabilities": {
+    "canRenderText": true,
+    "canHighlightWords": true,
+    "canShowMovement": true,
+    "canShowMap": false,
+    "canShowRelationship": false,
+    "canLoop": true
+  },
+  "propMapping": {
+    "title": "semanticCard.entities.documents[0] || semanticCard.summary",
+    "body": "segment.text || semanticCard.summary",
+    "highlightText": "visualContract.mustShow[0] || semanticCard.event.object",
+    "highlightWords": "visualContract.mustShow",
+    "style": "'old_paper'",
+    "highlightMode": "'underline'"
+  },
+  "score": {
+    "kindMatch": 52,
+    "requiredEntityMatch": 35,
+    "mustShowMatch": 24,
+    "actionMatch": 12
+  },
+  "duration": { "minSec": 5, "idealSec": 7, "maxSec": 8 }
 }
 ```
+
+### 23.2 DocumentReveal 证据展示模板
+
+`DocumentReveal` 是唯一文件展示模板，不再保留 `DocumentRevealPro` 这类平行名字。所有 document / quote 的证据展示都先调度它，避免出现“基础版”和“高级版”并存导致调度器或用户误选。
+
+模板目标不是把文字放到纸上，而是复刻解说视频里常见的 Evidence Reveal 视觉公式：
+
+```text
+背景/空间
+  -> 纸张/书页/现代卡片
+  -> 文本排版
+  -> 手绘感高亮
+  -> 非线性推镜和光影
+```
+
+标准节奏：
+
+```text
+0s - 1s    文件进入：淡入、轻微位移、轻微旋转
+1s - 3s    稳定阅读：保持可读
+3s - 5s    高亮画出：underline / box / marker
+5s - 7s    镜头推进：Remotion Easing.bezier 慢快慢，不用线性 scale
+```
+
+参数合约：
+
+```ts
+type DocumentRevealProps = {
+  title?: string;
+  subtitle?: string;
+  body?: string;
+  highlightText?: string;
+  highlightWords?: string[];
+  style?: "old_paper" | "book" | "modern";
+  highlightMode?: "underline" | "box" | "marker";
+  maxSnippetChars?: number;
+  sealText?: string;
+};
+```
+
+实现规则：
+
+- `extractDocumentSnippet(body, highlightText, maxSnippetChars)` 只展示“证据句 + 上下文”，默认控制在 120 字以内，不把整段文案塞进纸面。
+- `old_paper` 用泛黄纸、颗粒、微抖、印章、vignette 和光扫，适合条约、档案、信件。
+- `book` 用米白书页和轻阴影，适合知识类原文引用。
+- `modern` 用深色卡片和蓝色强调，适合解释类证据。
+- 高亮必须像“画出来”，不能只用死板矩形；当前用确定性的 SVG 手绘路径实现 underline / box，marker 用渐进荧光笔背景。
+- 字体优先 `Noto Serif SC` / `LXGW WenKai`，再回退到 Georgia/serif；不要用默认 sans-serif 承载历史文件正文。
+- 可以参考 AE 模板、Envato / MotionArray / Artlist 的 document reveal、paper zoom、archive opener 动效节奏，但 Remotion 里必须重写为逐帧确定性动画，不能依赖运行时时间轴。
+
+工程边界：
+
+- 不引入另一个 `DocumentRevealPro`。
+- 不把 `framer-motion` 作为 Remotion 渲染主动画引擎；视频帧必须由 `frame`、`spring`、`interpolate`、`Easing.bezier` 决定。
+- 如果将来引入 `rough.js` 或真实纸张 PNG，必须仍保持可复现输入、可离线渲染，并在 `Root.tsx` schema 和 `visual-provider-manifest.json` 同步暴露参数。
 
 ## 24. 可编辑项目系统
 
@@ -2814,8 +2923,12 @@ type TimelineScene = {
     evidence: string[];
     hallucinationRisk: "low" | "medium" | "high";
   };
+  providerType?: "programmatic" | "template" | "footage";
+  visualProviderId?: string;
   visualLayer: {
-    type: "template" | "footage" | "template_with_footage_hint";
+    type: "template" | "footage";
+    providerType?: "programmatic" | "template" | "footage";
+    templateId?: string;
     clipId?: string;
     path?: string;
     startMs?: number;
@@ -2830,7 +2943,9 @@ type TimelineScene = {
 };
 
 type VisualCandidate = {
-  source: "template" | "footage";
+  source: "programmatic" | "template" | "footage";
+  providerType: "programmatic" | "template" | "footage";
+  id: string;
   templateId?: string;
   materialId?: string;
   score: number;
@@ -2839,10 +2954,12 @@ type VisualCandidate = {
 };
 
 type DecisionTrace = {
-  rejectedTemplates: { id: string; reason: string }[];
-  candidateTemplates: { id: string; score: number; reason: string[] }[];
+  rejectedProviders: { id: string; providerType?: string; reason: string }[];
+  candidateProviders: { id: string; providerType: string; score: number; reason: string[] }[];
+  rejectedTemplates?: { id: string; reason: string }[];
+  candidateTemplates?: { id: string; score: number; reason: string[] }[];
   candidateAssets?: { id: string; score: number; reason: string }[];
-  finalChoice: { type: "template" | "footage"; id: string; score?: number; reason: string; mappedProps?: Record<string, unknown> };
+  finalChoice: { type: "programmatic" | "template" | "footage" | "none"; id: string; score?: number; reason: string; mappedProps?: Record<string, unknown> };
 };
 ```
 
@@ -2918,7 +3035,7 @@ type CommonSceneProps = {
 
 例如：
 
-- `DocumentReveal` 使用 `title/body/highlightWords/tone`。
+- `DocumentReveal` 使用 `title/subtitle/body/highlightText/highlightWords/style/highlightMode/maxSnippetChars/sealText`，旧 `tone` 只作为兼容映射。
 - `AtlasMapFlyover` 使用 `title/subtitle/keywords/visualFocus`。
 - `QuoteReveal` 使用 `body/highlightWords/source`。
 - `ConceptDiagram` 使用 `title/body/keywords` 生成节点关系。
@@ -2931,12 +3048,12 @@ planner 输出的 scene 不再只是 `{ templateId, props }`，而是完整的�
 Caption Segment
   -> Semantic Card
   -> Visual Contract
-  -> Template/Asset Handshake
+  -> VisualProvider Handshake
   -> candidates + decisionTrace
   -> Studio 左侧片段理解面板
 ```
 
-`semanticCard` 是调度器理解片段的主结构，`visualContract` 是模板和素材必须遵守的画面契约，`visualGrounding` 用来约束证据来源，`decisionTrace` 用来解释为什么选中或拒绝某个模板/素材。任何新增模板、素材检索或 AI 重配逻辑都必须优先复用这几个字段，不要在前端或新脚本里重新猜画面。
+`semanticCard` 是调度器理解片段的主结构，`visualContract` 是所有 `VisualProvider` 必须遵守的画面契约，`visualGrounding` 用来约束证据来源，`decisionTrace` 用来解释为什么选中或拒绝某个程序动画、兜底模板或 footage。任何新增程序动画、素材检索或 AI 重配逻辑都必须优先复用这几个字段，不要在前端或新脚本里重新猜画面。
 
 核心结构：
 
@@ -3004,7 +3121,7 @@ type SegmentSemanticCard = {
     "shouldShow": ["关东州", "南满铁路", "租借地"],
     "mustNotShow": ["战场爆炸", "现代城市", "现代办公室", "炮火"],
     "evidenceMode": "explicit_text",
-    "allowedSources": ["template", "asset_match"]
+    "allowedSources": ["programmatic", "footage", "template"]
   },
   "visualGrounding": {
     "source": "explicit_text",
@@ -3012,64 +3129,83 @@ type SegmentSemanticCard = {
     "hallucinationRisk": "low"
   },
   "templateId": "DocumentReveal",
+  "providerType": "programmatic",
+  "visualProviderId": "DocumentReveal",
   "durationSec": 6,
   "decisionTrace": {
-    "rejectedTemplates": [
-      { "id": "PortraitFocus", "reason": "缺少必需实体：people" }
+    "rejectedProviders": [
+      { "id": "PortraitFocus", "providerType": "programmatic", "reason": "缺少必需实体组：people" }
     ],
-    "candidateTemplates": [
-      { "id": "DocumentReveal", "score": 84, "reason": ["画面类型=document", "文档实体=朴茨茅斯和约"] }
+    "candidateProviders": [
+      { "id": "DocumentReveal", "providerType": "programmatic", "score": 84, "reason": ["kind=document", "程序动画优先"] }
     ],
     "finalChoice": {
-      "type": "template",
+      "type": "programmatic",
       "id": "DocumentReveal",
       "reason": "画面类型=document；文档实体=朴茨茅斯和约"
     }
   },
   "props": {
     "title": "朴茨茅斯和约",
-    "body": "关东州租借地与南满铁路权益转让",
-    "highlightWords": ["关东州", "南满铁路", "转让"]
+    "body": "这“牛”，便是被《朴茨茅斯和约》悄然易手的关东州租借地与南满铁路。",
+    "highlightText": "朴茨茅斯和约",
+    "highlightWords": ["朴茨茅斯和约", "关东州", "南满铁路"],
+    "style": "old_paper",
+    "highlightMode": "underline"
   }
 }
 ```
 
 `visualIntent` 给人看，`visualIntentData` 是旧的轻量机器字段，仍然保留兼容；新逻辑必须优先读 `semanticCard.visualNeed` 和 `visualContract`。Evidence Mode 的硬规则：
 
-- 画面主体只能来自文案明确实体、已匹配素材、或模板能抽象表达的概念。
+- 画面主体只能来自文案明确实体、已匹配素材、或程序动画/模板能抽象表达的概念。
 - 如果人物实体不存在，`PortraitFocus` 会被拒绝，不能生造真实肖像。
 - 如果 `mustNotShow` 命中素材描述、标签或 semantic 字段，素材会被硬过滤。
-- `FootageScene` 不由模板轮换直接选择，只能由素材检索阶段在有 `asset.path` 时启用。
+- `FootageScene` 不由程序动画 provider 直接选择，只能由 footage 资产有 `asset.path` 且通过 resolver 打分后启用。
 - 前端只能展示和微调这些结构，不要在 UI 层用关键词重新推断模板。
 
-### 24.3 模板轮换策略
+### 24.3 Visual Resolver 策略
 
-`scene-planner.mjs` 当前实现了确定性轮换、模板握手和平滑：
-
-- 从 `template-manifest.json` 读取全部模板。
-- 每个模板在 manifest 里有 `accepts`、`rejectIf`、`propMapping`。这是模板握手协议，不只是说明文字。
-- 根据 `semanticCard.visualNeed.kind`、实体组、`bestFor`、`avoidFor`、`sceneRole`、`category`、当前 `sceneType` 计算分数。
-- 先执行拒绝条件：必需实体缺失、画面类型冲突、素材阶段专用模板等直接淘汰。
-- 连续镜头如果命中同一个模板，会优先选择分数接近但不同的候选模板。
-- 同类别镜头连续出现会扣分，避免全片只用文件或只用地图。
-- 每个 scene 都写入 `visualCandidates` 和 `decisionTrace`，方便前端显示“为什么这么配”。
-- 长历史叙事默认偏向这类节奏：
+`scene-planner.mjs` 不再直接用 `chooseTemplate()` 决定画面，主链路改为调用 `scripts/visual-resolver.mjs`。Resolver 的输入是 `SegmentSemanticCard + VisualContract`，输出是统一的 `VisualProvider` 决策：
 
 ```text
-establishing map -> portrait/person -> document evidence -> quote -> concept explain -> map route -> metaphor visual -> narrated fallback
+Segment 语义
+  -> Visual Contract
+  -> Visual Resolver
+  -> Programmatic Asset / Template / Footage
 ```
 
-当前 `sceneType` 识别与 manifest 召回线索：
+Resolver 优先级：
 
 ```text
-条约/和约/协定/策论/转让/租借地 -> document_evidence -> DocumentReveal 候选
-引用/原文/圈点/写道 -> quote_evidence -> QuoteReveal 候选
-人物/官员/将领/课长/太郎/参谋 -> character_focus -> PortraitFocus 候选
-利权/铁路附属地/势力范围/控制结构 -> concept_explain -> ConceptDiagram 候选
-像/仿佛/犹如/怀表/衣袋/新得之刃 -> metaphor_visual -> MetaphorVisual 候选
-港/铁路/关东州/南满/旅顺/大连/黄海 -> geo_context -> AtlasMapFlyover / MapRouteFlyover 候选
-战争/战役/硝烟/作战/占领 -> establishing_map -> HistoricalGlobeTexture1938 候选
-其他文本 -> narration_bridge -> NarratedScene 候选
+1. Programmatic Exact Match
+2. Programmatic Abstract Match
+3. Footage Exact Match
+4. Template Fallback
+5. Needs Review
+```
+
+具体规则：
+
+- 从 `visual-provider-manifest.json` 读取全部 provider。
+- `programmatic` 是 Remotion 程序动画资产，默认比 footage 更优先，因为它能稳定表达抽象关系、地图、文件、隐喻和人物卡。
+- `template` 只做稳定兜底，当前主要是 `NarratedScene`。
+- `footage` 必须有素材路径，并且必须通过 `mustNotShow / avoidFor / copyright` 硬过滤。
+- 如果 `visualContract.kind` 是 `document / quote / concept / metaphor / map / person`，分数足够的 programmatic provider 直接胜出。
+- 如果 `kind` 是 `atmosphere / war / place / object`，footage 强命中可以胜出；否则仍可回到 programmatic 抽象表达。
+- 每个 scene 都写入 `providerType`、`visualProviderId`、`visualCandidates` 和 `decisionTrace`，前端显示“为什么这么配”。
+
+当前 `sceneType` 到 `visualContract.kind` 的主映射：
+
+```text
+条约/和约/协定/策论/转让/租借地 -> document -> DocumentReveal
+引用/原文/圈点/写道 -> quote -> QuoteReveal
+人物/官员/将领/课长/太郎/参谋 -> person -> PortraitFocus
+利权/铁路附属地/势力范围/控制结构 -> concept -> ConceptDiagram / PromptHistogram / SvgAssembly
+像/仿佛/犹如/怀表/衣袋/新得之刃 -> metaphor -> MetaphorVisual / SvgAssembly
+港/铁路/关东州/南满/旅顺/大连/黄海 -> map -> AtlasMapFlyover / MapRouteFlyover
+战争/战役/硝烟/作战/占领 -> map/atmosphere -> HistoricalGlobeTexture1938 或强命中 footage
+其他文本 -> fallback -> NarratedScene
 ```
 
 ### 24.4 音频驱动时间轴
@@ -3092,9 +3228,9 @@ scene 的时间来自 caption 或父 caption 内的 micro-segment 分配，scene
 npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-xxxx.mp3 --captions-file public/generated/tts-xxxx.srt --output out/aligned.mp4
 ```
 
-### 24.5 素材检索系统
+### 24.5 Footage 素材候选
 
-素材检索系统解决“讲到战争、条约、港口、铁路时能不能调本地素材”的问题。当前实现是本地素材库优先，不引入外部素材搜索。
+Footage 素材候选解决“讲到战争、港口、铁路、真实地点时是否有本地素材可用”的问题。当前主调度器仍是 `visual-resolver.mjs`，默认优先程序动画资产；本地 footage 只有在强命中、氛围增强或真实素材引用时参与竞争，不会取代 `VisualProvider` 握手。
 
 目录约定：
 
@@ -3137,24 +3273,27 @@ npm run index-assets
 npm run match-assets -- --scenes=public/generated/scenes-demo.json --output=public/generated/scenes-with-assets.json
 ```
 
-一站式链路默认会在 `asset-index.json` 存在时自动匹配素材；没有素材索引时不会中断，会继续使用模板镜头。
+这条命令是旧兼容/手动补素材流程。一站式链路会把 `asset-index.json` 作为 footage 候选交给 `visual-resolver.mjs`；没有素材索引时不会中断，会继续使用 programmatic provider 或 `NarratedScene` 兜底。
 
-scene 匹配素材后会多出 `visualLayer`：
+resolver 选择 footage 后会写入 `providerType: "footage"` 和 `visualLayer`：
 
 ```json
 {
+  "providerType": "footage",
+  "visualProviderId": "war-smoke-001",
+  "templateId": "FootageScene",
   "visualLayer": {
     "type": "footage",
+    "providerType": "footage",
     "clipId": "war-smoke-001",
     "path": "footage/war-smoke-001.mp4",
     "confidence": 37,
-    "reason": "命中：战争、硝烟、establishing_map",
-    "fallbackTemplateId": "HistoricalGlobeTexture1938"
+    "reason": "素材命中：战争、硝烟；score=37"
   }
 }
 ```
 
-`sceneRegistry.tsx` 看到 `visualLayer.type === "footage"` 时会直接渲染 `FootageScene`。如果是 `template_with_footage_hint`，当前仍主用模板，同时把匹配素材保留在 scene 里，后续可以让具体模板把素材当背景。
+`sceneRegistry.tsx` 看到 `templateId === "FootageScene"` 或 `visualLayer.type === "footage"` 时会直接渲染 `FootageScene`。如果 footage 只是候选但没有胜出，它只保留在 `visualCandidates` / `decisionTrace.candidateAssets` 中，不写混合 visualLayer 类型。
 
 目前素材匹配使用三阶段本地召回：
 
@@ -3168,7 +3307,7 @@ scene 匹配素材后会多出 `visualLayer`：
   -> visualLayer + visualCandidates + decisionTrace.candidateAssets
 ```
 
-`asset-matcher.mjs` 已保留 `optionalEmbeddingRerank()` 接口。素材库少于几百条时，先用标签和描述更稳；素材库变大后，可以接 OpenAI、DashScope 或本地 embedding 做 rerank。
+`asset-matcher.mjs` 已保留 `optionalEmbeddingRerank()` 接口，适合旧 scenes JSON 的离线补素材。主链路如果后续要接 embedding rerank，应优先接到 `visual-resolver.mjs` 的 footage candidate 排序阶段，而不是绕过 resolver。
 
 只生成镜头规划，不渲染：
 
@@ -3241,13 +3380,33 @@ npm run text-to-scenes-video -- --text-file input.txt --audio-src generated/tts-
       "timingSource": "captions",
       "keywords": ["朴茨茅斯和约", "转让"],
       "decisionReason": "历史文件揭示: 一张旧纸文件展开，展示标题、正文、高亮词和印章",
+      "providerType": "programmatic",
+      "visualProviderId": "DocumentReveal",
       "visualLayer": {
-        "type": "template_with_footage_hint",
-        "clipId": "treaty-paper-001",
-        "path": "footage/treaty-paper-001.mp4",
-        "confidence": 24,
-        "reason": "主用模板，素材作备选：命中：条约、文件、document_evidence"
+        "type": "template",
+        "providerType": "programmatic",
+        "templateId": "DocumentReveal",
+        "confidence": 84,
+        "reason": ["kind=document", "provider=DocumentReveal", "程序动画优先"]
       },
+      "visualCandidates": [
+        {
+          "source": "programmatic",
+          "providerType": "programmatic",
+          "id": "DocumentReveal",
+          "templateId": "DocumentReveal",
+          "score": 84,
+          "reason": ["kind=document", "provider=DocumentReveal", "程序动画优先"]
+        },
+        {
+          "source": "footage",
+          "providerType": "footage",
+          "id": "treaty-paper-001",
+          "materialId": "treaty-paper-001",
+          "score": 52,
+          "reason": "素材命中：条约、文件；score=52"
+        }
+      ],
       "props": {
         "title": "朴茨茅斯和约",
         "subtitle": "历史文件",

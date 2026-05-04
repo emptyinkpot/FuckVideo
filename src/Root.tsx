@@ -97,8 +97,12 @@ const documentRevealSchema = z.object({
   title: z.string().optional(),
   subtitle: z.string().optional(),
   body: z.string().optional(),
-  sealText: z.string().optional(),
+  highlightText: z.string().optional(),
   highlightWords: z.array(z.string()).optional(),
+  style: z.enum(["old_paper", "book", "modern"]).optional(),
+  highlightMode: z.enum(["underline", "box", "marker"]).optional(),
+  maxSnippetChars: z.number().min(40).max(180).optional(),
+  sealText: z.string().optional(),
   tone: z.enum(["aged", "historical", "dramatic", "dark", "clean"]).optional(),
 });
 
@@ -163,6 +167,9 @@ const autoSceneTemplateIdSchema = z.enum([
   "AtlasMapFlyover",
   "MapRouteFlyover",
   "HistoricalGlobeTexture1938",
+  "SvgAssembly",
+  "PromptHistogram",
+  "RulerProgress",
   "PromptTextRotation",
   "FootageScene",
   "NarratedScene",
@@ -172,6 +179,7 @@ const visualLayerSchema = z
   .object({
     type: z.enum(["template", "footage", "template_with_footage_hint"]),
     templateId: z.string().optional(),
+    providerType: z.string().optional(),
     clipId: z.string().optional(),
     path: z.string().optional(),
     title: z.string().optional(),
@@ -194,6 +202,8 @@ const autoSceneSchema = z.object({
   visualGrounding: z.record(z.string(), z.unknown()).optional(),
   visualCandidates: z.array(z.record(z.string(), z.unknown())).optional(),
   decisionTrace: z.record(z.string(), z.unknown()).optional(),
+  visualProviderId: z.string().optional(),
+  providerType: z.string().optional(),
   templateId: autoSceneTemplateIdSchema,
   category: z.string().optional(),
   durationSec: z.number().optional(),
@@ -414,11 +424,16 @@ const defaultNarratedVideoProps = {
 } satisfies Required<NarratedVideoProps>;
 
 const documentRevealDefaultProps: z.input<typeof documentRevealSchema> = {
-  title: "朴茨茅斯和约",
+  title: "《朴茨茅斯和约》",
   subtitle: "历史文件",
-  body: "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。",
+  body:
+    "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。关东州租借地与南满铁路，成为战后日本经营大陆的新支点。",
+  highlightText: "所谓“转让”遮住了更复杂的权力关系",
+  highlightWords: ["转让", "关东州", "南满铁路"],
+  style: "old_paper",
+  highlightMode: "underline",
+  maxSnippetChars: 120,
   sealText: "ARCHIVE",
-  highlightWords: ["转让", "条约"],
   tone: "aged",
 };
 

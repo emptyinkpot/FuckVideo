@@ -614,7 +614,8 @@
       cursor: pointer;
       user-select: none;
     }
-    .ttv-segment-block.template { background: #243044; border-color: rgba(79,140,255,.28); }
+    .ttv-segment-block.programmatic { background: #243044; border-color: rgba(79,140,255,.28); }
+    .ttv-segment-block.template { background: #2a2d39; border-color: rgba(156,163,175,.24); }
     .ttv-segment-block.footage { background: #22372d; border-color: rgba(62,180,137,.28); }
     .ttv-segment-block.low_confidence { background: #3a321d; border-color: rgba(245,158,11,.55); }
     .ttv-segment-block.missing_visual { background: #3b2020; border-color: rgba(239,68,68,.55); }
@@ -1207,11 +1208,12 @@
         endMs: Number(segment.endMs ?? scene.endMs ?? 0),
         durationMs: Number(segment.durationMs ?? (Number(scene.endMs || 0) - Number(scene.startMs || 0))),
         visual: {
-          source: visual.source || (scene.visualLayer?.type === "footage" ? "footage" : "template"),
+          source: visual.source || scene.providerType || scene.visualLayer?.providerType || (scene.visualLayer?.type === "footage" ? "footage" : "template"),
           templateId: visual.templateId || scene.templateId || scene.visualLayer?.templateId || "",
           materialId: visual.materialId || scene.visualLayer?.clipId || "",
           confidence: Number(visual.confidence || scene.visualLayer?.confidence || 0),
           reason: visual.reason || scene.visualLayer?.reason || scene.decisionReason || "",
+          providerType: visual.providerType || scene.providerType || scene.visualLayer?.providerType || "",
         },
         semanticCard: segment.semanticCard || scene.semanticCard || {},
         visualContract: segment.visualContract || scene.visualContract || {},
@@ -1338,8 +1340,9 @@
     const width = Math.max(2, clamp((Number(segment.durationMs || 0) / durationMs) * 100, 0, 100 - left));
     const selected = segment.id === state.selectedSceneId;
     const dense = width < 7;
-    const visualSource = segment.visual?.source || "template";
-    const label = `${String(index + 1).padStart(2, "0")} ${Math.round(Number(segment.durationMs || 0) / 100) / 10}s · ${visualSource === "footage" ? "素材" : "模板"}`;
+    const visualSource = segment.visual?.providerType || segment.visual?.source || "template";
+    const sourceLabel = visualSource === "footage" ? "素材" : visualSource === "programmatic" ? "程序" : "模板";
+    const label = `${String(index + 1).padStart(2, "0")} ${Math.round(Number(segment.durationMs || 0) / 100) / 10}s · ${sourceLabel}`;
     return `
       <div
         class="ttv-segment-block ${escapeHtml(visualSource)} ${escapeHtml(segment.status || "ok")} ${segment.locked ? "locked" : ""} ${selected ? "active" : ""} ${dense ? "dense" : ""}"
@@ -1479,7 +1482,7 @@
           ${understandingRow("禁止", joinList(need.mustNotShow))}
         </div>
         <div class="ttv-trace">
-          当前画面：${escapeHtml(visualLayer.type || "template")} ${escapeHtml(visualLayer.clipId || scene.templateId || "")}
+          当前画面：${escapeHtml(scene.providerType || visualLayer.providerType || visualLayer.type || "template")} ${escapeHtml(scene.visualProviderId || visualLayer.clipId || scene.templateId || "")}
           · 置信度 ${Math.round(Number(visualLayer.confidence || finalChoice.score || 0))}
           <br />
           原因：${escapeHtml(visualLayer.reason || finalChoice.reason || scene.decisionReason || "无")}

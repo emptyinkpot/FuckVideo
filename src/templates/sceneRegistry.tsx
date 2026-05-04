@@ -1,7 +1,8 @@
 import { AbsoluteFill } from "remotion";
 import { HistoricalGlobeTexture1938 } from "../historical-globe/compositions/HistoricalGlobeTexture1938";
 import { AtlasMapFlyover, MapRouteFlyover } from "./MapTemplates";
-import { PromptTextRotation } from "./PromptMotionExamples";
+import { RulerProgressTemplate, SvgAssemblyTemplate } from "./MotionTemplates";
+import { PromptHistogram, PromptTextRotation } from "./PromptMotionExamples";
 import { DocumentReveal, type DocumentRevealProps } from "./DocumentReveal";
 import {
   ConceptDiagram,
@@ -25,6 +26,9 @@ export type AutoSceneTemplateId =
   | "AtlasMapFlyover"
   | "MapRouteFlyover"
   | "HistoricalGlobeTexture1938"
+  | "SvgAssembly"
+  | "PromptHistogram"
+  | "RulerProgress"
   | "PromptTextRotation"
   | "FootageScene"
   | "NarratedScene";
@@ -33,11 +37,13 @@ export type AutoSceneVisualLayer =
   | {
       type: "template";
       templateId?: AutoSceneTemplateId;
+      providerType?: string;
       confidence?: number;
       reason?: string;
     }
   | {
       type: "footage";
+      providerType?: string;
       clipId?: string;
       path: string;
       title?: string;
@@ -48,6 +54,7 @@ export type AutoSceneVisualLayer =
   | {
       type: "template_with_footage_hint";
       templateId?: AutoSceneTemplateId;
+      providerType?: string;
       clipId?: string;
       path?: string;
       title?: string;
@@ -63,6 +70,8 @@ export type AutoScene = {
   narrationText?: string;
   visualIntent?: string;
   templateId: AutoSceneTemplateId;
+  visualProviderId?: string;
+  providerType?: string;
   durationSec?: number;
   fromFrame: number;
   durationInFrames: number;
@@ -178,6 +187,47 @@ export const renderSceneTemplate = (scene: AutoScene) => {
             backgroundColor: "#111111",
             textColor: "#f5f5f5",
             fontSize: 72,
+            ...scene.props,
+          })}
+        />
+      );
+    case "SvgAssembly":
+      return (
+        <SvgAssemblyTemplate
+          {...asProps<React.ComponentProps<typeof SvgAssemblyTemplate>>({
+            title: commonProps(scene).title,
+            backgroundColor: "#070914",
+            glowColor: "rgba(94,231,255,0.7)",
+            partColorA: "#d6b36a",
+            partColorB: "#7ea7ff",
+            ...scene.props,
+          })}
+        />
+      );
+    case "PromptHistogram":
+      return (
+        <PromptHistogram
+          {...asProps<React.ComponentProps<typeof PromptHistogram>>({
+            title: commonProps(scene).title,
+            backgroundColor: "#050505",
+            firstLabel: commonProps(scene).keywords?.[0] || "文本",
+            secondLabel: commonProps(scene).keywords?.[1] || "地点",
+            thirdLabel: commonProps(scene).keywords?.[2] || "组织",
+            fourthLabel: commonProps(scene).keywords?.[3] || "文件",
+            fifthLabel: commonProps(scene).keywords?.[4] || "概念",
+            ...scene.props,
+          })}
+        />
+      );
+    case "RulerProgress":
+      return (
+        <RulerProgressTemplate
+          {...asProps<React.ComponentProps<typeof RulerProgressTemplate>>({
+            title: commonProps(scene).title,
+            targetProgress: 0.72,
+            backgroundColor: "#f4efe5",
+            fillColorA: "#21a87a",
+            fillColorB: "#5ee7ac",
             ...scene.props,
           })}
         />

@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { planScenesFromCaptions, writeScenesFile } from "./scene-planner.mjs";
-import { attachAssetsToScenes, loadAssetIndex } from "./asset-matcher.mjs";
+import { loadAssetIndex } from "./asset-matcher.mjs";
 import { stretchScenesToFrames } from "./timeline-aligner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -97,23 +97,18 @@ async function main() {
 
   console.log("[4/6] 正在规划自动片段...");
   const scenesPath = path.join(generatedDir, `scenes-${stamp}.json`);
+  const assets = input.matchAssets !== false ? loadAssetIndex(input.assetIndex) : [];
   const plan = await writeScenesFile({
     text: input.text,
     outputPath: scenesPath,
-    options: { fps: 30, maxChars: Number(input.maxChars || 130) },
+    options: { fps: 30, maxChars: Number(input.maxChars || 130), assets },
   });
   const sceneFrames = plan.scenes.reduce((sum, scene) => sum + scene.durationInFrames, 0);
   const targetFrames = Math.max(sceneFrames, Math.ceil(durationSeconds * 30));
   let scenes = captions.length
-    ? planScenesFromCaptions(captions, { fps: 30, sourceText: input.text, maxChars: Number(input.maxChars || 130) })
+    ? planScenesFromCaptions(captions, { fps: 30, sourceText: input.text, maxChars: Number(input.maxChars || 130), assets })
     : stretchScenesToFrames(plan.scenes, targetFrames);
   assertCaptionSceneLockstep(scenes, captions);
-  if (input.matchAssets !== false) {
-    const assets = loadAssetIndex(input.assetIndex);
-    if (assets.length) {
-      scenes = attachAssetsToScenes(scenes, assets);
-    }
-  }
   await writeFile(scenesPath, JSON.stringify({ ...plan, scenes, totalFrames: sceneEndFrame(scenes) }, null, 2), "utf8");
 
   const props = {

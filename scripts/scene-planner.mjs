@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadVisualProviders, resolveVisualForSegment } from "./visual-resolver.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -263,36 +264,33 @@ export function buildSceneProps(templateId, beat) {
 
 export function planScenes(text, options = {}) {
   const fps = Number(options.fps || 30);
-  const manifest = loadTemplateManifest();
+  const providers = options.visualProviders || loadVisualProviders(options.providerManifest);
+  const assets = options.assets || [];
   const blocks = splitIntoBlocks(text, Number(options.maxChars || 130));
   let cursor = 0;
   let previousScene = null;
 
   return blocks.map((blockText, index) => {
     const beat = makeVisualBeat(blockText, index);
-    const selected = chooseTemplate(beat, previousScene, manifest);
-    const template = selected.template;
-    const [minDuration, maxDuration] = template.durationRangeSec || [4, 8];
+    const resolved = resolveVisualForSegment(beat, { providers, assets, previous: previousScene });
+    const [minDuration, maxDuration] = resolved.durationRangeSec || [4, 8];
     const durationSec = Math.max(minDuration, Math.min(maxDuration, Math.ceil(blockText.length / 28)));
     const durationInFrames = durationSec * fps;
     const scene = {
       ...beat,
-      templateId: template.id,
-      category: template.category,
+      ...resolved,
+      templateId: resolved.templateId || "NarratedScene",
+      category: resolved.category || beat.sceneType,
       durationSec,
       fromFrame: cursor,
       durationInFrames,
-      decisionReason: `${template.displayName}: ${template.visualMetaphor}`,
-      visualCandidates: selected.trace.candidateTemplates.map((candidate) => ({
-        source: "template",
-        templateId: candidate.id,
-        score: candidate.score,
-        reason: candidate.reason,
-      })),
-      decisionTrace: selected.trace,
-      props: buildSceneProps(template.id, beat),
+      decisionReason: resolved.decisionTrace?.finalChoice?.reason || "",
+      props: {
+        ...buildSceneProps(resolved.templateId || "NarratedScene", beat),
+        ...(resolved.props || {}),
+      },
     };
-    scene.decisionTrace.finalChoice.mappedProps = scene.props;
+    if (scene.decisionTrace?.finalChoice) scene.decisionTrace.finalChoice.mappedProps = scene.props;
     cursor += durationInFrames;
     previousScene = scene;
     return scene;
@@ -301,7 +299,8 @@ export function planScenes(text, options = {}) {
 
 export function planScenesFromCaptions(captions, options = {}) {
   const fps = Number(options.fps || 30);
-  const manifest = loadTemplateManifest();
+  const providers = options.visualProviders || loadVisualProviders(options.providerManifest);
+  const assets = options.assets || [];
   const sourceBlocks = splitIntoBlocks(options.sourceText || "", Number(options.maxChars || 130));
   const timedTexts = normalizeTimedTexts(captions, sourceBlocks);
   const microSegments = planMicroSegmentsFromTimedTexts(timedTexts, options);
@@ -309,16 +308,16 @@ export function planScenesFromCaptions(captions, options = {}) {
 
   return microSegments.map((item, index) => {
     const beat = makeVisualBeat(item.text, index);
-    const selected = chooseTemplate(beat, previousScene, manifest);
-    const template = selected.template;
+    const resolved = resolveVisualForSegment(beat, { providers, assets, previous: previousScene });
     const fromFrame = Math.max(0, Math.round((item.startMs / 1000) * fps));
     const durationInFrames = Math.max(1, Math.round(((item.endMs - item.startMs) / 1000) * fps));
     const durationSec = Math.round((durationInFrames / fps) * 100) / 100;
     const scene = {
       ...beat,
+      ...resolved,
       captionIndex: item.captionIndex,
-      templateId: template.id,
-      category: template.category,
+      templateId: resolved.templateId || "NarratedScene",
+      category: resolved.category || beat.sceneType,
       durationSec,
       fromFrame,
       durationInFrames,
@@ -328,17 +327,13 @@ export function planScenesFromCaptions(captions, options = {}) {
       parentCaptionIndex: item.parentCaptionIndex,
       estimatedTiming: Boolean(item.estimatedTiming),
       timingSource: "caption-segment",
-      decisionReason: `${template.displayName}: ${template.visualMetaphor}`,
-      visualCandidates: selected.trace.candidateTemplates.map((candidate) => ({
-        source: "template",
-        templateId: candidate.id,
-        score: candidate.score,
-        reason: candidate.reason,
-      })),
-      decisionTrace: selected.trace,
-      props: buildSceneProps(template.id, beat),
+      decisionReason: resolved.decisionTrace?.finalChoice?.reason || "",
+      props: {
+        ...buildSceneProps(resolved.templateId || "NarratedScene", beat),
+        ...(resolved.props || {}),
+      },
     };
-    scene.decisionTrace.finalChoice.mappedProps = scene.props;
+    if (scene.decisionTrace?.finalChoice) scene.decisionTrace.finalChoice.mappedProps = scene.props;
     previousScene = scene;
     return scene;
   });
@@ -664,7 +659,7 @@ function buildVisualContract(semanticCard) {
     shouldShow: visualNeed.shouldShow || [],
     mustNotShow: visualNeed.mustNotShow || [],
     evidenceMode: evidence.length ? "explicit_text" : "template_abstraction",
-    allowedSources: ["template", "asset_match"],
+    allowedSources: ["programmatic", "footage", "template"],
     evidence,
   };
 }

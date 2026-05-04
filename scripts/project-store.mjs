@@ -119,6 +119,8 @@ export function projectToMultiSceneProps(project) {
       visualGrounding: scene.visualGrounding || {},
       visualCandidates: scene.visualCandidates || [],
       decisionTrace: scene.decisionTrace || {},
+      visualProviderId: scene.visualProviderId || scene.visualLayer?.templateId || scene.templateId,
+      providerType: scene.providerType || scene.visualLayer?.providerType || "",
       templateId: scene.templateId,
       category: scene.category,
       durationSec: Math.round((durationInFrames / 30) * 100) / 100,
@@ -238,7 +240,7 @@ export function projectToSegments(project) {
     const endMs = Number(scene.endMs || startMs);
     const visualLayer = scene.visualLayer || {};
     const confidence = Number(visualLayer.confidence || 0);
-    const source = visualLayer.type === "footage" ? "footage" : "template";
+    const source = visualLayer.type === "footage" ? "footage" : scene.providerType || visualLayer.providerType || "template";
     const status = visualLayer.type === "footage" && !visualLayer.path
       ? "missing_visual"
       : confidence > 0 && confidence < 12
@@ -271,6 +273,8 @@ export function projectToSegments(project) {
         confidence,
         reason: visualLayer.reason || scene.decisionReason || "",
       },
+      visualProviderId: scene.visualProviderId || visualLayer.templateId || visualLayer.clipId || scene.templateId,
+      providerType: scene.providerType || visualLayer.providerType || source,
       semanticCard: scene.semanticCard || {},
       visualContract: scene.visualContract || {},
       visualGrounding: scene.visualGrounding || {},
@@ -338,6 +342,7 @@ export function replaceSceneMaterial(project, sceneId, candidate) {
       ...scene,
       visualLayer: {
         type: "footage",
+        providerType: "footage",
         clipId: candidate.id,
         path: candidate.path,
         title: candidate.title,
@@ -347,6 +352,8 @@ export function replaceSceneMaterial(project, sceneId, candidate) {
         reason: candidate.reason || "手动替换素材",
         fallbackTemplateId: scene.templateId,
       },
+      visualProviderId: candidate.id,
+      providerType: "footage",
       alternatives: [candidate, ...(scene.alternatives || []).filter((item) => item.id !== candidate.id)].slice(0, 12),
     };
   });
@@ -375,6 +382,8 @@ function sceneToTimelineScene(scene, index) {
     visualGrounding: scene.visualGrounding || {},
     visualCandidates: scene.visualCandidates || [],
     decisionTrace: scene.decisionTrace || {},
+    visualProviderId: scene.visualProviderId || scene.visualLayer?.templateId || scene.templateId,
+    providerType: scene.providerType || scene.visualLayer?.providerType || "",
     keywords: scene.keywords || [],
     decisionReason: scene.decisionReason || "",
     props: scene.props || {},
@@ -398,6 +407,8 @@ function timelineSceneToAutoScene(scene) {
     visualGrounding: scene.visualGrounding,
     visualCandidates: scene.visualCandidates || [],
     decisionTrace: scene.decisionTrace,
+    visualProviderId: scene.visualProviderId,
+    providerType: scene.providerType,
     templateId: scene.templateId,
     keywords: scene.keywords || [],
     props: scene.props || {},
