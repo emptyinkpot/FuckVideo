@@ -935,10 +935,14 @@ function extractMetaphorTitle(text) {
 }
 
 function cleanKeyword(value) {
-  return String(value || "")
-    .replace(/^[这那其之所谓与和及、，仿佛好像]+/, "")
+  let keyword = String(value || "")
+    .replace(/^[这那其之所谓、，仿佛好像]+/, "")
     .replace(/[，。！？；：,.!?;:]$/g, "")
     .trim();
+  if (!keyword.startsWith("和约")) {
+    keyword = keyword.replace(/^和+/, "");
+  }
+  return keyword.replace(/^[与及]+/, "").trim();
 }
 
 function uniqueClean(values) {

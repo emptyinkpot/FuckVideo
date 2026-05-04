@@ -8,6 +8,7 @@ out
 
 # Local runtime state.
 .runtime/
+public/generated/
 remotion-studio.*.log
 *.log
 __pycache__/
@@ -18,3 +19,6 @@ asset-source/**/.git/
 
 # Local visual/debug artifacts.
 screenshots/
+
+# Local Vercel project binding.
+.vercel
