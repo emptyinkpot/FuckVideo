@@ -184,11 +184,11 @@ async function generateSrt(input, audioUrl) {
 }
 
 async function postJson(url, body, fallbackMessage) {
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
+  }, fallbackMessage);
   const text = await res.text();
   const contentType = res.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
@@ -208,11 +208,51 @@ async function postJson(url, body, fallbackMessage) {
 }
 
 async function downloadToFile(url, filePath) {
-  const res = await fetch(url);
+  const res = await fetchWithRetry(url, {}, "下载音频失败");
   if (!res.ok) {
     throw new Error(`下载失败 ${url}: HTTP ${res.status}`);
   }
   await writeFile(filePath, Buffer.from(await res.arrayBuffer()));
+}
+
+async function fetchWithRetry(url, init = {}, fallbackMessage = "请求失败") {
+  const attempts = Number(process.env.TTV_FETCH_RETRIES || 3);
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await delay(1200 * attempt);
+      }
+    }
+  }
+  throw new Error(`${fallbackMessage}: ${formatFetchError(lastError, url)}`);
+}
+
+function formatFetchError(error, url) {
+  const target = safeUrlLabel(url);
+  const cause = error?.cause || {};
+  const code = cause.code || error?.code || "";
+  if (code === "UND_ERR_CONNECT_TIMEOUT") {
+    return `连接 ${target} 超时。请检查网络、代理/VPN，或稍后重试 TTS 服务`;
+  }
+  const message = cause.message || error?.message || String(error || "未知错误");
+  return `${target} ${code ? `${code}: ` : ""}${message}`;
+}
+
+function safeUrlLabel(url) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return String(url || "unknown-url");
+  }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function getAudioDuration(filePath) {

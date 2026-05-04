@@ -241,7 +241,7 @@ function runJob(job) {
         void completeJob(job);
         return;
       }
-      failJob(job, `生成进程退出，code=${code}`);
+      failJob(job, job.lastErrorLine || `生成进程退出，code=${code}`);
     });
   })().catch((error) => failJob(job, error instanceof Error ? error.message : String(error)));
 }
@@ -266,6 +266,9 @@ function handleLog(job, text) {
   const lines = text.split(/\r?\n/).filter(Boolean);
   for (const line of lines) {
     job.logs.push(line);
+    if (isLikelyErrorLine(line)) {
+      job.lastErrorLine = line;
+    }
     if (line.startsWith("TEXT_TO_VIDEO_RESULT ")) {
       job.result = JSON.parse(line.slice("TEXT_TO_VIDEO_RESULT ".length));
       continue;
@@ -279,6 +282,10 @@ function handleLog(job, text) {
   }
   job.logs = job.logs.slice(-80);
   job.updatedAt = Date.now();
+}
+
+function isLikelyErrorLine(line) {
+  return /失败|错误|fetch failed|超时|timeout|ECONN|UND_ERR|ENOTFOUND|EAI_AGAIN|请求/.test(String(line || ""));
 }
 
 function failJob(job, message) {
