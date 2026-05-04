@@ -1240,7 +1240,13 @@
 
   async function applyProjectToStudioPreview(projectId) {
     const props = await fetchJson(`${API}/api/projects/${encodeURIComponent(projectId)}/props`);
-    localStorage.setItem(`remotion_inputPropsOverride${window.location.origin}`, JSON.stringify(props));
+    localStorage.setItem(
+      `remotion_inputPropsOverride${window.location.origin}`,
+      JSON.stringify({
+        ...props,
+        enableAudio: false,
+      }),
+    );
     setStatus("已写入 Studio 预览参数，正在切换到 MultiSceneVideo。");
     if (window.location.pathname !== "/MultiSceneVideo") {
       window.location.href = "/MultiSceneVideo";

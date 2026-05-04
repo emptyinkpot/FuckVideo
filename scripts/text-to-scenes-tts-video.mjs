@@ -116,6 +116,7 @@ async function main() {
     scenes,
     audioSrc,
     captions,
+    enableAudio: true,
     showCaptions: !input.skipSrt,
     showSceneLabels: Boolean(input.showSceneLabels),
   };

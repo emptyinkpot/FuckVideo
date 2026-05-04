@@ -1,5 +1,13 @@
-import { AbsoluteFill, Audio, interpolate, Sequence, staticFile, useCurrentFrame } from "remotion";
+import {
+  AbsoluteFill,
+  Audio,
+  interpolate,
+  Sequence,
+  staticFile,
+  useCurrentFrame,
+} from "remotion";
 import type { NarratedCaption } from "./NarratedVideo";
+import { isLikelyMediaFile, normalizeStaticMediaPath } from "./mediaSource";
 import { type AutoScene, renderSceneTemplate } from "./sceneRegistry";
 
 export type MultiSceneVideoProps = {
@@ -7,6 +15,7 @@ export type MultiSceneVideoProps = {
   scenes: AutoScene[];
   audioSrc?: string;
   captions?: NarratedCaption[];
+  enableAudio?: boolean;
   showCaptions?: boolean;
   showSceneLabels?: boolean;
 };
@@ -15,6 +24,7 @@ export const defaultMultiSceneVideoProps = {
   title: "自动镜头视频",
   audioSrc: "",
   captions: [],
+  enableAudio: false,
   showCaptions: true,
   showSceneLabels: true,
   scenes: [
@@ -82,6 +92,7 @@ export const MultiSceneVideo = ({
   scenes,
   audioSrc,
   captions = [],
+  enableAudio = false,
   showCaptions = true,
   showSceneLabels = false,
 }: MultiSceneVideoProps) => {
@@ -89,10 +100,12 @@ export const MultiSceneVideo = ({
   const timeMs = (frame / 30) * 1000;
   const caption = captions.find((item) => timeMs >= item.startMs && timeMs <= item.endMs);
   const captionOpacity = showCaptions && caption ? interpolate(frame % 12, [0, 6], [0.92, 1]) : 0;
+  const safeAudioSrc = normalizeStaticMediaPath(audioSrc);
+  const canRenderAudio = enableAudio && safeAudioSrc && isLikelyMediaFile(safeAudioSrc);
 
   return (
     <AbsoluteFill style={{ background: "#050505", overflow: "hidden" }}>
-      {audioSrc ? <Audio src={staticFile(audioSrc)} /> : null}
+      {canRenderAudio ? <Audio src={staticFile(safeAudioSrc)} /> : null}
       {scenes.map((scene) => (
         <Sequence key={scene.id} from={scene.fromFrame} durationInFrames={scene.durationInFrames}>
           {renderSceneTemplate(scene)}

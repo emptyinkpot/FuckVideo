@@ -187,6 +187,7 @@ const remotionLabShowcaseAssetSchema = z.object({
   showMetadata: z.boolean().optional(),
   fit: z.enum(["cover", "contain"]).optional(),
   darken: z.number().min(0).max(0.8).optional(),
+  showPreviewVideo: z.boolean().optional(),
 });
 
 const autoSceneTemplateIdSchema = z.enum([
@@ -252,6 +253,7 @@ const multiSceneVideoSchema = z.object({
   scenes: z.array(autoSceneSchema),
   audioSrc: z.string().optional(),
   captions: z.array(captionSchema).optional(),
+  enableAudio: z.boolean().optional(),
   showCaptions: z.boolean().optional(),
   showSceneLabels: z.boolean().optional(),
 });
@@ -526,6 +528,7 @@ const remotionLabShowcaseAssetDefaultProps: z.input<
   showMetadata: true,
   fit: "contain",
   darken: 0.18,
+  showPreviewVideo: false,
 };
 
 const claudeTyperDefaultProps: z.input<typeof claudeTyperSchema> = {

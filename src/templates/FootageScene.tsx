@@ -1,4 +1,12 @@
-import { AbsoluteFill, interpolate, staticFile, useCurrentFrame, useVideoConfig, Video } from "remotion";
+import {
+  AbsoluteFill,
+  interpolate,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+  Video,
+} from "remotion";
+import { isLikelyMediaFile, normalizeStaticMediaPath } from "./mediaSource";
 
 export type FootageSceneProps = {
   src?: string;
@@ -25,12 +33,14 @@ export const FootageScene = ({
   const scale = interpolate(progress, [0, 1], [1, zoom]);
   const titleOpacity = interpolate(frame, [0, 22], [0, 1], { extrapolateRight: "clamp" });
   const titleY = interpolate(frame, [0, 22], [18, 0], { extrapolateRight: "clamp" });
+  const safeSrc = normalizeStaticMediaPath(src);
+  const canRenderVideo = safeSrc && isLikelyMediaFile(safeSrc);
 
   return (
     <AbsoluteFill style={{ background: "#070707", overflow: "hidden" }}>
-      {src ? (
+      {canRenderVideo ? (
         <Video
-          src={staticFile(src)}
+          src={staticFile(safeSrc)}
           muted
           style={{
             width: "100%",

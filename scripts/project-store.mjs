@@ -143,6 +143,7 @@ export function projectToMultiSceneProps(project) {
     title: project.title,
     audioSrc: project.audioSrc,
     captions: project.captions,
+    enableAudio: true,
     showCaptions: true,
     showSceneLabels: false,
     scenes,

@@ -1,10 +1,8 @@
 import {
   AbsoluteFill,
   interpolate,
-  staticFile,
   useCurrentFrame,
   useVideoConfig,
-  Video,
 } from "remotion";
 import {
   DEFAULT_REMOTIONLAB_SHOWCASE_ASSET_ID,
@@ -17,13 +15,14 @@ export type RemotionLabShowcaseAssetProps = {
   showMetadata?: boolean;
   fit?: "cover" | "contain";
   darken?: number;
+  showPreviewVideo?: boolean;
 };
 
 export const RemotionLabShowcaseAsset = ({
   assetId = DEFAULT_REMOTIONLAB_SHOWCASE_ASSET_ID,
   showMetadata = true,
-  fit = "contain",
   darken = 0.18,
+  showPreviewVideo = false,
 }: RemotionLabShowcaseAssetProps) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -47,25 +46,28 @@ export const RemotionLabShowcaseAsset = ({
       }}
     >
       <AbsoluteFill>
-        {asset.previewUrl || asset.previewPath ? (
-          <Video
-            src={asset.previewUrl || staticFile(asset.previewPath)}
-            muted
+        <AbsoluteFill
+          style={{
+            background:
+              "radial-gradient(circle at 22% 18%, rgba(96,165,250,0.24), transparent 34%), radial-gradient(circle at 72% 30%, rgba(249,115,22,0.16), transparent 30%), linear-gradient(135deg, #111827 0%, #27272a 48%, #111111 100%)",
+          }}
+        />
+        {showPreviewVideo ? (
+          <div
             style={{
-              width: "100%",
-              height: "100%",
-              // eslint-disable-next-line @remotion/no-object-fit-on-media-video
-              objectFit: fit,
+              position: "absolute",
+              left: 56,
+              top: 56,
+              padding: "10px 12px",
+              color: "rgba(255,255,255,0.74)",
+              fontSize: 18,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(5,8,13,0.62)",
             }}
-          />
-        ) : (
-          <AbsoluteFill
-            style={{
-              background:
-                "linear-gradient(135deg, #111827 0%, #27272a 48%, #111111 100%)",
-            }}
-          />
-        )}
+          >
+            预览视频需先缓存到 public/footage 后启用
+          </div>
+        ) : null}
       </AbsoluteFill>
       <AbsoluteFill style={{ background: `rgba(0,0,0,${darken})` }} />
       <AbsoluteFill

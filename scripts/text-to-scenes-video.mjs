@@ -66,6 +66,7 @@ async function main() {
     scenes,
     audioSrc: input.audioSrc || "",
     captions,
+    enableAudio: Boolean(input.audioSrc),
     showCaptions: Boolean(input.showCaptions),
     showSceneLabels: Boolean(input.showSceneLabels),
   };
