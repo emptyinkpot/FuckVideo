@@ -1240,11 +1240,12 @@
 
   async function applyProjectToStudioPreview(projectId) {
     const props = await fetchJson(`${API}/api/projects/${encodeURIComponent(projectId)}/props`);
+    const enablePreviewAudio = isSafePreviewAudioSrc(props.audioSrc);
     localStorage.setItem(
       `remotion_inputPropsOverride${window.location.origin}`,
       JSON.stringify({
         ...props,
-        enableAudio: false,
+        enableAudio: enablePreviewAudio,
       }),
     );
     setStatus("已写入 Studio 预览参数，正在切换到 MultiSceneVideo。");
@@ -1252,6 +1253,27 @@
       window.location.href = "/MultiSceneVideo";
     } else {
       window.location.reload();
+    }
+  }
+
+  function isSafePreviewAudioSrc(src) {
+    const value = String(src || "").trim();
+    if (!value) return false;
+    if (/^(https?:)?\/\//i.test(value) || value.includes("..") || value.startsWith("/")) return false;
+    return /\.(mp3|wav|m4a|aac|ogg)(\?.*)?$/i.test(value);
+  }
+
+  function restorePreviewAudioOverride() {
+    const key = `remotion_inputPropsOverride${window.location.origin}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    try {
+      const props = JSON.parse(raw);
+      if (props && props.enableAudio === false && isSafePreviewAudioSrc(props.audioSrc)) {
+        localStorage.setItem(key, JSON.stringify({ ...props, enableAudio: true }));
+      }
+    } catch {
+      // Ignore invalid Studio override payloads written by external tools.
     }
   }
 
@@ -1695,6 +1717,7 @@
   }
 
   restoreProgress();
+  restorePreviewAudioOverride();
   translateStudioUi();
   ensureWorkbarDocked();
   ensureGeneratorLauncherDocked();
