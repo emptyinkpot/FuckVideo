@@ -2,6 +2,23 @@
 
 GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 
+## 研究与素材来源说明
+
+本仓库不是单一上游仓库的 fork，而是在本地 Remotion 视频工作台基础上，参考、适配并集成了下列公开项目、素材库和数据源的研究成果。下列说明用于标注技术来源、设计参考和数据来源；具体许可证与使用边界以各上游项目原始声明为准。
+
+| 来源 | 上游地址 | 本项目中的用途 | 本地位置 |
+| --- | --- | --- | --- |
+| Remotion | https://github.com/remotion-dev/remotion | 视频合成、逐帧渲染、Studio 预览、Composition schema/defaultProps 工作流的基础框架。 | `src/Root.tsx`, `src/templates/`, `remotion.config.ts` |
+| RemotionLab Showcase | https://remotionlab.com/showcase | 参考公开 showcase 中的动画结构、镜头节奏和可复用 Remotion 片段；本地保存 showcase 索引、公开代码片段、预览与缩略图，用于素材库和镜头调度参考。 | `asset-source/remotionlab/`, `src/remotionlab-showcase/` |
+| remotion-bits | https://github.com/av/remotion-bits | 参考并适配 Remotion 动画组件与工具模式，包括文本入场、渐变转场、粒子、3D 场景辅助等程序化视觉机制。 | `asset-source/programmatic-visual-assets/remotion-bits/` |
+| React Video Editor Remotion Templates | https://github.com/reactvideoeditor/remotion-templates | 参考并适配 RVE 的免费 Remotion 模板集合，包括数据图表、文字高亮、噪声颗粒、film burn、vignette、相机运动等模板模式。 | `asset-source/programmatic-visual-assets/reactvideoeditor-remotion-templates/` |
+| Mixkit Video Templates | https://mixkit.co/free-after-effects-templates/ | 参考 Mixkit 免费 AE reveal 模板的视觉结构，并在 Remotion 中重建为确定性的程序动画预设；原始下载缓存不作为运行时必需代码。 | `asset-source/mixkit-reveal/`, `src/templates/MixkitReveal.tsx` |
+| historical-basemaps | https://github.com/aourednik/historical-basemaps | 历史边界底图、SVG/GeoJSON 历史地图数据和历史地图可视化方法参考，用于 historical globe 与 historical map 模板。 | `asset-source/historical-basemaps/`, `public/historical-maps/`, `src/historical-globe/` |
+| Natural Earth | https://www.naturalearthdata.com/ | 自然地球底图、国家边界和 shaded relief 地图素材来源，用于地图、地球和历史地图背景。 | `asset-source/natural-earth/`, `public/maps/`, `public/geojson/` |
+| Wikimedia Commons | https://commons.wikimedia.org/ | 作为证据素材缓存来源之一，用于自动片段中的公共图片证据素材。 | `public/evidence-cache/` |
+
+除上述来源外，本项目还有本地实现的文本生成视频链路、千问 TTS 集成、Studio 注入插件、项目存储、片段调度、字幕/进度条布局和 Remotion 多镜头时间轴组合逻辑。若新增上游参考、复制代码、导入素材或引入数据集，应同步更新本节与对应 `asset-source/*/README.md`。
+
 这是一个本地 Remotion 工程，核心能力是：
 
 ```text
@@ -21,6 +38,8 @@ Remotion Studio 模板预览与参数编辑
 ```
 
 它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，右侧用浮层控制台负责“生成视频”，左侧在 `合成列表 / 素材` 旁边注入 `片段` 页签负责“一段话绑定一个画面”的微调；中央画布仍然使用 Remotion Studio 原生预览屏幕。生成成功后，插件会把项目转换成 `MultiSceneVideo` props，写入 Remotion 的 input props override，并切到 `MultiSceneVideo` composition 预览。
+
+**唯一真源规则：Remotion Studio 工作台是唯一产品入口和唯一预览真源。** 入口固定为 `npm run dev:video` -> `http://127.0.0.1:3057`。不得为了部署、预览或调试另起独立静态网页、独立 Vercel 项目、`dist` 项目、`vercel-static-preview` 项目，或把 `frontend/*.html` 当成新的产品入口发布。`/video-generator`、`/video-project/:id` 只允许作为 Remotion 工作台服务内的备用调试页面存在，不能成为并行控制面。
 
 本文档按“给一个不了解项目的人复现出近似工程”的标准编写，包含运行环境、目录结构、端口、数据流、模板系统、参数系统、API 合约、排障和验证方式。
 
@@ -844,27 +863,26 @@ out/*.mp4
 
 ## 10. 千问 TTS 接入方式
 
-当前脚本支持两种 TTS provider：
+当前脚本只使用 DashScope 直连 TTS，不再走中转：
 
 ```text
-auto       默认。检测到 DASHSCOPE_API_KEY 时直连 DashScope，否则使用兼容中转。
-dashscope  强制直连阿里云 DashScope CosyVoice WebSocket API。
-proxy      强制使用旧兼容中转。
+dashscope  阿里云 DashScope CosyVoice WebSocket API。
 ```
 
-推荐直连 DashScope，避免中转服务超时：
-
-```console
-set DASHSCOPE_API_KEY=你的 DashScope API Key
-npm run text-to-scenes-tts-video -- --tts-provider=dashscope --text-file input.txt
-```
-
-可选环境变量：
+DashScope API Key 只放在本地 `.env.local`，不要写入 README、`project.json` 或其它会提交到 Git 的文件：
 
 ```text
-DASHSCOPE_TTS_MODEL   默认 cosyvoice-v3.5-plus
-DASHSCOPE_TTS_VOICE   覆盖 --voice / my-clone 映射后的音色 ID
-DASHSCOPE_WS_URL      默认 wss://dashscope.aliyuncs.com/api-ws/v1/inference/
+QWEN3_TTS_DASHSCOPE_API_KEY=<your-dashscope-api-key>
+DASHSCOPE_API_KEY=<your-dashscope-api-key>
+```
+
+当前本地 DashScope TTS 配置：
+
+```text
+QWEN3_TTS_DASHSCOPE_MODEL=cosyvoice-v3.5-plus
+QWEN3_TTS_DASHSCOPE_VOICE=cosyvoice-v3.5-plus-bailian-f04eec5bf9e64f14afeefd3bb09cccfe
+QWEN3_TTS_DASHSCOPE_LANGUAGE_TYPE=Chinese
+DASHSCOPE_WS_URL=wss://dashscope.aliyuncs.com/api-ws/v1/inference/
 ```
 
 直连模式会直接把 WebSocket 返回的音频写入：
@@ -879,16 +897,102 @@ DASHSCOPE_WS_URL      默认 wss://dashscope.aliyuncs.com/api-ws/v1/inference/
 public/generated/tts-*.mp3
 ```
 
-兼容中转 API：
+TTS 中转接口已禁用，生成链路只走 DashScope 直连。
+
+字幕不走语音识别。TTS 生成后，脚本读取真实音频时长，用原文按标点和长度切分字幕，默认每条不超过 22 个有效字符，再按文本长度比例估算时间轴，写出：
 
 ```text
-https://<private-tts-relay>/api/qwen3-tts
+public/generated/tts-*.srt
 ```
 
-复刻工程时，如果不使用 DashScope 直连，你必须满足二选一：
+视频内字幕使用程序化打字机动效，复用 `ClaudeTyper` 的逐帧字符揭示和闪烁光标思路；所有生成视频底部只显示一条全局分段进度条。
 
-- 继续使用兼容这个合约的服务。
-- 修改 `scripts/text-to-video.mjs` 和 `scripts/text-to-scenes-tts-video.mjs` 顶部 `defaults.apiBase`。
+视频级基础设施统一放在：
+
+```text
+src/video-infrastructure/
+```
+
+当前包含字幕覆盖层、底部全局分段进度条和统一入口 `VideoInfrastructure`。一站式生成页面可手动选择字幕和进度条方案：
+
+```text
+captionStyle: typewriter | classic | none
+progressStyle: gradient | thin | none
+```
+
+字幕布局进入 Remotion schema 顶层端口，可在 Remotion 参数面板里实时微调：
+
+```text
+captionLeft
+captionRight
+captionBottom
+captionMinHeight
+captionPaddingX
+captionPaddingY
+captionFontSize
+captionBorderRadius
+captionTextColor
+captionBackgroundColor
+captionFontWeight
+captionLineHeight
+```
+
+进度条布局同样进入 Remotion schema 顶层端口：
+
+```text
+progressLeft
+progressRight
+progressBottom
+progressHeight
+progressGap
+progressPaddingX
+progressLabelFontSize
+progressMinSegmentWidth
+```
+
+命令行也支持同名 kebab 参数，例如：
+
+```console
+node scripts/text-to-scenes-tts-video.mjs --caption-bottom=34 --caption-background-color=transparent --caption-font-size=28 --progress-height=34 --progress-padding-x=0
+```
+
+默认视频基础设施采用紧凑底部布局：字幕没有黑色底板，默认 `captionBackgroundColor=transparent`；分段进度条贴底且横向全长，默认 `progressLeft=0`、`progressRight=0`、`progressPaddingX=0`；字幕默认放在进度条上方约 4px 的位置。画面字幕只允许单行，渲染层强制 `whiteSpace: nowrap`，并按字幕字数和可用宽度自动压缩字号，不能通过换成两行来撑开。
+
+这些不是一次性生成参数。`MultiSceneVideo`、`GeneratedTemplateVideo`、`NarratedVideo` 都把这些字段作为 composition schema/defaultProps 暴露，生成后可以直接在 Remotion 参数面板实时调整。字幕正文 `captions` 是生成数据，不在参数面板里逐句展开；参数面板只调字幕整体抽象样式和整体布局。项目侧仍可继续在 Studio 插件或项目编辑页修改并保存：
+
+```text
+PATCH /api/projects/:id/infrastructure
+```
+
+保存后的 `captionLayout` / `progressLayout` 会进入项目数据；导出 props 时会同时写出 Remotion 可编辑的顶层字段，如 `captionBottom`、`captionFontSize`、`progressHeight`。
+
+视频时间结构只保留两层：
+
+```text
+caption：字幕/音频对齐
+segment：一段话绑定一个画面，同时也是进度条分段单位
+```
+
+进度条规则：
+
+```text
+只允许一个底部进度条
+进度条本身就是全局进度
+进度条内部按 segment 分段
+不再建立 chapter / chapter generator / chapter API / chapter editor
+```
+
+`MultiSceneVideo` 会直接从 `scenes/segments` 生成分段进度，标题来自 `scene.props.title`、`keywords[0]` 或 `sceneType`：
+
+```ts
+type ProgressSegment = {
+  id: string;
+  title: string;
+  startMs: number;
+  endMs: number;
+  color?: string;
+};
+```
 
 默认音色：
 
@@ -905,20 +1009,19 @@ cosyvoice-v3.5-plus-bailian-f04eec5bf9e64f14afeefd3bb09cccfe
 短文本接口：
 
 ```text
-POST /custom-voice
+DashScope WebSocket SpeechSynthesizer
 ```
 
 长文本接口：
 
 ```text
-POST /custom-voice/long
+DashScope WebSocket SpeechSynthesizer
 ```
 
 当前判断逻辑：
 
 ```text
-文本去空白后长度 > 800 走 /custom-voice/long
-否则走 /custom-voice
+所有文本统一走 DashScope 直连；不再调用 <private-tts-relay> 的 TTS 中转。
 ```
 
 请求体：
@@ -2849,6 +2952,178 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 type VisualProviderType = "programmatic" | "footage" | "static" | "fallback";
 ```
 
+从现在开始，动画握手只认一个入口：`src/templates/visual-provider-manifest.json`。不要再让 `Root.tsx`、`sceneRegistry.tsx`、前端下拉框、素材清单各自发明一套模板语义。新增或改造动画时按这条链路接入：
+
+```text
+Pencil / AE / 参考视频
+  -> provider.design.layerModel
+  -> provider.accepts / capabilities / propMapping
+  -> sceneRegistry runtime template
+  -> Root.tsx composition schema/defaultProps
+  -> visual-resolver decisionTrace
+```
+
+运行时校验命令：
+
+```console
+npm run validate-animation-contracts
+```
+
+校验器在 `scripts/animation-contracts.mjs`。它会读取 `visual-provider-manifest.json`，并检查：
+
+- provider id 是否唯一。
+- programmatic provider 的 `runtime.sceneRegistryId` 是否存在于 `sceneRegistry.tsx`。
+- 对应 Composition 是否在 `Root.tsx` 注册。
+- provider 是否有 `accepts.visualKinds`、`capabilities`、`propMapping`。
+- Pencil 设计引用如果声明为 `sourceType: "pencil"`，必须写清 `.pen` 文件和 nodeIds。
+
+Resolver 也通过同一个规范化层读取 provider。provider 的业务能力名和实际渲染模板可以分开：
+
+```json
+{
+  "id": "ColdOpenAtmosphere",
+  "templateId": "MixkitReveal",
+  "runtime": {
+    "sceneRegistryId": "MixkitReveal",
+    "compositionId": "MixkitReveal"
+  }
+}
+```
+
+这里 `ColdOpenAtmosphere` 是调度语义，`MixkitReveal` 是实际 Remotion 渲染组件。以后所有“一个模板承接多个视觉意图”的情况都必须这样写，不要在代码里散落 if/else。
+
+#### 23.1.1 Pencil 接入边界
+
+Pencil 只作为视觉蓝图输入，不作为自动生成器。正确接法：
+
+```text
+designs/animation-blueprints/*.pen
+  -> Pencil MCP 读取变量 / 布局 / 节点
+  -> export selected frames 到 public/design-references/<providerId>/
+  -> 把层结构写入 provider.design.layerModel
+  -> 手写或改造 Remotion 模板
+```
+
+`provider.design` 建议格式：
+
+```json
+{
+  "design": {
+    "sourceType": "pencil",
+    "status": "linked",
+    "intent": "文件证据展示：纸张、正文、高亮、镜头推进、光影",
+    "layerModel": ["background", "paper", "text", "highlight", "camera", "light"],
+    "pencil": {
+      "filePath": "designs/animation-blueprints/document-reveal.pen",
+      "nodeIds": ["document-reveal-main"]
+    }
+  }
+}
+```
+
+Pencil 导出的 PNG/PDF 只能当参考图或验收图，不得直接进入 `visualDecision` 当成动画实现。真正参与调度的是 Remotion provider contract。
+
+### 23.1.2 Evidence Resolver：史料优先
+
+历史视频的主链路必须是：
+
+```text
+文案片段
+  -> 识别可考据实体
+  -> 自动检索真实素材/史料
+  -> 绑定来源
+  -> 没找到才用程序动画
+  -> 每个 segment 可编辑素材、标题、时间
+  -> Remotion 渲染
+```
+
+实现入口：
+
+```text
+scripts/evidence-resolver.mjs
+```
+
+核心类型：
+
+```ts
+type EvidenceNeed = {
+  segmentId: string;
+  kind: "document" | "person" | "place" | "event" | "map" | "newspaper";
+  query: string;
+  mustFind: boolean;
+  entities: string[];
+};
+
+type EvidenceSource = {
+  id: string;
+  provider: "local" | "wikimedia" | "wikipedia" | "archive" | "loc" | "manual";
+  title: string;
+  url: string;
+  thumbnail?: string;
+  mediaUrl?: string;
+  localPath?: string;
+  license?: string;
+  confidence: number;
+  reason: string;
+};
+```
+
+当前 v1 已接：
+
+```text
+local asset index
+Wikimedia Commons API
+Wikipedia page image API
+```
+
+命中的远程图片会缓存到：
+
+```text
+public/evidence-cache/
+```
+
+Remotion 渲染只读取缓存后的本地路径，避免导出时依赖远程图片。没有找到真实素材时，不伪造史料；segment 会保留程序动画并标记 `fallback_used` 或 `missing_evidence`。
+
+API：
+
+```http
+POST /api/projects/:id/evidence/extract
+POST /api/projects/:id/evidence/resolve
+GET  /api/projects/:id/segments/:segmentId/evidence
+PATCH /api/projects/:id/segments/:segmentId/evidence
+```
+
+一键生成成功后，服务端会自动执行一次 `resolveEvidenceForProject()`。硬规则：
+
+```ts
+const HARD_RULES = {
+  noFakeDocument: true,
+  noFakePortrait: true,
+  noFakeHistoricalPhoto: true,
+  evidenceFirst: true,
+  fallbackMustBeMarked: true,
+};
+```
+
+视觉优先级：
+
+```text
+local 已入库素材
+  -> Wikimedia Commons
+  -> Wikipedia page image
+  -> Archive.org / LOC（后续扩展）
+  -> programmatic template
+```
+
+规则：
+
+```text
+出现条约 / 文件 / 报告 / 档案：先找真实扫描或图片。
+出现人物：先找真人照片或肖像图。
+出现地点 / 铁路 / 战场：先找真实地图、照片或可信图像。
+找不到真实资料：才允许 DocumentReveal / PortraitFocus / MapRouteFlyover 等程序动画，并标记来源状态。
+```
+
 含义：
 
 - `programmatic`：Remotion 程序动画资产，当前产品的主打能力，优先调度。
@@ -3443,9 +3718,17 @@ Resolver 优先级：
 TTS -> SRT/captions -> planScenesFromCaptions -> scenes[fromFrame,durationInFrames,audioStartMs,audioEndMs]
 ```
 
-`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `planScenesFromCaptions()`。caption 仍是父时间轴，但 planner 会继续做 semantic micro-segment：如果 caption 里超过 32 个有效汉字，或同时出现多个实体、地点、文件名、人物名、隐喻、转折词，就尝试切成更小片段。每个 micro-segment 都有 `parentCaptionId`、`parentCaptionIndex` 和 `estimatedTiming`，时间按文本 token 比例分配在父 caption 内。这样仍满足“一段话、一段音频、一个画面”，但不会把一句里三件事塞进一个画面。
+`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `planScenesFromCaptions()`。caption 仍是父时间轴，但 planner 会继续做 semantic micro-segment：如果 caption 里超过 22 个有效汉字，或同时出现多个实体、地点、文件名、人物名、隐喻、转折词，就尝试切成更小片段。每个 micro-segment 都有 `parentCaptionId`、`parentCaptionIndex` 和 `estimatedTiming`，时间按文本 token 比例分配在父 caption 内。这样仍满足“一段话、一段音频、一个画面”，但不会把一句里三件事塞进一个画面。
 
 scene 的时间来自 caption 或父 caption 内的 micro-segment 分配，scene 的语义文本优先来自原始文案：当原始句子数和 caption 数不一致时，用 caption 文本在原文中找锚点切片，避免 ASR 错字污染画面匹配。禁止再用旁白文本长度把多个 captions 分组到旧 scenes；那会造成画面和声音错位。只有在跳过字幕或字幕接口失败时，才使用文本拆句估算并按音频总时长拉伸。
+
+项目持久层也必须执行同一条规则，不能只在生成脚本里校验。`scripts/project-store.mjs#repairProjectTimeline()` 是统一闸门：
+
+- captions 的显示文本以原始文案为准；如果旧项目里保存了 ASR 错字字幕，会保留时间戳并把文本重写为原文切片。
+- Remotion props 里的显示字幕由 segment/micro-segment 派生，而不是直接显示父 caption 大段文本；父 caption 只负责音频时间校验。
+- 有 captions 时，segments 必须带 `parentCaptionIndex` 或 `captionIndex`，并且每个父 caption 的 `startMs/endMs` 必须被一个或多个 segment 完整覆盖。
+- `projectToMultiSceneProps()`、`/api/projects/:id/studio-default-props`、项目导出都会先执行这个闸门；校验失败且无法按原文重建时，不允许继续写 Remotion props。
+- 禁止把旧 captions、旧 audio、新 scenes 静默混在一个 `MultiSceneVideo` 里。修一个 UI 参数不能改坏音频/字幕/画面时间线。
 
 素材匹配也必须发生在这个 caption-derived scene 之后：`asset-matcher.mjs` 的 query 只能包含当前 scene 的 `narrationText/text/visualIntent/keywords/semanticCard`，不能用整段文案或相邻片段的文本参与当前片段匹配。
 
@@ -3493,6 +3776,93 @@ npm run index-assets
   "source": "local-library"
 }
 ```
+
+当前 `index-assets` 已升级为 v2 索引格式。它仍然是轻量本地索引器，不会在 Node 脚本里强行安装 PySceneDetect、BLIP、RAM、OpenCLIP、Qdrant 或 FiftyOne；这些组件应该作为素材理解层接入，输出统一写回 `asset-index.json` 和向量库。v2 索引会为每个素材保留以下落点：
+
+```json
+{
+  "schemaVersion": 2,
+  "assets": [
+    {
+      "id": "railway-map-001",
+      "providerType": "footage",
+      "kind": "map",
+      "shots": [
+        {
+          "id": "railway-map-001:shot-001",
+          "startMs": 0,
+          "endMs": 6200,
+          "keyframes": [],
+          "captions": [],
+          "embeddingRef": ""
+        }
+      ],
+      "semantic": {
+        "visualKinds": ["map", "route"],
+        "entities": [],
+        "visualObjects": ["地图", "铁路", "路线"],
+        "actions": ["expand"],
+        "ocrText": "",
+        "asrText": ""
+      },
+      "qualityGate": {
+        "reject": false,
+        "reason": "",
+        "metrics": {
+          "textAreaRatio": 0,
+          "objectRichness": 36,
+          "motionScore": 35,
+          "sceneDiversity": 24,
+          "historicalRelevance": 45,
+          "visualValueScore": 34
+        }
+      },
+      "retrieval": {
+        "vectorStore": "",
+        "collection": "",
+        "pointId": "",
+        "embeddingModel": ""
+      },
+      "review": {
+        "fiftyOneSampleId": "",
+        "status": "unreviewed",
+        "notes": ""
+      }
+    }
+  ]
+}
+```
+
+推荐的素材理解/检索层是：
+
+```text
+PySceneDetect
+  -> 把素材拆成 shots，写 startMs/endMs/keyframes
+BLIP / RAM / OCR / ASR
+  -> 给 shot 写 captions、tags、visualObjects、ocrText、asrText、quality metrics
+OpenCLIP / clip-retrieval
+  -> 给关键帧/shot 写 embeddingRef，并把向量写入 Qdrant 或 Milvus
+FiftyOne
+  -> 审核素材、删错、改标签、同步 review.status 和人工修正字段
+visual-resolver.mjs
+  -> 继续做最终选择：语义召回、硬过滤、质量门控、程序动画兜底
+```
+
+不要复刻通用“自动剪片源码”。本项目需要的是“历史旁白 -> 分镜 -> 画面合约 -> 镜头级素材语义检索 -> 人工审核闭环”。成熟开源组件用于素材理解和检索层，Remotion、`scene-planner.mjs`、`visual-resolver.mjs` 保留为生成和调度主链路。
+
+白布写字、纯字幕卡、白底大字这类素材不能进入真实 footage 池。`scripts/asset-quality.mjs` 统一计算 `qualityGate`：
+
+```text
+visualValueScore =
+  objectRichness
+  + motionScore
+  + sceneDiversity
+  + historicalRelevance
+  - textOnlyPenalty
+  - blankBackgroundPenalty
+```
+
+如果 `textAreaRatio > 35%` 且 `objectRichness`、`motionScore` 都很低，素材会被标记为 `text_only_card` 并被 `visual-resolver.mjs` 和 `asset-matcher.mjs` 硬过滤。它可以作为程序动画/字幕卡模板的参考，但不能被当作真实 footage。
 
 给已有 scenes 匹配素材：
 

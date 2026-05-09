@@ -437,9 +437,9 @@ export function planMicroSegmentsFromCaptions(captions, options = {}) {
 }
 
 function planMicroSegmentsFromTimedTexts(timedTexts, options = {}) {
-  const maxChars = Number(options.microMaxChars || 32);
-  const targetChars = Number(options.microTargetChars || 24);
-  const minChars = Number(options.microMinChars || 8);
+  const maxChars = Number(options.microMaxChars || 22);
+  const targetChars = Number(options.microTargetChars || 18);
+  const minChars = Number(options.microMinChars || 6);
   const result = [];
 
   for (const item of timedTexts) {

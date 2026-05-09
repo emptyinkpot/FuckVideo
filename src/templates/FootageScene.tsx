@@ -1,12 +1,13 @@
 import {
   AbsoluteFill,
   interpolate,
+  Img,
   staticFile,
   useCurrentFrame,
   useVideoConfig,
   Video,
 } from "remotion";
-import { isLikelyMediaFile, normalizeStaticMediaPath } from "./mediaSource";
+import { isLikelyImageFile, isLikelyMediaFile, normalizeStaticMediaPath } from "./mediaSource";
 
 export type FootageSceneProps = {
   src?: string;
@@ -35,6 +36,7 @@ export const FootageScene = ({
   const titleY = interpolate(frame, [0, 22], [18, 0], { extrapolateRight: "clamp" });
   const safeSrc = normalizeStaticMediaPath(src);
   const canRenderVideo = safeSrc && isLikelyMediaFile(safeSrc);
+  const canRenderImage = safeSrc && isLikelyImageFile(safeSrc);
 
   return (
     <AbsoluteFill style={{ background: "#070707", overflow: "hidden" }}>
@@ -46,6 +48,16 @@ export const FootageScene = ({
             width: "100%",
             height: "100%",
             // eslint-disable-next-line @remotion/no-object-fit-on-media-video
+            objectFit: fit,
+            transform: `scale(${scale})`,
+          }}
+        />
+      ) : canRenderImage ? (
+        <Img
+          src={staticFile(safeSrc)}
+          style={{
+            width: "100%",
+            height: "100%",
             objectFit: fit,
             transform: `scale(${scale})`,
           }}

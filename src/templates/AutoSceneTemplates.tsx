@@ -1,4 +1,23 @@
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  editorialBackground,
+  fontStack,
+  getSceneTheme,
+  quietTexture,
+  radius,
+  safeArea,
+  shadow,
+  subtleVignette,
+  typography,
+  type SceneTone,
+} from "./remotionDesignSystem";
+import {
+  motionDuration,
+  softSpring,
+  timedProgress,
+  xEnter,
+  yEnter,
+} from "./remotionMotionSystem";
 
 export type CommonSceneProps = {
   title?: string;
@@ -7,7 +26,7 @@ export type CommonSceneProps = {
   keywords?: string[];
   highlightWords?: string[];
   visualFocus?: string;
-  tone?: "historical" | "dark" | "clean" | "dramatic";
+  tone?: SceneTone;
 };
 
 export type PortraitFocusProps = CommonSceneProps & {
@@ -35,8 +54,6 @@ export type MetaphorVisualProps = CommonSceneProps & {
   objectLabel?: string;
 };
 
-const panelFont = "Inter, 'Microsoft YaHei', Arial, sans-serif";
-
 export const PortraitFocus = ({
   name,
   title,
@@ -49,70 +66,132 @@ export const PortraitFocus = ({
 }: PortraitFocusProps) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const enter = spring({ frame, fps, config: { damping: 18, stiffness: 95 } });
+  const theme = getSceneTheme(tone);
+  const enter = softSpring({ frame, fps });
+  const textEnter = softSpring({ frame, fps, delay: 14 });
   const displayName = name || title || keywords[0] || "关键人物";
   const displayRole = roleTitle || subtitle || "叙事中的关键行动者";
-  const bg = tone === "clean" ? "#e5e7eb" : "#111827";
-  const fg = tone === "clean" ? "#111827" : "#f8fafc";
 
   return (
-    <AbsoluteFill style={{ background: bg, color: fg, fontFamily: panelFont, overflow: "hidden" }}>
+    <AbsoluteFill style={editorialBackground(tone)}>
+      <div style={quietTexture(tone)} />
+      <div style={subtleVignette} />
       <div
         style={{
           position: "absolute",
-          inset: 0,
+          left: safeArea.x,
+          top: safeArea.y,
+          color: theme.accent,
+          ...typography.eyebrow,
+        }}
+      >
+        人物身份
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: safeArea.x,
+          top: 122,
+          width: 330,
+          height: 468,
+          borderRadius: radius.panel,
           background:
             tone === "clean"
-              ? "radial-gradient(circle at 22% 30%, rgba(15,23,42,0.08), transparent 34%)"
-              : "radial-gradient(circle at 30% 28%, rgba(251,191,36,0.14), transparent 34%), linear-gradient(135deg, #111827, #27272a)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: 92,
-          top: 96,
-          width: 330,
-          height: 500,
-          borderRadius: 24,
-          background: tone === "clean" ? "#ffffff" : "rgba(255,255,255,0.08)",
-          border: "1px solid rgba(255,255,255,0.16)",
-          transform: `translateX(${interpolate(enter, [0, 1], [-80, 0])}px)`,
-          opacity: enter,
-          boxShadow: "0 30px 80px rgba(0,0,0,0.24)",
+              ? theme.surface
+              : `linear-gradient(180deg, ${theme.surface}, ${theme.surfaceMuted})`,
+          boxShadow: tone === "clean" ? shadow.soft : shadow.darkPanel,
+          overflow: "hidden",
+          ...xEnter(enter, -44),
         }}
       >
         <div
           style={{
             position: "absolute",
-            left: 56,
-            top: 58,
-            width: 218,
-            height: 218,
-            borderRadius: "50%",
-            background: tone === "clean" ? "#d1d5db" : "linear-gradient(135deg, #facc15, #f97316)",
+            inset: 18,
+            border: `1px solid ${theme.line}`,
+            borderRadius: radius.card,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: 42,
+            right: 42,
+            top: 46,
+            height: 224,
+            borderRadius: radius.card,
+            background:
+              tone === "historical"
+                ? "linear-gradient(145deg, rgba(36,28,19,0.10), rgba(165,77,47,0.18))"
+                : theme.accentSoft,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 88,
+            color: theme.text,
+            fontSize: 94,
             fontWeight: 900,
+            fontFamily: fontStack.serif,
           }}
         >
           {displayName.slice(0, 1)}
         </div>
-        <div style={{ position: "absolute", left: 34, right: 34, bottom: 54, textAlign: "center" }}>
-          <div style={{ fontSize: 36, fontWeight: 900 }}>{displayName}</div>
-          <div style={{ marginTop: 10, fontSize: 20, color: tone === "clean" ? "#4b5563" : "#fde68a" }}>
+        <div
+          style={{
+            position: "absolute",
+            left: 34,
+            right: 34,
+            bottom: 42,
+            color: theme.text,
+          }}
+        >
+          <div style={{ ...typography.title, fontSize: 34 }}>
+            {displayName}
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              color: theme.muted,
+              ...typography.caption,
+            }}
+          >
             {era || "历史人物"}
           </div>
         </div>
       </div>
-      <div style={{ position: "absolute", left: 492, right: 88, top: 138 }}>
-        <div style={{ fontSize: 26, color: tone === "clean" ? "#6b7280" : "#fbbf24", fontWeight: 800 }}>
-          人物身份
+      <div
+        style={{
+          position: "absolute",
+          left: 478,
+          right: 92,
+          top: 158,
+          ...yEnter(textEnter, 28),
+        }}
+      >
+        <div
+          style={{
+            color: theme.textOnBackground,
+            ...typography.display,
+          }}
+        >
+          {displayRole}
         </div>
-        <div style={{ marginTop: 20, fontSize: 56, fontWeight: 900, lineHeight: 1.08 }}>{displayRole}</div>
-        <div style={{ marginTop: 30, fontSize: 30, lineHeight: 1.55, color: tone === "clean" ? "#374151" : "#d4d4d8" }}>
+        <div
+          style={{
+            marginTop: 30,
+            width: 88,
+            height: 4,
+            borderRadius: 4,
+            background: theme.accent,
+          }}
+        />
+        <div
+          style={{
+            marginTop: 34,
+            maxWidth: 670,
+            color: theme.muted,
+            ...typography.body,
+          }}
+        >
           {description || "该人物在这一段叙事中承担推动解释和连接历史事件的作用。"}
         </div>
       </div>
@@ -130,33 +209,98 @@ export const QuoteReveal = ({
 }: QuoteRevealProps) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const enter = spring({ frame, fps, config: { damping: 20, stiffness: 100 } });
+  const theme = getSceneTheme(tone);
+  const enter = softSpring({ frame, fps });
+  const sourceEnter = softSpring({ frame, fps, delay: 24 });
+  const ruleProgress = timedProgress(frame, 28, 54);
   const text = quote || body || "关键引文";
   const parts = splitHighlights(text, highlightWords);
 
   return (
-    <AbsoluteFill style={{ background: tone === "clean" ? "#f8fafc" : "#09090b", color: tone === "clean" ? "#111827" : "#fff", fontFamily: panelFont }}>
+    <AbsoluteFill style={editorialBackground(tone)}>
+      <div style={quietTexture(tone)} />
+      <div style={subtleVignette} />
       <div
         style={{
           position: "absolute",
-          inset: 0,
-          background: "radial-gradient(circle at 68% 24%, rgba(245,158,11,0.18), transparent 34%)",
+          left: safeArea.x,
+          top: 74,
+          color: theme.accent,
+          ...typography.eyebrow,
         }}
-      />
-      <div style={{ position: "absolute", left: 100, right: 100, top: 120, opacity: enter }}>
-        <div style={{ fontSize: 96, lineHeight: 0.8, color: "#f59e0b", fontFamily: "Georgia, serif" }}>“</div>
-        <div style={{ marginTop: -8, fontSize: 50, lineHeight: 1.38, fontWeight: 850 }}>
+      >
+        引文摘录
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: safeArea.x,
+          right: 126,
+          top: 128,
+          ...yEnter(enter, 34),
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: -12,
+            top: -28,
+            color: theme.accentSoft,
+            fontFamily: fontStack.serif,
+            fontSize: 178,
+            lineHeight: 0.8,
+            fontWeight: 900,
+          }}
+        >
+          “
+        </div>
+        <div
+          style={{
+            position: "relative",
+            maxWidth: 980,
+            color: theme.textOnBackground,
+            fontFamily: fontStack.serif,
+            fontSize: 52,
+            lineHeight: 1.32,
+            fontWeight: 800,
+            letterSpacing: 0,
+          }}
+        >
           {parts.map((part, index) => (
             <span
               key={`${part.text}-${index}`}
-              style={part.highlighted ? { color: "#fbbf24", borderBottom: "4px solid #f59e0b" } : undefined}
+              style={
+                part.highlighted
+                  ? {
+                      color: theme.textOnBackground,
+                      background: `linear-gradient(180deg, transparent 58%, ${theme.accentSoft} 58%)`,
+                      boxShadow: `inset 0 -3px 0 ${theme.accent}`,
+                    }
+                  : undefined
+              }
             >
               {part.text}
             </span>
           ))}
         </div>
-        <div style={{ marginTop: 34, height: 2, width: `${Math.min(1, frame / 75) * 100}%`, background: "rgba(251,191,36,0.72)" }} />
-        <div style={{ marginTop: 22, fontSize: 24, color: tone === "clean" ? "#64748b" : "#a1a1aa" }}>
+        <div
+          style={{
+            marginTop: 34,
+            width: `${ruleProgress * 100}%`,
+            maxWidth: 520,
+            height: 3,
+            borderRadius: 3,
+            background: theme.accent,
+          }}
+        />
+        <div
+          style={{
+            marginTop: 22,
+            color: theme.muted,
+            ...typography.caption,
+            ...yEnter(sourceEnter, 18),
+          }}
+        >
           {source || subtitle || "引文来源"}
         </div>
       </div>
@@ -175,42 +319,167 @@ export const ConceptDiagram = ({
 }: ConceptDiagramProps) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const theme = getSceneTheme(tone);
   const center = concept || title || keywords[0] || "核心概念";
   const items = [...nodes, ...keywords].filter(Boolean).slice(0, 5);
-  const finalNodes = items.length > 0 ? items : ["铁路", "港口", "租借地", "军政控制"];
-  const pop = spring({ frame, fps, config: { damping: 16, stiffness: 120 } });
+  const finalNodes = items.length > 0 ? items : ["背景条件", "关键机制", "资源流向", "权力结构"];
+  const enter = softSpring({ frame, fps });
+  const lineProgress = timedProgress(frame, 24, motionDuration.slow);
 
   return (
-    <AbsoluteFill style={{ background: tone === "clean" ? "#f8fafc" : "#111827", color: tone === "clean" ? "#111827" : "#f8fafc", fontFamily: panelFont }}>
-      <div style={{ position: "absolute", left: 70, top: 56 }}>
-        <div style={{ fontSize: 24, color: "#38bdf8", fontWeight: 800 }}>概念解释</div>
-        <div style={{ marginTop: 10, fontSize: 48, fontWeight: 900 }}>{center}</div>
-        <div style={{ marginTop: 16, width: 520, fontSize: 24, lineHeight: 1.55, color: tone === "clean" ? "#475569" : "#cbd5e1" }}>
-          {definition || body || "用节点关系解释抽象概念背后的结构。"}
+    <AbsoluteFill style={editorialBackground(tone)}>
+      <div style={quietTexture(tone)} />
+      <div style={subtleVignette} />
+      <div
+        style={{
+          position: "absolute",
+          left: safeArea.x,
+          top: safeArea.y,
+          width: 430,
+          ...xEnter(enter, -34),
+        }}
+      >
+        <div style={{ color: theme.accent, ...typography.eyebrow }}>
+          概念解释
+        </div>
+        <div
+          style={{
+            marginTop: 18,
+            color: theme.textOnBackground,
+            ...typography.display,
+          }}
+        >
+          {center}
+        </div>
+        <div
+          style={{
+            marginTop: 28,
+            color: theme.muted,
+            ...typography.body,
+            fontSize: 25,
+          }}
+        >
+          {definition || body || "用结构化节点解释抽象概念背后的关系。"}
         </div>
       </div>
-      <svg viewBox="0 0 1280 720" style={{ position: "absolute", inset: 0 }}>
-        <g transform={`translate(760 370) scale(${pop})`}>
-          <circle r="92" fill="#0ea5e9" opacity="0.9" />
-          <text textAnchor="middle" y="8" fontSize="28" fontWeight="900" fill="#fff">
-            {center.slice(0, 8)}
-          </text>
-          {finalNodes.map((node, index) => {
-            const angle = (-90 + index * (360 / finalNodes.length)) * (Math.PI / 180);
-            const x = Math.cos(angle) * 245;
-            const y = Math.sin(angle) * 190;
-            return (
-              <g key={`${node}-${index}`}>
-                <line x1="0" y1="0" x2={x} y2={y} stroke="#38bdf8" strokeWidth="3" opacity="0.55" />
-                <rect x={x - 82} y={y - 30} width="164" height="60" rx="16" fill={tone === "clean" ? "#ffffff" : "#1f2937"} stroke="#38bdf8" />
-                <text textAnchor="middle" x={x} y={y + 8} fontSize="22" fontWeight="800" fill={tone === "clean" ? "#111827" : "#f8fafc"}>
-                  {node.slice(0, 10)}
-                </text>
-              </g>
-            );
-          })}
-        </g>
-      </svg>
+      <div
+        style={{
+          position: "absolute",
+          left: 570,
+          top: 86,
+          width: 602,
+          height: 548,
+          borderRadius: radius.panel,
+          background:
+            tone === "clean"
+              ? "rgba(255,255,255,0.72)"
+              : "rgba(255,255,255,0.045)",
+          border: `1px solid ${theme.line}`,
+          boxShadow: tone === "clean" ? shadow.soft : shadow.darkPanel,
+          overflow: "hidden",
+          ...yEnter(enter, 30),
+        }}
+      >
+        <svg viewBox="0 0 602 548" style={{ position: "absolute", inset: 0 }}>
+          <path
+            d={`M116 108 C220 108 250 106 ${356 * lineProgress + 116 * (1 - lineProgress)} 106`}
+            fill="none"
+            stroke={theme.accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+            opacity="0.82"
+          />
+          <path
+            d={`M116 438 C220 438 250 442 ${356 * lineProgress + 116 * (1 - lineProgress)} 442`}
+            fill="none"
+            stroke={theme.accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+            opacity="0.42"
+          />
+          <line
+            x1="116"
+            y1="108"
+            x2="116"
+            y2={108 + 330 * lineProgress}
+            stroke={theme.accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+            opacity="0.68"
+          />
+        </svg>
+
+        <div
+          style={{
+            position: "absolute",
+            left: 48,
+            top: 64,
+            width: 168,
+            height: 420,
+            borderRadius: radius.card,
+            background: theme.accentSoft,
+            border: `1px solid ${theme.line}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 22,
+            color: theme.textOnBackground,
+            textAlign: "center",
+            fontSize: center.length > 6 ? 23 : 25,
+            lineHeight: 1.18,
+            fontWeight: 900,
+            whiteSpace: center.length > 6 ? "normal" : "nowrap",
+            wordBreak: "keep-all",
+          }}
+        >
+          {center.slice(0, 12)}
+        </div>
+
+        {finalNodes.map((node, index) => {
+          const progress = timedProgress(frame, 36 + index * 9, 28);
+          return (
+            <div
+              key={`${node}-${index}`}
+              style={{
+                position: "absolute",
+                left: 278,
+                top: 72 + index * 84,
+                width: 252,
+                minHeight: 58,
+                borderRadius: radius.card,
+                background: tone === "clean" ? theme.surface : theme.surfaceMuted,
+                border: `1px solid ${theme.line}`,
+                color: tone === "clean" ? theme.text : theme.textOnBackground,
+                padding: "14px 18px",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
+                ...xEnter(progress, 28),
+              }}
+            >
+              <div
+                style={{
+                  color: theme.accent,
+                  fontSize: 14,
+                  lineHeight: 1,
+                  fontWeight: 900,
+                  letterSpacing: 1.4,
+                }}
+              >
+                {String(index + 1).padStart(2, "0")}
+              </div>
+              <div
+                style={{
+                  marginTop: 7,
+                  fontSize: 22,
+                  lineHeight: 1.22,
+                  fontWeight: 850,
+                }}
+              >
+                {node.slice(0, 18)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </AbsoluteFill>
   );
 };
@@ -225,33 +494,106 @@ export const MetaphorVisual = ({
   tone = "historical",
 }: MetaphorVisualProps) => {
   const frame = useCurrentFrame();
-  const progress = interpolate(frame, [35, 145], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const x = interpolate(progress, [0, 1], [335, 895]);
+  const { fps } = useVideoConfig();
+  const theme = getSceneTheme(tone);
+  const enter = softSpring({ frame, fps });
+  const progress = timedProgress(frame, 34, 92);
+  const x = interpolate(progress, [0, 1], [344, 902]);
+  const y = interpolate(progress, [0, 0.5, 1], [398, 284, 398]);
   const object = objectLabel || body || "权益";
 
   return (
-    <AbsoluteFill style={{ background: tone === "clean" ? "#f4f4f5" : "#18181b", color: tone === "clean" ? "#18181b" : "#f4f4f5", fontFamily: panelFont, overflow: "hidden" }}>
-      <div style={{ position: "absolute", left: 72, top: 58 }}>
-        <div style={{ fontSize: 24, color: "#f59e0b", fontWeight: 800 }}>隐喻可视化</div>
-        <div style={{ marginTop: 10, fontSize: 52, fontWeight: 900 }}>{metaphor || title || "对象易手"}</div>
+    <AbsoluteFill style={editorialBackground(tone)}>
+      <div style={quietTexture(tone)} />
+      <div style={subtleVignette} />
+      <div
+        style={{
+          position: "absolute",
+          left: safeArea.x,
+          top: safeArea.y,
+          ...yEnter(enter, 30),
+        }}
+      >
+        <div style={{ color: theme.accent, ...typography.eyebrow }}>
+          隐喻可视化
+        </div>
+        <div
+          style={{
+            marginTop: 16,
+            color: theme.textOnBackground,
+            ...typography.display,
+          }}
+        >
+          {metaphor || title || "对象易手"}
+        </div>
       </div>
-      <div style={{ position: "absolute", left: 130, top: 300, width: 260, height: 210, borderRadius: 24, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, fontWeight: 900 }}>
-        {fromLabel || "来源"}
-      </div>
-      <div style={{ position: "absolute", right: 130, top: 300, width: 260, height: 210, borderRadius: 24, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38, fontWeight: 900 }}>
-        {toLabel || "去向"}
-      </div>
+      <TransferNode left={132} label={fromLabel || "来源"} tone={tone} />
+      <TransferNode left={888} label={toLabel || "去向"} tone={tone} />
       <svg viewBox="0 0 1280 720" style={{ position: "absolute", inset: 0 }}>
-        <path d="M390 405 C520 260 740 260 890 405" fill="none" stroke="#f59e0b" strokeWidth="8" strokeDasharray="16 18" />
-        <g transform={`translate(${x} ${interpolate(progress, [0, 0.5, 1], [405, 270, 405])})`}>
-          <circle r="72" fill="#f59e0b" />
-          <circle r="52" fill="#18181b" opacity="0.18" />
-          <text textAnchor="middle" y="8" fontSize="22" fontWeight="900" fill="#fff">
+        <path
+          d="M392 398 C532 250 742 250 888 398"
+          fill="none"
+          stroke={theme.accent}
+          strokeWidth="5"
+          strokeDasharray="10 16"
+          strokeLinecap="round"
+          opacity="0.72"
+        />
+        <g transform={`translate(${x} ${y})`}>
+          <circle r="58" fill={theme.accent} />
+          <circle r="44" fill="rgba(0,0,0,0.14)" />
+          <text
+            textAnchor="middle"
+            y="7"
+            fontSize="20"
+            fontWeight="900"
+            fill="#fff"
+            fontFamily={fontStack.sans}
+          >
             {object.slice(0, 8)}
           </text>
         </g>
       </svg>
     </AbsoluteFill>
+  );
+};
+
+const TransferNode = ({
+  left,
+  label,
+  tone,
+}: {
+  left: number;
+  label: string;
+  tone: SceneTone;
+}) => {
+  const theme = getSceneTheme(tone);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left,
+        top: 318,
+        width: 260,
+        height: 160,
+        borderRadius: radius.panel,
+        background: tone === "clean" ? theme.surface : theme.surface,
+        border: `1px solid ${theme.line}`,
+        color: tone === "clean" ? theme.text : theme.textOnBackground,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 28,
+        textAlign: "center",
+        fontSize: 34,
+        lineHeight: 1.16,
+        fontWeight: 900,
+        boxShadow: tone === "clean" ? shadow.soft : shadow.darkPanel,
+      }}
+    >
+      {label}
+    </div>
   );
 };
 
@@ -261,9 +603,12 @@ const splitHighlights = (text: string, highlightWords: string[]) => {
     return [{ text, highlighted: false }];
   }
   const escaped = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const pattern = new RegExp(`(${escaped.join("|")})`, "g");
-  return text.split(pattern).filter(Boolean).map((part) => ({
-    text: part,
-    highlighted: words.includes(part),
-  }));
+  const pattern = new RegExp(`(${escaped.join("|")})`, "gi");
+  return text
+    .split(pattern)
+    .filter(Boolean)
+    .map((part) => ({
+      text: part,
+      highlighted: words.some((word) => word.toLowerCase() === part.toLowerCase()),
+    }));
 };

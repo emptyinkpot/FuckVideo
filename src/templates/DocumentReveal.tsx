@@ -1,11 +1,17 @@
 import {
   AbsoluteFill,
-  Easing,
   interpolate,
-  spring,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { fontStack, radius, shadow } from "./remotionDesignSystem";
+import {
+  cameraPush,
+  motionDuration,
+  softSpring,
+  stampSpring,
+  timedProgress,
+} from "./remotionMotionSystem";
 
 export type DocumentRevealProps = {
   title?: string;
@@ -44,15 +50,15 @@ export const extractDocumentSnippet = (
 
 const themeMap = {
   old_paper: {
-    bg: "#17120b",
-    paper: "#e7d7b5",
+    bg: "#14110c",
+    paper: "#eadfc8",
     ink: "#2c2115",
     muted: "rgba(44,33,21,0.55)",
-    line: "rgba(120,36,22,0.78)",
-    marker: "rgba(201,150,42,0.38)",
-    shadow: "rgba(0,0,0,0.42)",
-    font: "'Noto Serif SC', 'LXGW WenKai', Georgia, 'Times New Roman', serif",
-    radius: 8,
+    line: "rgba(141,55,34,0.76)",
+    marker: "rgba(194,139,56,0.28)",
+    shadow: shadow.paper,
+    font: fontStack.serif,
+    radius: radius.paper,
   },
   book: {
     bg: "#efede6",
@@ -60,21 +66,21 @@ const themeMap = {
     ink: "#191919",
     muted: "rgba(25,25,25,0.5)",
     line: "rgba(30,80,150,0.72)",
-    marker: "rgba(245,202,80,0.5)",
-    shadow: "rgba(0,0,0,0.18)",
-    font: "'Noto Serif SC', 'LXGW WenKai', Georgia, 'Times New Roman', serif",
-    radius: 8,
+    marker: "rgba(245,202,80,0.34)",
+    shadow: shadow.soft,
+    font: fontStack.serif,
+    radius: radius.paper,
   },
   modern: {
-    bg: "#0f1115",
-    paper: "#171a22",
+    bg: "#0d0f14",
+    paper: "#171b22",
     ink: "#f5f5f5",
     muted: "rgba(245,245,245,0.52)",
-    line: "#4f8cff",
-    marker: "rgba(79,140,255,0.25)",
-    shadow: "rgba(0,0,0,0.5)",
-    font: "Inter, Arial, sans-serif",
-    radius: 16,
+    line: "#d7a84f",
+    marker: "rgba(215,168,79,0.18)",
+    shadow: shadow.darkPanel,
+    font: fontStack.sans,
+    radius: radius.panel,
   },
 };
 
@@ -104,43 +110,18 @@ export const DocumentReveal = ({
   const mainHighlight = highlightText || highlightWords[0] || "";
   const snippet = extractDocumentSnippet(body, mainHighlight, maxSnippetChars);
 
-  const enter = spring({
-    frame,
-    fps,
-    config: { damping: 18, stiffness: 90 },
-  });
-  const paperOpacity = interpolate(frame, [0, 18], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const enter = softSpring({ frame, fps });
+  const paperOpacity = timedProgress(frame, 0, 18);
   const paperY = interpolate(enter, [0, 1], [54, 0]);
-  const paperRotate = interpolate(enter, [0, 1], [-2.2, 0]);
-  const cameraScale = interpolate(frame, [90, 175], [1, 1.13], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.22, 1, 0.36, 1),
-  });
-  const headerLine = interpolate(frame, [25, 55], [0, 100], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const highlightProgress = interpolate(frame, [75, 125], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const sealScale = spring({
-    frame: frame - 92,
-    fps,
-    config: { damping: 10, stiffness: 150 },
-  });
-  const paperDriftX = Math.sin(frame / 17) * 1.4 + Math.sin(frame / 41) * 0.8;
-  const paperDriftY = Math.cos(frame / 23) * 1.1;
-  const paperDriftRotate = Math.sin(frame / 37) * 0.18;
-  const lightSweep = interpolate(frame, [28, 135], [-42, 132], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.22, 1, 0.36, 1),
-  });
+  const paperRotate = interpolate(enter, [0, 1], [-1.4, 0]);
+  const cameraScale = cameraPush(frame, 96, motionDuration.camera, 0.055);
+  const headerLine = timedProgress(frame, 28, 38) * 100;
+  const highlightProgress = timedProgress(frame, 74, 48);
+  const sealScale = stampSpring({ frame, fps, delay: 98 });
+  const paperDriftX = Math.sin(frame / 43) * 0.45;
+  const paperDriftY = Math.cos(frame / 47) * 0.38;
+  const paperDriftRotate = Math.sin(frame / 53) * 0.06;
+  const lightSweep = interpolate(timedProgress(frame, 34, 82), [0, 1], [-35, 118]);
 
   return (
     <AbsoluteFill
@@ -156,18 +137,18 @@ export const DocumentReveal = ({
           inset: 0,
           background:
             resolvedStyle === "old_paper"
-              ? "radial-gradient(circle at 50% 35%, rgba(255,210,120,0.16), transparent 36%), radial-gradient(circle at 20% 80%, rgba(255,255,255,0.06), transparent 30%)"
-              : "radial-gradient(circle at 50% 35%, rgba(255,255,255,0.08), transparent 34%)",
+              ? "radial-gradient(circle at 50% 35%, rgba(234,206,154,0.14), transparent 38%)"
+              : "radial-gradient(circle at 52% 34%, rgba(215,168,79,0.08), transparent 36%)",
         }}
       />
       <div
         style={{
           position: "absolute",
           inset: 0,
-          opacity: resolvedStyle === "old_paper" ? 0.12 : 0.05,
+          opacity: resolvedStyle === "old_paper" ? 0.08 : 0.035,
           backgroundImage:
-            "linear-gradient(0deg, rgba(255,255,255,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)",
-          backgroundSize: "42px 42px",
+            "linear-gradient(0deg, rgba(255,255,255,.10) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
         }}
       />
       <div
@@ -175,7 +156,7 @@ export const DocumentReveal = ({
           position: "absolute",
           inset: 0,
           background:
-            "radial-gradient(circle at 50% 48%, transparent 44%, rgba(0,0,0,0.32) 100%)",
+            "radial-gradient(circle at 50% 48%, transparent 50%, rgba(0,0,0,0.28) 100%)",
           mixBlendMode: "multiply",
         }}
       />
@@ -191,7 +172,7 @@ export const DocumentReveal = ({
           borderRadius: theme.radius,
           background: theme.paper,
           color: theme.ink,
-          boxShadow: `0 34px 90px ${theme.shadow}`,
+          boxShadow: theme.shadow,
           opacity: paperOpacity,
           transform: `translate(${paperDriftX}px, ${paperY + paperDriftY}px) rotate(${
             paperRotate + paperDriftRotate
@@ -204,9 +185,9 @@ export const DocumentReveal = ({
             position: "absolute",
             inset: 0,
             borderRadius: theme.radius,
-            opacity: resolvedStyle === "modern" ? 0.1 : 0.18,
+            opacity: resolvedStyle === "modern" ? 0.08 : 0.12,
             background:
-              "radial-gradient(circle at 18% 18%, rgba(255,255,255,0.42), transparent 22%), radial-gradient(circle at 78% 70%, rgba(93,56,22,0.12), transparent 24%), linear-gradient(135deg, rgba(255,255,255,0.18), transparent 44%)",
+              "radial-gradient(circle at 18% 18%, rgba(255,255,255,0.32), transparent 22%), radial-gradient(circle at 78% 70%, rgba(93,56,22,0.10), transparent 24%), linear-gradient(135deg, rgba(255,255,255,0.14), transparent 44%)",
             pointerEvents: "none",
           }}
         />
@@ -215,7 +196,7 @@ export const DocumentReveal = ({
             position: "absolute",
             inset: 0,
             borderRadius: theme.radius,
-            opacity: resolvedStyle === "old_paper" ? 0.16 : 0.08,
+            opacity: resolvedStyle === "old_paper" ? 0.10 : 0.05,
             backgroundImage:
               "linear-gradient(14deg, rgba(72,42,16,.15) 0 1px, transparent 1px 18px), linear-gradient(92deg, rgba(255,255,255,.18) 0 1px, transparent 1px 23px)",
             backgroundSize: "29px 31px",
@@ -230,10 +211,10 @@ export const DocumentReveal = ({
             left: `${lightSweep}%`,
             width: "22%",
             transform: "rotate(12deg)",
-            opacity: resolvedStyle === "modern" ? 0.16 : 0.24,
+            opacity: resolvedStyle === "modern" ? 0.10 : 0.15,
             background:
-              "linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)",
-            filter: "blur(10px)",
+              "linear-gradient(90deg, transparent, rgba(255,255,255,0.34), transparent)",
+            filter: "blur(12px)",
             pointerEvents: "none",
           }}
         />
@@ -252,7 +233,7 @@ export const DocumentReveal = ({
         <div
           style={{
             marginTop: 18,
-            fontSize: 42,
+            fontSize: 40,
             lineHeight: 1.08,
             fontWeight: 900,
           }}
@@ -275,8 +256,8 @@ export const DocumentReveal = ({
             position: "relative",
             marginTop: 32,
             maxWidth: "82%",
-            fontSize: 28,
-            lineHeight: 1.72,
+            fontSize: 27,
+            lineHeight: 1.68,
             letterSpacing: resolvedStyle === "modern" ? 0 : 1,
           }}
         >

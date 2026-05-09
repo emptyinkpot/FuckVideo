@@ -240,6 +240,7 @@
         }
         $("lockState").textContent = scene.locked ? "已锁定" : "可编辑";
         $("editor").innerHTML = `
+          ${renderInfrastructureEditor()}
           <label>旁白文本<textarea id="voiceText">${escapeTextarea(scene.voiceText)}</textarea></label>
           <label>字幕/画面文案<textarea id="subtitleText">${escapeTextarea(scene.subtitle)}</textarea></label>
           <div class="row">
@@ -261,11 +262,67 @@
           </div>
           <div id="candidates">${renderCandidates()}</div>
         `;
+        $("saveInfra").onclick = saveInfrastructure;
         $("saveScene").onclick = saveScene;
         $("lockScene").onclick = toggleLock;
         $("rematch").onclick = rematch;
         $("up").onclick = () => moveScene(-1);
         $("down").onclick = () => moveScene(1);
+      }
+
+      function renderInfrastructureEditor() {
+        const caption = project.captionLayout || {};
+        const progress = project.progressLayout || {};
+        return `
+          <div class="candidate">
+            <strong>字幕 / 分段进度条布局</strong>
+            <div class="row">
+              <label>字幕样式<select id="captionStyle">
+                ${["typewriter", "classic", "none"].map((v) => `<option value="${v}" ${project.captionStyle === v ? "selected" : ""}>${v}</option>`).join("")}
+              </select></label>
+              <label>进度条样式<select id="progressStyle">
+                ${["gradient", "thin", "none"].map((v) => `<option value="${v}" ${project.progressStyle === v ? "selected" : ""}>${v}</option>`).join("")}
+              </select></label>
+            </div>
+            <div class="row">
+              ${numberInput("字幕底部Y", "captionBottom", caption.bottom, 34)}
+              ${numberInput("字幕字号", "captionFontSize", caption.fontSize, 30)}
+            </div>
+            <div class="row">
+              ${numberInput("字幕左边距", "captionLeft", caption.left, 78)}
+              ${numberInput("字幕右边距", "captionRight", caption.right, 78)}
+            </div>
+            <div class="row">
+              ${numberInput("字幕高度", "captionMinHeight", caption.minHeight, 0)}
+              ${numberInput("字幕圆角", "captionBorderRadius", caption.borderRadius, 0)}
+            </div>
+            <div class="row">
+              ${numberInput("字幕内边距X", "captionPaddingX", caption.paddingX, 24)}
+              ${numberInput("字幕内边距Y", "captionPaddingY", caption.paddingY, 4)}
+            </div>
+            <div class="row">
+              ${numberInput("进度条底部Y", "progressBottom", progress.bottom, 0)}
+              ${numberInput("进度条高度", "progressHeight", progress.height, 30)}
+            </div>
+            <div class="row">
+              ${numberInput("进度条左边距", "progressLeft", progress.left, 0)}
+              ${numberInput("进度条右边距", "progressRight", progress.right, 0)}
+            </div>
+            <div class="row">
+              ${numberInput("分段间距", "progressGap", progress.gap, 4)}
+              ${numberInput("标题字号", "progressLabelFontSize", progress.labelFontSize, 14)}
+            </div>
+            <div class="row">
+              ${numberInput("进度条内边距X", "progressPaddingX", progress.paddingX, 0)}
+              ${numberInput("最小分段宽度", "progressMinSegmentWidth", progress.minSegmentWidth, 36)}
+            </div>
+            <button class="primary" id="saveInfra">保存布局</button>
+          </div>
+        `;
+      }
+
+      function numberInput(label, id, value, fallback) {
+        return `<label>${label}<input id="${id}" type="number" value="${Number(value ?? fallback)}" /></label>`;
       }
 
       function renderCandidates() {
@@ -307,6 +364,44 @@
           body: JSON.stringify({ patch }),
         });
         render();
+      }
+
+      async function saveInfrastructure() {
+        project = await api(`/api/projects/${project.id}/infrastructure`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            patch: {
+              captionStyle: $("captionStyle").value,
+              progressStyle: $("progressStyle").value,
+              captionLayout: {
+                left: num("captionLeft"),
+                right: num("captionRight"),
+                bottom: num("captionBottom"),
+                minHeight: num("captionMinHeight"),
+                paddingX: num("captionPaddingX"),
+                paddingY: num("captionPaddingY"),
+                fontSize: num("captionFontSize"),
+                borderRadius: num("captionBorderRadius"),
+              },
+              progressLayout: {
+                left: num("progressLeft"),
+                right: num("progressRight"),
+                bottom: num("progressBottom"),
+                height: num("progressHeight"),
+                gap: num("progressGap"),
+                paddingX: num("progressPaddingX"),
+                labelFontSize: num("progressLabelFontSize"),
+                minSegmentWidth: num("progressMinSegmentWidth"),
+              },
+            },
+          }),
+        });
+        render();
+      }
+
+      function num(id) {
+        const value = Number($(id).value);
+        return Number.isFinite(value) ? value : undefined;
       }
 
       async function toggleLock() {

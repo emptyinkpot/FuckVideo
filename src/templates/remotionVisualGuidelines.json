@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "purpose": "Keep Remotion templates aligned with frontend-grade visual and motion standards instead of one-off demo styling.",
+  "principles": [
+    {
+      "id": "purposeful-motion",
+      "rule": "Every movement must explain hierarchy, causality, focus, or narrative timing.",
+      "avoid": "Decorative looping motion that only makes the frame feel busy."
+    },
+    {
+      "id": "shared-tokens",
+      "rule": "Colors, type, radius, shadows, spacing, and motion curves must come from shared tokens.",
+      "avoid": "Hardcoded neon gradients, arbitrary box shadows, or one-off spring configs inside each template."
+    },
+    {
+      "id": "editorial-restraint",
+      "rule": "Prefer calm surfaces, precise contrast, visible structure, and one strong accent color.",
+      "avoid": "Large glowing cards, many saturated accents, and decorative radial backgrounds."
+    },
+    {
+      "id": "chinese-typography",
+      "rule": "Chinese text must use a readable CJK font fallback, tight hierarchy, and line heights designed for video.",
+      "avoid": "Inter/Arial-only text stacks or oversized text without a clear role."
+    },
+    {
+      "id": "frame-safe-composition",
+      "rule": "Important text and controls stay inside a 64-96px safe area, with stable dimensions across frames.",
+      "avoid": "Elements that resize, drift, or collide with captions/progress overlays."
+    },
+    {
+      "id": "rendered-qa",
+      "rule": "Judge templates by stills at 0, 25, 50, 75, and 100 percent of duration, not by code alone.",
+      "avoid": "Shipping a component because the code looks clever while the rendered frame looks cheap."
+    }
+  ],
+  "visualTokens": {
+    "fontStack": {
+      "sans": "Inter, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', Arial, sans-serif",
+      "serif": "'Noto Serif SC', 'Songti SC', Georgia, 'Times New Roman', serif",
+      "mono": "'JetBrains Mono', 'SFMono-Regular', Consolas, monospace"
+    },
+    "radius": {
+      "panel": 14,
+      "card": 10,
+      "paper": 6
+    },
+    "shadow": {
+      "soft": "0 24px 70px rgba(15, 23, 42, 0.18)",
+      "paper": "0 18px 50px rgba(24, 18, 12, 0.26)"
+    },
+    "safeArea": {
+      "x": 80,
+      "y": 64
+    }
+  },
+  "motionTokens": {
+    "durationFrames": {
+      "fast": 18,
+      "normal": 32,
+      "slow": 52,
+      "camera": 90
+    },
+    "easing": {
+      "standard": "bezier(0.22, 1, 0.36, 1)",
+      "emphasis": "bezier(0.16, 1, 0.3, 1)"
+    },
+    "springs": {
+      "soft": {
+        "damping": 24,
+        "stiffness": 92
+      },
+      "firm": {
+        "damping": 28,
+        "stiffness": 130
+      },
+      "stamp": {
+        "damping": 13,
+        "stiffness": 170
+      }
+    }
+  },
+  "templateContracts": {
+    "DocumentReveal": [
+      "Use archive/editorial paper geometry with restrained texture.",
+      "Camera motion should be a slow documentary push, not a zoom punch.",
+      "Highlight animation should guide the eye without covering the text."
+    ],
+    "QuoteReveal": [
+      "Treat quotes like an editorial pull quote with source metadata.",
+      "Reveal text with staggered opacity/position and one accent line.",
+      "Keep background quiet enough for long Chinese text."
+    ],
+    "ConceptDiagram": [
+      "Prefer structured flows, layers, stacks, or timelines over generic radial node diagrams.",
+      "Animate relationship lines before detail labels.",
+      "Use labels as explanatory objects, not decorative bubbles."
+    ],
+    "ThreeD": [
+      "Define camera, lighting, material, and subject semantics before adding particles.",
+      "Use primitives only when they represent a real concept in the scene."
+    ]
+  },
+  "references": [
+    "https://www.remotion.dev/docs/use-current-frame",
+    "https://www.remotion.dev/docs/interpolate",
+    "https://www.remotion.dev/docs/spring",
+    "https://m3.material.io/styles/motion/overview",
+    "https://developer.apple.com/design/human-interface-guidelines/motion",
+    "https://carbondesignsystem.com/elements/motion/overview/"
+  ]
+}

@@ -1,29 +1,51 @@
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
+import { loadLocalEnv } from "./local-env.mjs";
 
 const DEFAULT_DASHSCOPE_WS_URL = "wss://dashscope.aliyuncs.com/api-ws/v1/inference/";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, "..");
+
+loadLocalEnv(projectRoot);
 
 export function shouldUseDashScopeTts(input = {}) {
   const inputProvider = String(input.ttsProvider || "").toLowerCase();
   const provider = inputProvider && inputProvider !== "auto"
     ? inputProvider
     : String(process.env.TTV_TTS_PROVIDER || "auto").toLowerCase();
-  if (provider === "dashscope" || provider === "direct") return true;
-  if (provider === "proxy" || provider === "tengokukk") return false;
-  return Boolean(process.env.DASHSCOPE_API_KEY || process.env.DASHSCOPE_API_KEY_FILE);
+  if (provider === "proxy" || provider === "tengokukk") {
+    throw new Error("已禁用 TTS 中转接口，请使用 DashScope 直连。");
+  }
+  return true;
 }
 
 export async function synthesizeDashScopeTtsToFile(input, outputFile) {
   const apiKey = await readDashScopeApiKey();
   if (!apiKey) {
-    throw new Error("直连 DashScope TTS 需要设置 DASHSCOPE_API_KEY。");
+    throw new Error(
+      "直连 DashScope TTS 缺少 key。请在 .env.local 配置 QWEN3_TTS_DASHSCOPE_API_KEY / DASHSCOPE_API_KEY / ALIYUN_BAILIAN_API_KEY。",
+    );
   }
 
-  const model = String(input.dashscopeModel || process.env.DASHSCOPE_TTS_MODEL || "cosyvoice-v3.5-plus");
-  const voice = String(input.dashscopeVoice || process.env.DASHSCOPE_TTS_VOICE || input.providerVoice || input.voice || "");
+  const model = String(
+    input.dashscopeModel ||
+      process.env.QWEN3_TTS_DASHSCOPE_MODEL ||
+      process.env.DASHSCOPE_TTS_MODEL ||
+      "cosyvoice-v3.5-plus",
+  );
+  const voice = String(
+    input.dashscopeVoice ||
+      process.env.QWEN3_TTS_DASHSCOPE_VOICE ||
+      process.env.DASHSCOPE_TTS_VOICE ||
+      input.providerVoice ||
+      input.voice ||
+      "",
+  );
   if (!voice) {
-    throw new Error("直连 DashScope TTS 缺少 voice，请设置 DASHSCOPE_TTS_VOICE 或传入 --voice。");
+    throw new Error("直连 DashScope TTS 缺少 voice，请设置 QWEN3_TTS_DASHSCOPE_VOICE / DASHSCOPE_TTS_VOICE 或传入 --voice。");
   }
 
   const text = String(input.text || "").trim();
@@ -188,8 +210,11 @@ function parseJsonMessage(data) {
 }
 
 async function readDashScopeApiKey() {
+  if (process.env.QWEN3_TTS_DASHSCOPE_API_KEY) return process.env.QWEN3_TTS_DASHSCOPE_API_KEY;
   if (process.env.DASHSCOPE_API_KEY) return process.env.DASHSCOPE_API_KEY;
-  if (!process.env.DASHSCOPE_API_KEY_FILE) return "";
+  if (process.env.ALIYUN_BAILIAN_API_KEY) return process.env.ALIYUN_BAILIAN_API_KEY;
+  const filePath = process.env.QWEN3_TTS_DASHSCOPE_API_KEY_FILE || process.env.DASHSCOPE_API_KEY_FILE;
+  if (!filePath) return "";
   const { readFile } = await import("node:fs/promises");
-  return (await readFile(process.env.DASHSCOPE_API_KEY_FILE, "utf8")).trim();
+  return (await readFile(filePath, "utf8")).trim();
 }

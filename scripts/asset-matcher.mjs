@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { evaluateAssetQuality, qualityScoreBonus } from "./asset-quality.mjs";
 
 export function loadAssetIndex(indexPath = "public/generated/asset-index.json") {
   const full = path.resolve(process.cwd(), indexPath);
@@ -172,7 +173,7 @@ function lexicalScore(query, asset, scene) {
   if (/战争|硝烟|战场|焦土|铁锈/.test(query) && /战争|硝烟|战场|炮火/.test(assetBlob)) score += 10;
   if (/铁路|地图|路线|港口|南满|关东州/.test(query) && /铁路|地图|路线|港口/.test(assetBlob)) score += 10;
   if (/人物|课长|大臣|将军|太郎|参谋/.test(query) && /人物|肖像|身份/.test(assetBlob)) score += 10;
-  return score;
+  return score + qualityScoreBonus(asset);
 }
 
 function shouldPreferFootage(scene, score) {
@@ -246,6 +247,8 @@ function assetText(asset) {
 function rejectAssetForScene(query, asset, scene) {
   const blob = assetText(asset);
   const visualNeed = scene.semanticCard?.visualNeed || {};
+  const qualityGate = asset.qualityGate || evaluateAssetQuality(asset);
+  if (qualityGate.reject) return `素材质量门控：${qualityGate.reason}`;
   if (asset.copyright === "restricted" || asset.license === "restricted") return "版权受限";
   for (const forbidden of visualNeed.mustNotShow || []) {
     if (forbidden && blob.includes(forbidden)) return `命中禁止画面：${forbidden}`;

@@ -1,14 +1,94 @@
 import {
   AbsoluteFill,
   Audio,
-  interpolate,
   Sequence,
   staticFile,
-  useCurrentFrame,
 } from "remotion";
 import type { NarratedCaption } from "./NarratedVideo";
+import {
+  VideoInfrastructure,
+  type CaptionLayout,
+  type CaptionStyle,
+  type ProgressLayout,
+  type ProgressSegment,
+  type ProgressStyle,
+} from "../video-infrastructure/VideoInfrastructure";
 import { isLikelyMediaFile, normalizeStaticMediaPath } from "./mediaSource";
 import { type AutoScene, renderSceneTemplate } from "./sceneRegistry";
+
+export const defaultCaptionLayout = {
+  left: 78,
+  right: 78,
+  bottom: 34,
+  minHeight: 0,
+  paddingX: 24,
+  paddingY: 4,
+  fontSize: 30,
+  borderRadius: 0,
+  textColor: "#f8fafc",
+  backgroundColor: "transparent",
+  fontWeight: 850,
+  lineHeight: 1.22,
+} satisfies Required<CaptionLayout>;
+
+export const defaultProgressLayout = {
+  left: 0,
+  right: 0,
+  bottom: 0,
+  height: 30,
+  gap: 4,
+  paddingX: 0,
+  labelFontSize: 14,
+  minSegmentWidth: 36,
+} satisfies Required<ProgressLayout>;
+
+export type VideoInfrastructureLayoutProps = {
+  captionLayout?: CaptionLayout;
+  progressLayout?: ProgressLayout;
+  captionLeft?: number;
+  captionRight?: number;
+  captionBottom?: number;
+  captionMinHeight?: number;
+  captionPaddingX?: number;
+  captionPaddingY?: number;
+  captionFontSize?: number;
+  captionBorderRadius?: number;
+  captionTextColor?: string;
+  captionBackgroundColor?: string;
+  captionFontWeight?: number;
+  captionLineHeight?: number;
+  progressLeft?: number;
+  progressRight?: number;
+  progressBottom?: number;
+  progressHeight?: number;
+  progressGap?: number;
+  progressPaddingX?: number;
+  progressLabelFontSize?: number;
+  progressMinSegmentWidth?: number;
+};
+
+export const defaultVideoInfrastructureLayoutProps = {
+  captionLeft: defaultCaptionLayout.left,
+  captionRight: defaultCaptionLayout.right,
+  captionBottom: defaultCaptionLayout.bottom,
+  captionMinHeight: defaultCaptionLayout.minHeight,
+  captionPaddingX: defaultCaptionLayout.paddingX,
+  captionPaddingY: defaultCaptionLayout.paddingY,
+  captionFontSize: defaultCaptionLayout.fontSize,
+  captionBorderRadius: defaultCaptionLayout.borderRadius,
+  captionTextColor: defaultCaptionLayout.textColor,
+  captionBackgroundColor: defaultCaptionLayout.backgroundColor,
+  captionFontWeight: defaultCaptionLayout.fontWeight,
+  captionLineHeight: defaultCaptionLayout.lineHeight,
+  progressLeft: defaultProgressLayout.left,
+  progressRight: defaultProgressLayout.right,
+  progressBottom: defaultProgressLayout.bottom,
+  progressHeight: defaultProgressLayout.height,
+  progressGap: defaultProgressLayout.gap,
+  progressPaddingX: defaultProgressLayout.paddingX,
+  progressLabelFontSize: defaultProgressLayout.labelFontSize,
+  progressMinSegmentWidth: defaultProgressLayout.minSegmentWidth,
+} satisfies Required<Omit<VideoInfrastructureLayoutProps, "captionLayout" | "progressLayout">>;
 
 export type MultiSceneVideoProps = {
   title?: string;
@@ -18,7 +98,9 @@ export type MultiSceneVideoProps = {
   enableAudio?: boolean;
   showCaptions?: boolean;
   showSceneLabels?: boolean;
-};
+  captionStyle?: CaptionStyle;
+  progressStyle?: ProgressStyle;
+} & VideoInfrastructureLayoutProps;
 
 export const defaultMultiSceneVideoProps = {
   title: "自动镜头视频",
@@ -27,6 +109,9 @@ export const defaultMultiSceneVideoProps = {
   enableAudio: false,
   showCaptions: true,
   showSceneLabels: true,
+  captionStyle: "typewriter" as const,
+  progressStyle: "gradient" as const,
+  ...defaultVideoInfrastructureLayoutProps,
   scenes: [
     {
       id: "scene-001",
@@ -86,7 +171,7 @@ export const defaultMultiSceneVideoProps = {
       },
     },
   ],
-} satisfies Required<MultiSceneVideoProps>;
+} satisfies MultiSceneVideoProps;
 
 export const MultiSceneVideo = ({
   scenes,
@@ -95,13 +180,16 @@ export const MultiSceneVideo = ({
   enableAudio = false,
   showCaptions = true,
   showSceneLabels = false,
+  captionStyle = "typewriter",
+  progressStyle = "gradient",
+  ...layoutProps
 }: MultiSceneVideoProps) => {
-  const frame = useCurrentFrame();
-  const timeMs = (frame / 30) * 1000;
-  const caption = captions.find((item) => timeMs >= item.startMs && timeMs <= item.endMs);
-  const captionOpacity = showCaptions && caption ? interpolate(frame % 12, [0, 6], [0.92, 1]) : 0;
   const safeAudioSrc = normalizeStaticMediaPath(audioSrc);
   const canRenderAudio = enableAudio && safeAudioSrc && isLikelyMediaFile(safeAudioSrc);
+  const progressSegments = buildProgressSegments(scenes);
+  const displayCaptions = buildDisplayCaptions(scenes, captions);
+  const captionLayout = resolveCaptionLayout(layoutProps);
+  const progressLayout = resolveProgressLayout(layoutProps);
 
   return (
     <AbsoluteFill style={{ background: "#050505", overflow: "hidden" }}>
@@ -128,30 +216,126 @@ export const MultiSceneVideo = ({
           ) : null}
         </Sequence>
       ))}
-      {showCaptions && caption ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 70,
-            right: 70,
-            bottom: 44,
-            minHeight: 70,
-            padding: "18px 22px",
-            borderRadius: 12,
-            background: "rgba(0,0,0,0.62)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            color: "#fff",
-            fontSize: 28,
-            lineHeight: 1.35,
-            fontWeight: 800,
-            textAlign: "center",
-            textShadow: "0 2px 12px rgba(0,0,0,0.82)",
-            opacity: captionOpacity,
-          }}
-        >
-          {caption.text}
-        </div>
-      ) : null}
+      {showCaptions ? (
+        <VideoInfrastructure
+          captions={displayCaptions}
+          captionStyle={captionStyle}
+          progressStyle={progressStyle}
+          progressSegments={progressSegments}
+          captionLayout={captionLayout}
+          progressLayout={progressLayout}
+        />
+      ) : (
+        <VideoInfrastructure
+          captions={[]}
+          captionStyle="none"
+          progressStyle={progressStyle}
+          progressSegments={progressSegments}
+          captionLayout={captionLayout}
+          progressLayout={progressLayout}
+        />
+      )}
     </AbsoluteFill>
   );
 };
+
+export function resolveCaptionLayout(props: VideoInfrastructureLayoutProps): Required<CaptionLayout> {
+  return {
+    ...defaultCaptionLayout,
+    ...definedLayout(props.captionLayout),
+    ...definedLayout({
+      left: props.captionLeft,
+      right: props.captionRight,
+      bottom: props.captionBottom,
+      minHeight: props.captionMinHeight,
+      paddingX: props.captionPaddingX,
+      paddingY: props.captionPaddingY,
+      fontSize: props.captionFontSize,
+      borderRadius: props.captionBorderRadius,
+      textColor: props.captionTextColor,
+      backgroundColor: props.captionBackgroundColor,
+      fontWeight: props.captionFontWeight,
+      lineHeight: props.captionLineHeight,
+    }),
+  };
+}
+
+export function resolveProgressLayout(props: VideoInfrastructureLayoutProps): Required<ProgressLayout> {
+  return {
+    ...defaultProgressLayout,
+    ...definedLayout(props.progressLayout),
+    ...definedLayout({
+      left: props.progressLeft,
+      right: props.progressRight,
+      bottom: props.progressBottom,
+      height: props.progressHeight,
+      gap: props.progressGap,
+      paddingX: props.progressPaddingX,
+      labelFontSize: props.progressLabelFontSize,
+      minSegmentWidth: props.progressMinSegmentWidth,
+    }),
+  };
+}
+
+function definedLayout<T extends Record<string, number | string | undefined>>(value?: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [key, fieldValue] of Object.entries(value || {})) {
+    if (typeof fieldValue === "string" && fieldValue.trim()) {
+      out[key as keyof T] = fieldValue as T[keyof T];
+    } else if (fieldValue != null && Number.isFinite(Number(fieldValue))) {
+      out[key as keyof T] = Number(fieldValue) as T[keyof T];
+    }
+  }
+  return out;
+}
+
+function buildProgressSegments(scenes: AutoScene[]): ProgressSegment[] {
+  return scenes.map((scene, index) => {
+    const startMs = Number(scene.audioStartMs ?? Math.round((scene.fromFrame / 30) * 1000));
+    const endMs = Number(
+      scene.audioEndMs ?? Math.round(((scene.fromFrame + scene.durationInFrames) / 30) * 1000),
+    );
+    return {
+      id: scene.id,
+      title: segmentTitle(scene, index),
+      startMs,
+      endMs: Math.max(endMs, startMs + 500),
+      color: ["#f4d35e", "#4f8cff", "#7dd3fc", "#fca5a5", "#c4b5fd", "#86efac"][index % 6],
+    };
+  });
+}
+
+function buildDisplayCaptions(scenes: AutoScene[], captions: NarratedCaption[]): NarratedCaption[] {
+  const sceneCaptions = scenes
+    .map((scene, index) => {
+      const startMs = Number(scene.audioStartMs ?? Math.round((scene.fromFrame / 30) * 1000));
+      const endMs = Number(
+        scene.audioEndMs ?? Math.round(((scene.fromFrame + scene.durationInFrames) / 30) * 1000),
+      );
+      const text = String(scene.narrationText || scene.text || "").trim();
+      if (!text || !Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+        return null;
+      }
+      return {
+        index: index + 1,
+        startMs,
+        endMs,
+        text: normalizeCaptionText(text),
+      };
+    })
+    .filter(Boolean) as NarratedCaption[];
+
+  return sceneCaptions.length ? sceneCaptions : captions;
+}
+
+function segmentTitle(scene: AutoScene, index: number) {
+  const title = String(scene.props?.title || scene.keywords?.[0] || scene.sceneType || `片段${index + 1}`)
+    .replace(/\s+/g, "")
+    .replace(/[，。！？、；：,.!?;:]/g, "")
+    .trim();
+  return Array.from(title || `片段${index + 1}`).slice(0, 8).join("");
+}
+
+function normalizeCaptionText(value: string) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}

@@ -10,16 +10,20 @@ import {
   createProjectFromJob,
   listProjects,
   loadProject,
+  patchEvidence,
+  patchProjectInfrastructure,
   patchScene,
   projectToMultiSceneProps,
   projectToSegments,
   projectToTracks,
+  repairProjectTimeline,
   rematchScene,
   reorderScenes,
   replaceSceneMaterial,
   saveProject,
   setSceneLocked,
 } from "./project-store.mjs";
+import { extractEvidenceNeedsForProject, extractEvidenceNeedsForScene, resolveEvidenceForProject } from "./evidence-resolver.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
@@ -28,7 +32,32 @@ const jobsRoot = path.join(runtimeRoot, "jobs");
 const pagePath = path.join(projectRoot, "frontend", "video-generator.html");
 const projectPagePath = path.join(projectRoot, "frontend", "video-project.html");
 const pluginScriptPath = path.join(projectRoot, "frontend", "remotion-studio-plugin.js");
+const currentStudioPropsPath = path.join(projectRoot, "src", "generated", "currentMultiSceneDefaultProps.ts");
 const port = Number(process.env.TEXT_TO_VIDEO_PORT || 3037);
+const DEFAULT_CAPTION_LAYOUT = {
+  left: 78,
+  right: 78,
+  bottom: 34,
+  minHeight: 0,
+  paddingX: 24,
+  paddingY: 4,
+  fontSize: 30,
+  borderRadius: 0,
+  textColor: "#f8fafc",
+  backgroundColor: "transparent",
+  fontWeight: 850,
+  lineHeight: 1.22,
+};
+const DEFAULT_PROGRESS_LAYOUT = {
+  left: 0,
+  right: 0,
+  bottom: 0,
+  height: 30,
+  gap: 4,
+  paddingX: 0,
+  labelFontSize: 14,
+  minSegmentWidth: 36,
+};
 
 const jobs = new Map();
 
@@ -131,6 +160,10 @@ function createJob(body) {
       mode: body.mode === "single-template" ? "single-template" : "auto-scenes",
       template: String(body.template || "SinoJapaneseWarDemo").trim(),
       skipSrt: Boolean(body.skipSrt),
+      captionStyle: normalizeCaptionStyle(body.captionStyle),
+      progressStyle: normalizeProgressStyle(body.progressStyle),
+      captionLayout: normalizeCaptionLayout(body),
+      progressLayout: normalizeProgressLayout(body),
       theme: body.theme === "clean" ? "clean" : "historical",
     },
     logs: [],
@@ -144,9 +177,15 @@ function createJob(body) {
 async function handleProjectApi(req, res, url) {
   const parts = url.pathname.split("/").filter(Boolean);
   const id = decodeURIComponent(parts[2] || "");
-  const project = await loadProject(id);
+  let project = await loadProject(id);
   if (!project) {
     return sendJson(res, { success: false, error: "项目不存在" }, 404);
+  }
+  const repaired = repairProjectTimeline(project);
+  if (repaired.changed) {
+    project = await saveProject(repaired.project);
+  } else {
+    project = repaired.project;
   }
 
   if (req.method === "GET" && parts.length === 3) {
@@ -155,6 +194,48 @@ async function handleProjectApi(req, res, url) {
 
   if (req.method === "GET" && parts.length === 4 && parts[3] === "props") {
     return sendJson(res, { success: true, data: projectToMultiSceneProps(project) });
+  }
+
+  if (req.method === "POST" && parts.length === 4 && parts[3] === "studio-default-props") {
+    const props = projectToMultiSceneProps(project);
+    await writeCurrentStudioDefaultProps(props);
+    return sendJson(res, { success: true, data: props });
+  }
+
+  if (req.method === "POST" && parts.length === 5 && parts[3] === "evidence" && parts[4] === "extract") {
+    return sendJson(res, { success: true, data: { needs: extractEvidenceNeedsForProject(project) } });
+  }
+
+  if (req.method === "POST" && parts.length === 5 && parts[3] === "evidence" && parts[4] === "resolve") {
+    const body = await readJson(req);
+    const next = await saveProject(await resolveEvidenceForProject(project, { fetchRemote: body.fetchRemote !== false }));
+    return sendJson(res, { success: true, data: publicProject(next) });
+  }
+
+  if (req.method === "GET" && parts.length === 6 && parts[3] === "segments" && parts[5] === "evidence") {
+    const sceneId = decodeURIComponent(parts[4]);
+    const scene = project.scenes?.find((item) => item.id === sceneId);
+    if (!scene) return sendJson(res, { success: false, error: "片段不存在" }, 404);
+    return sendJson(res, {
+      success: true,
+      data: {
+        needs: scene.evidenceNeeds?.length ? scene.evidenceNeeds : extractEvidenceNeedsForScene(scene),
+        evidence: scene.evidence || null,
+      },
+    });
+  }
+
+  if (req.method === "PATCH" && parts.length === 6 && parts[3] === "segments" && parts[5] === "evidence") {
+    const sceneId = decodeURIComponent(parts[4]);
+    const body = await readJson(req);
+    const next = await saveProject(patchEvidence(project, sceneId, body.patch || body));
+    return sendJson(res, { success: true, data: publicProject(next) });
+  }
+
+  if (req.method === "PATCH" && parts.length === 4 && parts[3] === "infrastructure") {
+    const body = await readJson(req);
+    const next = await saveProject(patchProjectInfrastructure(project, body.patch || body));
+    return sendJson(res, { success: true, data: publicProject(next) });
   }
 
   if (req.method === "PATCH" && parts.length === 5 && (parts[3] === "scenes" || parts[3] === "segments")) {
@@ -216,6 +297,12 @@ function runJob(job) {
       job.input.title,
       "--instruction",
       job.input.instruction,
+      "--caption-style",
+      job.input.captionStyle,
+      "--progress-style",
+      job.input.progressStyle,
+      ...layoutArgs(job.input.captionLayout, "caption"),
+      ...layoutArgs(job.input.progressLayout, "progress"),
       "--output",
       outputPath,
       "--json=true",
@@ -246,6 +333,109 @@ function runJob(job) {
   })().catch((error) => failJob(job, error instanceof Error ? error.message : String(error)));
 }
 
+async function writeCurrentStudioDefaultProps(props) {
+  await mkdir(path.dirname(currentStudioPropsPath), { recursive: true });
+  const defaultProps = { ...props };
+  delete defaultProps.captionLayout;
+  delete defaultProps.progressLayout;
+  if (!Array.isArray(defaultProps.scenes) || defaultProps.scenes.length === 0) {
+    delete defaultProps.scenes;
+  }
+  const source = [
+    'import type {MultiSceneVideoProps} from "../templates/MultiSceneVideo";',
+    "",
+    `export const currentMultiSceneDefaultProps = ${JSON.stringify(defaultProps, null, 2)} as unknown as Partial<MultiSceneVideoProps>;`,
+    "",
+  ].join("\n");
+  await writeFile(currentStudioPropsPath, source, "utf8");
+}
+
+function normalizeCaptionStyle(value) {
+  return ["typewriter", "classic", "none"].includes(String(value || ""))
+    ? String(value)
+    : "typewriter";
+}
+
+function normalizeProgressStyle(value) {
+  return ["gradient", "thin", "none"].includes(String(value || ""))
+    ? String(value)
+    : "gradient";
+}
+
+function normalizeCaptionLayout(input = {}) {
+  return {
+    ...DEFAULT_CAPTION_LAYOUT,
+    ...pickNumberFields(input.captionLayout || input, {
+    left: "captionLeft",
+    right: "captionRight",
+    bottom: "captionBottom",
+    minHeight: "captionMinHeight",
+    paddingX: "captionPaddingX",
+    paddingY: "captionPaddingY",
+    fontSize: "captionFontSize",
+    borderRadius: "captionBorderRadius",
+    fontWeight: "captionFontWeight",
+    lineHeight: "captionLineHeight",
+    }),
+    ...pickStringFields(input.captionLayout || input, {
+      textColor: "captionTextColor",
+      backgroundColor: "captionBackgroundColor",
+    }),
+  };
+}
+
+function normalizeProgressLayout(input = {}) {
+  return {
+    ...DEFAULT_PROGRESS_LAYOUT,
+    ...pickNumberFields(input.progressLayout || input, {
+    left: "progressLeft",
+    right: "progressRight",
+    bottom: "progressBottom",
+    height: "progressHeight",
+    gap: "progressGap",
+    paddingX: "progressPaddingX",
+    labelFontSize: "progressLabelFontSize",
+    minSegmentWidth: "progressMinSegmentWidth",
+    }),
+  };
+}
+
+function pickNumberFields(source, aliases) {
+  const out = {};
+  for (const [key, alias] of Object.entries(aliases)) {
+    const value = source?.[key] ?? source?.[alias];
+    if (value !== "" && value != null && Number.isFinite(Number(value))) {
+      out[key] = Number(value);
+    }
+  }
+  return out;
+}
+
+function pickStringFields(source, aliases) {
+  const out = {};
+  for (const [key, alias] of Object.entries(aliases)) {
+    const value = source?.[key] ?? source?.[alias];
+    if (typeof value === "string" && value.trim()) {
+      out[key] = value.trim();
+    }
+  }
+  return out;
+}
+
+function layoutArgs(layout, prefix) {
+  const args = [];
+  for (const [key, value] of Object.entries(layout || {})) {
+    if (Number.isFinite(Number(value)) || (typeof value === "string" && value.trim())) {
+      args.push(`--${prefix}-${kebab(key)}`, String(value));
+    }
+  }
+  return args;
+}
+
+function kebab(value) {
+  return String(value).replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+}
+
 async function completeJob(job) {
   try {
     const project = await createProjectFromJob(job);
@@ -257,8 +447,54 @@ async function completeJob(job) {
     job.status = "succeeded";
     job.progress = "已完成";
     job.updatedAt = Date.now();
+    scheduleEvidenceResolve(project.id);
   } catch (error) {
     failJob(job, `项目创建失败：${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function scheduleEvidenceResolve(projectId) {
+  setTimeout(() => {
+    resolveEvidenceForCompletedProject(projectId).catch((error) => {
+      console.error(`[evidence] 项目 ${projectId} 后台解析失败：${error instanceof Error ? error.message : String(error)}`);
+    });
+  }, 0);
+}
+
+async function resolveEvidenceForCompletedProject(projectId) {
+  const project = await loadProject(projectId);
+  if (!project) return;
+  await saveProject({
+    ...project,
+    evidence: {
+      ...(project.evidence || {}),
+      status: "resolving",
+      startedAt: Date.now(),
+    },
+  });
+
+  try {
+    const current = (await loadProject(projectId)) || project;
+    const resolved = await resolveEvidenceForProject(current);
+    await saveProject({
+      ...resolved,
+      evidence: {
+        ...(resolved.evidence || {}),
+        status: "resolved",
+        resolvedAt: Date.now(),
+      },
+    });
+  } catch (error) {
+    const current = (await loadProject(projectId)) || project;
+    await saveProject({
+      ...current,
+      evidence: {
+        ...(current.evidence || {}),
+        status: "resolve_failed",
+        error: error instanceof Error ? error.message : String(error),
+        resolvedAt: Date.now(),
+      },
+    });
   }
 }
 
@@ -368,7 +604,7 @@ function sendJson(res, value, statusCode = 200) {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   });
   res.end(JSON.stringify(value));

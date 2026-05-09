@@ -45,6 +45,7 @@ import {
   defaultMultiSceneVideoProps,
   MultiSceneVideo,
 } from "./templates/MultiSceneVideo";
+import { currentMultiSceneDefaultProps } from "./generated/currentMultiSceneDefaultProps";
 import {
   ConceptDiagram,
   MetaphorVisual,
@@ -88,21 +89,42 @@ const templateIdSchema = z.enum([
   "ThreeCardCascade",
 ]);
 
-const captionSchema = z.object({
-  index: z.number(),
-  startMs: z.number(),
-  endMs: z.number(),
-  text: z.string(),
-});
+const captionStyleSchema = z.enum(["typewriter", "classic", "none"]);
+const progressStyleSchema = z.enum(["gradient", "thin", "none"]);
+const videoInfrastructureLayoutSchema = {
+  captionLeft: z.number().min(0).max(960).optional(),
+  captionRight: z.number().min(0).max(960).optional(),
+  captionBottom: z.number().min(0).max(540).optional(),
+  captionMinHeight: z.number().min(0).max(240).optional(),
+  captionPaddingX: z.number().min(0).max(160).optional(),
+  captionPaddingY: z.number().min(0).max(120).optional(),
+  captionFontSize: z.number().min(10).max(96).optional(),
+  captionBorderRadius: z.number().min(0).max(80).optional(),
+  captionTextColor: z.string().optional(),
+  captionBackgroundColor: z.string().optional(),
+  captionFontWeight: z.number().min(100).max(1000).optional(),
+  captionLineHeight: z.number().min(0.8).max(2.4).optional(),
+  progressLeft: z.number().min(0).max(960).optional(),
+  progressRight: z.number().min(0).max(960).optional(),
+  progressBottom: z.number().min(0).max(540).optional(),
+  progressHeight: z.number().min(1).max(120).optional(),
+  progressGap: z.number().min(0).max(40).optional(),
+  progressPaddingX: z.number().min(0).max(240).optional(),
+  progressLabelFontSize: z.number().min(8).max(64).optional(),
+  progressMinSegmentWidth: z.number().min(0).max(240).optional(),
+};
 
 const generatedTemplateVideoSchema = z.object({
   templateId: templateIdSchema,
   title: z.string().optional(),
   audioSrc: z.string().optional(),
-  captions: z.array(captionSchema).optional(),
+  captions: z.any().optional(),
   durationSeconds: z.number().min(5).max(600).optional(),
   showCaptions: z.boolean().optional(),
-});
+  captionStyle: captionStyleSchema.optional(),
+  progressStyle: progressStyleSchema.optional(),
+  ...videoInfrastructureLayoutSchema,
+}).passthrough();
 
 const documentRevealSchema = z.object({
   title: z.string().optional(),
@@ -190,83 +212,39 @@ const remotionLabShowcaseAssetSchema = z.object({
   showPreviewVideo: z.boolean().optional(),
 });
 
-const autoSceneTemplateIdSchema = z.enum([
-  "DocumentReveal",
-  "QuoteReveal",
-  "PortraitFocus",
-  "ConceptDiagram",
-  "MetaphorVisual",
-  "AtlasMapFlyover",
-  "MapRouteFlyover",
-  "HistoricalGlobeTexture1938",
-  "SvgAssembly",
-  "PromptHistogram",
-  "RulerProgress",
-  "PromptTextRotation",
-  "MixkitReveal",
-  "FootageScene",
-  "NarratedScene",
-]);
-
-const visualLayerSchema = z
-  .object({
-    type: z.enum(["template", "footage", "template_with_footage_hint"]),
-    templateId: z.string().optional(),
-    providerType: z.string().optional(),
-    clipId: z.string().optional(),
-    path: z.string().optional(),
-    title: z.string().optional(),
-    confidence: z.number().optional(),
-    reason: z.string().optional(),
-    fallbackTemplateId: z.string().optional(),
-  })
-  .optional();
-
-const autoSceneSchema = z.object({
-  id: z.string(),
-  index: z.number(),
-  text: z.string(),
-  sceneType: z.string().optional(),
-  narrationText: z.string().optional(),
-  visualIntent: z.string().optional(),
-  visualIntentData: z.record(z.string(), z.unknown()).optional(),
-  semanticCard: z.record(z.string(), z.unknown()).optional(),
-  visualContract: z.record(z.string(), z.unknown()).optional(),
-  visualGrounding: z.record(z.string(), z.unknown()).optional(),
-  visualCandidates: z.array(z.record(z.string(), z.unknown())).optional(),
-  decisionTrace: z.record(z.string(), z.unknown()).optional(),
-  visualProviderId: z.string().optional(),
-  providerType: z.string().optional(),
-  templateId: autoSceneTemplateIdSchema,
-  category: z.string().optional(),
-  durationSec: z.number().optional(),
-  fromFrame: z.number().int().min(0),
-  durationInFrames: z.number().int().min(1),
-  keywords: z.array(z.string()).optional(),
-  decisionReason: z.string().optional(),
-  visualLayer: visualLayerSchema,
-  props: z.record(z.string(), z.unknown()),
-});
-
 const multiSceneVideoSchema = z.object({
   title: z.string().optional(),
-  scenes: z.array(autoSceneSchema),
+  scenes: z.any(),
   audioSrc: z.string().optional(),
-  captions: z.array(captionSchema).optional(),
+  captions: z.any().optional(),
   enableAudio: z.boolean().optional(),
   showCaptions: z.boolean().optional(),
   showSceneLabels: z.boolean().optional(),
-});
+  captionStyle: captionStyleSchema.optional(),
+  progressStyle: progressStyleSchema.optional(),
+  ...videoInfrastructureLayoutSchema,
+}).passthrough();
+
+const multiSceneDefaultProps = {
+  ...defaultMultiSceneVideoProps,
+  ...currentMultiSceneDefaultProps,
+  scenes: Array.isArray(currentMultiSceneDefaultProps.scenes) && currentMultiSceneDefaultProps.scenes.length > 0
+    ? currentMultiSceneDefaultProps.scenes
+    : defaultMultiSceneVideoProps.scenes,
+} as z.input<typeof multiSceneVideoSchema>;
 
 const narratedVideoSchema = z.object({
   title: z.string(),
   subtitle: z.string().optional(),
   bodyText: z.string(),
   audioSrc: z.string().optional(),
-  captions: z.array(captionSchema).optional(),
+  captions: z.any().optional(),
   durationSeconds: z.number().min(5).max(600).optional(),
   theme: z.enum(["historical", "clean"]).optional(),
-});
+  captionStyle: captionStyleSchema.optional(),
+  progressStyle: progressStyleSchema.optional(),
+  ...videoInfrastructureLayoutSchema,
+}).passthrough();
 
 const earthGlobeSchema = z.object({
   title: z.string(),
@@ -455,7 +433,29 @@ const defaultNarratedVideoProps = {
   captions: [],
   durationSeconds: 12,
   theme: "historical",
-} satisfies Required<NarratedVideoProps>;
+  captionStyle: "typewriter" as const,
+  progressStyle: "gradient" as const,
+  captionLeft: 78,
+  captionRight: 78,
+  captionBottom: 34,
+  captionMinHeight: 0,
+  captionPaddingX: 24,
+  captionPaddingY: 4,
+  captionFontSize: 30,
+  captionBorderRadius: 0,
+  captionTextColor: "#f8fafc",
+  captionBackgroundColor: "transparent",
+  captionFontWeight: 850,
+  captionLineHeight: 1.22,
+  progressLeft: 0,
+  progressRight: 0,
+  progressBottom: 0,
+  progressHeight: 30,
+  progressGap: 4,
+  progressPaddingX: 0,
+  progressLabelFontSize: 14,
+  progressMinSegmentWidth: 36,
+} satisfies NarratedVideoProps;
 
 const documentRevealDefaultProps: z.input<typeof documentRevealSchema> = {
   title: "《朴茨茅斯和约》",
@@ -789,10 +789,11 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1280}
         height={720}
-        defaultProps={defaultMultiSceneVideoProps}
+        defaultProps={multiSceneDefaultProps}
         calculateMetadata={({ props }) => {
-          const endFrame = props.scenes.reduce(
-            (max, scene) =>
+          const scenes = props.scenes as Array<{fromFrame: number; durationInFrames: number}>;
+          const endFrame = scenes.reduce(
+            (max: number, scene) =>
               Math.max(max, scene.fromFrame + scene.durationInFrames),
             0,
           );
@@ -1067,3 +1068,5 @@ export const RemotionRoot: React.FC = () => {
     </>
   );
 };
+
+

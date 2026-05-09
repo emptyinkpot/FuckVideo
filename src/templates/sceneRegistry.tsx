@@ -77,6 +77,8 @@ export type AutoScene = {
   durationSec?: number;
   fromFrame: number;
   durationInFrames: number;
+  audioStartMs?: number;
+  audioEndMs?: number;
   keywords?: string[];
   visualIntentData?: Record<string, unknown>;
   decisionReason?: string;

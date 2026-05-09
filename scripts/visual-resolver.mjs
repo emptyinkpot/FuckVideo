@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { normalizeAnimationProviders } from "./animation-contracts.mjs";
+import { evaluateAssetQuality, qualityScoreBonus } from "./asset-quality.mjs";
 
 const DEFAULT_PROVIDER_MANIFEST = "src/templates/visual-provider-manifest.json";
 const DEFAULT_ASSET_INDEX = "public/generated/asset-index.json";
@@ -51,7 +53,7 @@ export function loadJsonSafe(filePath, fallback = []) {
 }
 
 export function loadVisualProviders(filePath = DEFAULT_PROVIDER_MANIFEST) {
-  return loadJsonSafe(filePath, []);
+  return normalizeAnimationProviders(loadJsonSafe(filePath, []));
 }
 
 export function resolveVisualForSegment(segment, options = {}) {
@@ -163,7 +165,7 @@ function rankProgrammaticProviders({ segment, providers, previous, trace, config
       continue;
     }
 
-    const renderTemplateId = provider.templateId || provider.renderTemplateId || provider.id;
+    const renderTemplateId = provider.runtime?.sceneRegistryId || provider.templateId || provider.renderTemplateId || provider.id;
     const candidate = {
       source: provider.providerType,
       providerType: provider.providerType,
@@ -310,6 +312,7 @@ function rankFootageAssets({ segment, assets, trace, config = DEFAULT_RESOLVER_C
     if (arr(asset.bestFor).includes(segment.sceneType)) score += 12;
     if (arr(asset.semantic?.visualKinds).includes(contract.kind)) score += 20;
     score += config.providerPriority?.[asset.providerType === "static" ? "static" : "footage"] ?? 0;
+    score += qualityScoreBonus(asset);
 
     if (score > 0) {
       const candidate = {
@@ -339,6 +342,8 @@ function rejectAsset(segment, asset) {
   const contract = segment.visualContract || {};
   const blob = assetBlob(asset);
   const providerType = asset.providerType === "static" ? "static" : "footage";
+  const qualityGate = asset.qualityGate || evaluateAssetQuality(asset);
+  if (qualityGate.reject) return `素材质量门控：${qualityGate.reason}`;
   if (contract.allowedProviderTypes?.length && !contract.allowedProviderTypes.includes(providerType)) {
     return `providerType 不允许：${providerType}`;
   }

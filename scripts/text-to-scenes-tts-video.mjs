@@ -7,25 +7,75 @@ import { planScenesFromCaptions, writeScenesFile } from "./scene-planner.mjs";
 import { loadAssetIndex } from "./asset-matcher.mjs";
 import { stretchScenesToFrames } from "./timeline-aligner.mjs";
 import { shouldUseDashScopeTts, synthesizeDashScopeTtsToFile } from "./dashscope-tts.mjs";
+import { loadLocalEnv } from "./local-env.mjs";
+import { buildEstimatedCaptionsFromText, captionsToSrt } from "./subtitle-aligner.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const generatedDir = path.join(projectRoot, "public", "generated");
 const rawAudioDir = path.join(projectRoot, ".runtime", "text-to-video", "raw-audio");
+const DEFAULT_CAPTION_LAYOUT = {
+  left: 78,
+  right: 78,
+  bottom: 34,
+  minHeight: 0,
+  paddingX: 24,
+  paddingY: 4,
+  fontSize: 30,
+  borderRadius: 0,
+  textColor: "#f8fafc",
+  backgroundColor: "transparent",
+  fontWeight: 850,
+  lineHeight: 1.22,
+};
+const DEFAULT_PROGRESS_LAYOUT = {
+  left: 0,
+  right: 0,
+  bottom: 0,
+  height: 30,
+  gap: 4,
+  paddingX: 0,
+  labelFontSize: 14,
+  minSegmentWidth: 36,
+};
+
+loadLocalEnv(projectRoot);
 
 const defaults = {
-  apiBase: "https://<private-tts-relay>/api/qwen3-tts",
+  apiBase: "",
   text: "旅顺港的海风吹进东京霞关，战争的尾声并没有带来平静。新的铁路和港口，正在改变东亚的权力地图。",
   title: "自动片段文本视频",
   language: "Chinese",
   voice: "my-clone",
-  ttsProvider: "auto",
+  ttsProvider: "dashscope",
   instruction: "标准播音风格，吐字清晰，语速平稳，停顿自然",
   output: path.join(projectRoot, "out", "auto-scenes-tts-video.mp4"),
   skipSrt: false,
   render: true,
   json: false,
   showSceneLabels: false,
+  captionStyle: "typewriter",
+  progressStyle: "gradient",
+  captionBottom: "",
+  captionLeft: "",
+  captionRight: "",
+  captionMinHeight: "",
+  captionPaddingX: "",
+  captionPaddingY: "",
+  captionFontSize: "",
+  captionBorderRadius: "",
+  captionTextColor: "",
+  captionBackgroundColor: "",
+  captionFontWeight: "",
+  captionLineHeight: "",
+  progressBottom: "",
+  progressLeft: "",
+  progressRight: "",
+  progressHeight: "",
+  progressGap: "",
+  progressPaddingX: "",
+  progressLabelFontSize: "",
+  progressMinSegmentWidth: "",
   matchAssets: true,
   assetIndex: "public/generated/asset-index.json",
 };
@@ -80,26 +130,17 @@ async function main() {
 
   let srtText = "";
   let captions = [];
-  if (!input.skipSrt && audioUrl) {
-    console.log("[3/6] 正在请求语音对齐字幕...");
-    try {
-      const srt = await generateSrt(input, audioUrl);
-      srtText = srt.srtText || "";
-      captions = parseSrt(srtText);
-      if (srtText) {
-        await writeFile(path.join(generatedDir, `tts-${stamp}.srt`), srtText, "utf8");
-      }
-    } catch (error) {
-      console.warn(
-        `[警告] 字幕生成失败，将继续渲染只有音频的视频：${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
-  } else if (input.skipSrt) {
+  if (input.skipSrt) {
     console.log("[3/6] 已按要求跳过字幕。");
   } else {
-    console.log("[3/6] DashScope 直连音频暂无公网 audioUrl，已跳过字幕。");
+    console.log("[3/6] 正在用原文和音频时长生成估算字幕...");
+    captions = buildEstimatedCaptionsFromText(input.text, durationSeconds, {
+      maxChars: Number(input.subtitleMaxChars || 22),
+    });
+    srtText = captionsToSrt(captions);
+    if (srtText) {
+      await writeFile(path.join(generatedDir, `tts-${stamp}.srt`), srtText, "utf8");
+    }
   }
 
   console.log("[4/6] 正在规划自动片段...");
@@ -118,6 +159,8 @@ async function main() {
   assertCaptionSceneLockstep(scenes, captions);
   await writeFile(scenesPath, JSON.stringify({ ...plan, scenes, totalFrames: sceneEndFrame(scenes) }, null, 2), "utf8");
 
+  const captionLayout = normalizeCaptionLayout(input);
+  const progressLayout = normalizeProgressLayout(input);
   const props = {
     title: input.title,
     scenes,
@@ -126,6 +169,11 @@ async function main() {
     enableAudio: true,
     showCaptions: !input.skipSrt,
     showSceneLabels: Boolean(input.showSceneLabels),
+    captionStyle: normalizeCaptionStyle(input.captionStyle),
+    progressStyle: normalizeProgressStyle(input.progressStyle),
+    captionLayout,
+    progressLayout,
+    ...layoutToSchemaProps(captionLayout, progressLayout),
   };
   const propsPath = path.join(generatedDir, `props-scenes-tts-${stamp}.json`);
   await writeFile(propsPath, JSON.stringify(props, null, 2), "utf8");
@@ -166,36 +214,13 @@ async function main() {
 }
 
 async function generateTts(input, stamp = safeStamp()) {
-  const route = countTextUnits(input.text) > 800 ? "/custom-voice/long" : "/custom-voice";
   const providerVoice = input.voice === "my-clone" ? myCloneVoice : input.voice;
-  if (shouldUseDashScopeTts(input)) {
-    console.log("[TTS] 使用 DashScope 直连接口。");
-    return synthesizeDashScopeTtsToFile(
-      { ...input, providerVoice },
-      path.join(rawAudioDir, `tts-raw-${stamp}.mp3`),
-    );
-  }
-  console.log("[TTS] 使用兼容中转接口。");
-  const payload = await postJson(
-    `${trimSlash(input.apiBase)}${route}`,
-    {
-      text: input.text,
-      language: input.language,
-      providerVoice,
-      styleInstruction: input.instruction,
-    },
-    "TTS 请求失败",
+  shouldUseDashScopeTts(input);
+  console.log("[TTS] 使用 DashScope 直连接口。");
+  return synthesizeDashScopeTtsToFile(
+    { ...input, providerVoice },
+    path.join(rawAudioDir, `tts-raw-${stamp}.mp3`),
   );
-  return payload.data || {};
-}
-
-async function generateSrt(input, audioUrl) {
-  const payload = await postJson(
-    `${trimSlash(input.apiBase)}/srt`,
-    { audioUrl, language: input.language },
-    "字幕请求失败",
-  );
-  return payload.data || {};
 }
 
 async function postJson(url, body, fallbackMessage) {
@@ -416,6 +441,103 @@ function toCamel(value) {
   return value.replace(/-([a-z])/g, (_, ch) => ch.toUpperCase());
 }
 
+function normalizeCaptionStyle(value) {
+  return ["typewriter", "classic", "none"].includes(String(value || ""))
+    ? String(value)
+    : "typewriter";
+}
+
+function normalizeProgressStyle(value) {
+  return ["gradient", "thin", "none"].includes(String(value || ""))
+    ? String(value)
+    : "gradient";
+}
+
+function normalizeCaptionLayout(input) {
+  return {
+    ...DEFAULT_CAPTION_LAYOUT,
+    ...pickNumberFields(input, {
+    left: "captionLeft",
+    right: "captionRight",
+    bottom: "captionBottom",
+    minHeight: "captionMinHeight",
+    paddingX: "captionPaddingX",
+    paddingY: "captionPaddingY",
+    fontSize: "captionFontSize",
+    borderRadius: "captionBorderRadius",
+    fontWeight: "captionFontWeight",
+    lineHeight: "captionLineHeight",
+    }),
+    ...pickStringFields(input, {
+      textColor: "captionTextColor",
+      backgroundColor: "captionBackgroundColor",
+    }),
+  };
+}
+
+function normalizeProgressLayout(input) {
+  return {
+    ...DEFAULT_PROGRESS_LAYOUT,
+    ...pickNumberFields(input, {
+    left: "progressLeft",
+    right: "progressRight",
+    bottom: "progressBottom",
+    height: "progressHeight",
+    gap: "progressGap",
+    paddingX: "progressPaddingX",
+    labelFontSize: "progressLabelFontSize",
+    minSegmentWidth: "progressMinSegmentWidth",
+    }),
+  };
+}
+
+function layoutToSchemaProps(captionLayout, progressLayout) {
+  return {
+    captionLeft: captionLayout.left,
+    captionRight: captionLayout.right,
+    captionBottom: captionLayout.bottom,
+    captionMinHeight: captionLayout.minHeight,
+    captionPaddingX: captionLayout.paddingX,
+    captionPaddingY: captionLayout.paddingY,
+    captionFontSize: captionLayout.fontSize,
+    captionBorderRadius: captionLayout.borderRadius,
+    captionTextColor: captionLayout.textColor,
+    captionBackgroundColor: captionLayout.backgroundColor,
+    captionFontWeight: captionLayout.fontWeight,
+    captionLineHeight: captionLayout.lineHeight,
+    progressLeft: progressLayout.left,
+    progressRight: progressLayout.right,
+    progressBottom: progressLayout.bottom,
+    progressHeight: progressLayout.height,
+    progressGap: progressLayout.gap,
+    progressPaddingX: progressLayout.paddingX,
+    progressLabelFontSize: progressLayout.labelFontSize,
+    progressMinSegmentWidth: progressLayout.minSegmentWidth,
+  };
+}
+
+function pickNumberFields(source, aliases) {
+  const out = {};
+  for (const [key, alias] of Object.entries(aliases)) {
+    const value = source?.[key] ?? source?.[alias];
+    if (value !== "" && value != null && Number.isFinite(Number(value))) {
+      out[key] = Number(value);
+    }
+  }
+  return out;
+}
+
+function pickStringFields(source, aliases) {
+  const out = {};
+  for (const [key, alias] of Object.entries(aliases)) {
+    const value = source?.[key] ?? source?.[alias];
+    if (typeof value === "string" && value.trim()) {
+      out[key] = value.trim();
+    }
+  }
+  return out;
+}
+
 function countTextUnits(value) {
   return String(value || "").replace(/\s/g, "").length;
 }
@@ -430,6 +552,9 @@ function absolutizeUrl(apiBase, value) {
   }
   if (/^https?:\/\//i.test(value)) {
     return value;
+  }
+  if (!apiBase) {
+    return "";
   }
   const root = new URL(trimSlash(apiBase).replace(/\/api\/qwen3-tts$/, ""));
   return new URL(value, root).toString();

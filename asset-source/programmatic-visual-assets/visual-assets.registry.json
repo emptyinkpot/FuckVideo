@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-05-04",
+  "runtimeProject": "E:/My Project/remotion-project",
+  "sources": [
+    {
+      "id": "remotion-bits",
+      "type": "git+npm",
+      "sourceUrl": "https://github.com/av/remotion-bits",
+      "localPath": "asset-source/programmatic-visual-assets/remotion-bits",
+      "package": "remotion-bits",
+      "sourceVersion": "0.2.0",
+      "license": "MIT",
+      "usableModules": [
+        "AnimatedText",
+        "TypeWriter",
+        "GradientTransition",
+        "StaggeredMotion",
+        "ParticleSystem",
+        "Scene3D",
+        "MatrixRain",
+        "CodeBlock"
+      ],
+      "bestFor": ["text_reveal", "camera_motion", "3d_scene", "particles", "code_visual"],
+      "localAdapters": ["DocumentRevealProV2"]
+    },
+    {
+      "id": "reactvideoeditor-remotion-templates",
+      "type": "git",
+      "sourceUrl": "https://github.com/reactvideoeditor/remotion-templates",
+      "referenceUrl": "https://www.reactvideoeditor.com/remotion-templates",
+      "localPath": "asset-source/programmatic-visual-assets/reactvideoeditor-remotion-templates",
+      "license": "MIT",
+      "templateCount": 81,
+      "usableModules": [
+        "text-highlight.tsx",
+        "quote-card.tsx",
+        "typewriter-subtitle.tsx",
+        "ken-burns.tsx",
+        "noise-grain.tsx",
+        "film-burn.tsx",
+        "vignette-pulse.tsx",
+        "camera-shake.tsx",
+        "spotlight-reveal.tsx",
+        "letterbox-reveal.tsx",
+        "zoom-through.tsx"
+      ],
+      "bestFor": ["overlay_effects", "text_reveal", "cinematic_motion", "transitions", "data_visuals"],
+      "localAdapters": ["DocumentRevealProV2"]
+    },
+    {
+      "id": "remotion-official-resources",
+      "type": "docs-html",
+      "sourceUrl": "https://www.remotion.dev/docs/resources",
+      "localPath": "asset-source/programmatic-visual-assets/remotion-official/resources.html",
+      "license": "Reference only; verify linked resource license before copying",
+      "usableModules": [
+        "text reveal references",
+        "subtitle highlight references",
+        "zoom references",
+        "vignette references",
+        "shader references",
+        "3D references"
+      ],
+      "bestFor": ["implementation_reference", "official_pattern_check"]
+    },
+    {
+      "id": "roughjs",
+      "type": "npm",
+      "sourceUrl": "https://github.com/rough-stuff/rough",
+      "package": "roughjs",
+      "installedVersion": "4.6.6",
+      "license": "MIT",
+      "usableModules": ["rough.generator", "rectangle", "curve", "circle", "toPaths"],
+      "bestFor": ["hand_drawn_highlight", "annotation", "rough_stamp"],
+      "localAdapters": ["DocumentRevealProV2"]
+    },
+    {
+      "id": "framer-motion",
+      "type": "npm",
+      "sourceUrl": "https://github.com/motiondivision/motion",
+      "package": "framer-motion",
+      "sourceVersion": "12.38.0",
+      "license": "MIT",
+      "usableModules": ["easing references", "motion design vocabulary"],
+      "bestFor": ["motion_curve_reference", "interactive_react_runtime"],
+      "notes": "For exported Remotion video, prefer frame-driven Remotion interpolation. Use framer-motion mainly as design/reference dependency unless a component is explicitly interactive."
+    }
+  ],
+  "adapters": [
+    {
+      "id": "DocumentRevealProV2",
+      "runtimePath": "src/templates/DocumentRevealProV2.tsx",
+      "category": "document",
+      "acceptsVisualKinds": ["document", "quote"],
+      "capabilities": [
+        "paper_texture",
+        "film_grain",
+        "light_leak",
+        "vignette",
+        "animated_text",
+        "rough_highlight",
+        "nonlinear_camera"
+      ],
+      "propCompatibility": {
+        "inherits": "DocumentRevealProps",
+        "adds": ["grainIntensity", "textureIntensity", "cameraAmount", "lightLeak", "paperVariant"]
+      },
+      "manifestIds": [
+        "src/templates/template-manifest.json#DocumentRevealProV2",
+        "src/templates/visual-provider-manifest.json#DocumentRevealProV2"
+      ]
+    }
+  ]
+}

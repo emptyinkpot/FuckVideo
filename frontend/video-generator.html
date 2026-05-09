@@ -347,6 +347,104 @@
                 </select>
               </label>
             </div>
+            <div class="grid">
+              <label>
+                字幕动画
+                <select id="captionStyle">
+                  <option value="typewriter">打字机字幕</option>
+                  <option value="classic">经典字幕</option>
+                  <option value="none">不显示字幕</option>
+                </select>
+              </label>
+              <label>
+                视频进度条
+                <select id="progressStyle">
+                  <option value="gradient">底部渐变进度条</option>
+                  <option value="thin">底部细进度条</option>
+                  <option value="none">不显示进度条</option>
+                </select>
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                字幕底部 Y
+                <input id="captionBottom" type="number" value="34" />
+              </label>
+              <label>
+                字幕字号
+                <input id="captionFontSize" type="number" value="30" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                字幕左边距
+                <input id="captionLeft" type="number" value="78" />
+              </label>
+              <label>
+                字幕右边距
+                <input id="captionRight" type="number" value="78" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                字幕高度
+                <input id="captionMinHeight" type="number" value="0" />
+              </label>
+              <label>
+                字幕圆角
+                <input id="captionBorderRadius" type="number" value="0" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                字幕横向内边距
+                <input id="captionPaddingX" type="number" value="24" />
+              </label>
+              <label>
+                字幕纵向内边距
+                <input id="captionPaddingY" type="number" value="4" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                进度条底部 Y
+                <input id="progressBottom" type="number" value="0" />
+              </label>
+              <label>
+                进度条高度
+                <input id="progressHeight" type="number" value="30" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                进度条左边距
+                <input id="progressLeft" type="number" value="0" />
+              </label>
+              <label>
+                进度条右边距
+                <input id="progressRight" type="number" value="0" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                进度分段间距
+                <input id="progressGap" type="number" value="4" />
+              </label>
+              <label>
+                进度条标题字号
+                <input id="progressLabelFontSize" type="number" value="14" />
+              </label>
+            </div>
+            <div class="grid">
+              <label>
+                进度条内边距 X
+                <input id="progressPaddingX" type="number" value="0" />
+              </label>
+              <label>
+                最小分段宽度
+                <input id="progressMinSegmentWidth" type="number" value="36" />
+              </label>
+            </div>
           </div>
 
           <div class="section">
@@ -396,6 +494,16 @@
         $("#generate").textContent = value ? "生成中" : "生成视频";
       }
 
+      function readLayout(prefix, fields) {
+        const out = {};
+        for (const field of fields) {
+          const id = `${prefix}${field[0].toUpperCase()}${field.slice(1)}`;
+          const value = Number($(`#${id}`).value);
+          if (Number.isFinite(value)) out[field] = value;
+        }
+        return out;
+      }
+
       async function readJson(res) {
         const payload = await res.json().catch(() => null);
         if (!res.ok || !payload?.success) {
@@ -431,6 +539,28 @@
               template: $("#template").value,
               theme: $("#theme").value,
               skipSrt: $("#skipSrt").value === "true",
+              captionStyle: $("#captionStyle").value,
+              progressStyle: $("#progressStyle").value,
+              captionLayout: readLayout("caption", [
+                "left",
+                "right",
+                "bottom",
+                "minHeight",
+                "paddingX",
+                "paddingY",
+                "fontSize",
+                "borderRadius",
+              ]),
+              progressLayout: readLayout("progress", [
+                "left",
+                "right",
+                "bottom",
+                "height",
+                "gap",
+                "paddingX",
+                "labelFontSize",
+                "minSegmentWidth",
+              ]),
             }),
           });
           const job = await readJson(res);

@@ -78,27 +78,26 @@
     ["The studio server has disconnected.", "工作台服务已断开连接。"],
   ]);
 
-  const storyboardPanelStorageKey = "ttv.storyboardPanel";
   const generatorPanelStorageKey = "ttv.generatorPanel";
   const progressStorageKey = "ttv.lastProgress";
   const workbarStorageKey = "ttv.workbar";
+  const pendingSceneStorageKey = "ttv.pendingSceneId";
 
   if (localStorage.getItem("remotion.sidebarPanel") === "storyboard") {
     localStorage.setItem("remotion.sidebarPanel", "input-props");
   }
 
   const state = {
-    storyboardOpen: localStorage.getItem(storyboardPanelStorageKey) === "storyboard",
     jobId: "",
     timer: 0,
     project: null,
     projects: [],
     selectedSceneId: "",
-    candidates: [],
     workbarCollapsed: localStorage.getItem(workbarStorageKey) === "collapsed",
     projectMenuOpen: false,
     playheadMs: 0,
     timelineDragSceneId: "",
+    compositionTreeKey: "",
   };
 
   const style = document.createElement("style");
@@ -261,6 +260,80 @@
       font: 700 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
     }
     .ttv-menu-action:hover { background: #1f2937; }
+    .ttv-composition-tree {
+      display: none;
+      margin: 2px 8px 8px 24px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 8px;
+      background: #11151d;
+      color: #d1d5db;
+      font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+      overflow: hidden;
+    }
+    .ttv-composition-tree.open { display: block; }
+    .ttv-composition-tree-head {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 9px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 850;
+    }
+    .ttv-composition-tree-body {
+      padding: 6px;
+      display: grid;
+      gap: 3px;
+      overflow: visible;
+    }
+    .ttv-comp-node,
+    .ttv-scene-node {
+      width: 100%;
+      min-height: 34px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #d1d5db;
+      cursor: pointer;
+      font: 12px/1.25 Inter, "Microsoft YaHei", system-ui, sans-serif;
+      text-align: left;
+    }
+    .ttv-comp-node {
+      padding: 6px 8px;
+      color: #f8fafc;
+      background: rgba(79,140,255,.12);
+      font-weight: 850;
+    }
+    .ttv-scene-node {
+      padding: 8px 8px 8px 24px;
+      position: relative;
+    }
+    .ttv-scene-node::before {
+      content: "";
+      position: absolute;
+      left: 11px;
+      top: 0;
+      bottom: 50%;
+      width: 9px;
+      border-left: 1px solid rgba(148,163,184,.42);
+      border-bottom: 1px solid rgba(148,163,184,.42);
+    }
+    .ttv-scene-node:hover,
+    .ttv-scene-node.active,
+    .ttv-comp-node:hover {
+      background: #1f2937;
+      color: white;
+    }
+    .ttv-node-meta {
+      margin-top: 2px;
+      color: #8b949e;
+      font-size: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .ttv-workbar-button {
       height: 24px;
       border: 1px solid rgba(255,255,255,.12);
@@ -285,33 +358,6 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .ttv-side-tab {
-      border: 0;
-      flex: 1;
-      height: 40px;
-      padding: 4px 12px;
-      background: #232323;
-      color: #b8b8b8;
-      font: 600 14px Inter, "Microsoft YaHei", system-ui, sans-serif;
-      cursor: default;
-      border-top: 2px solid transparent;
-    }
-    .ttv-side-tab.active {
-      background: #171717;
-      color: white;
-      border-top-color: #0f62fe;
-    }
-    .ttv-storyboard-panel {
-      display: none;
-      height: 100%;
-      min-height: 0;
-      flex: 1;
-      overflow: hidden;
-      background: #171717;
-      color: #f5f5f5;
-      font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
-    }
-    .ttv-storyboard-panel.open { display: grid; grid-template-rows: auto 1fr; }
     .ttv-native-timeline-dock {
       display: none;
       min-width: 0;
@@ -337,9 +383,6 @@
       border-radius: 0;
       background: transparent;
       box-shadow: none;
-    }
-    .ttv-native-timeline-dock.docked .ttv-segment-strip-head {
-      display: none;
     }
     .ttv-native-timeline-dock.floating {
       position: fixed;
@@ -453,7 +496,6 @@
       padding: 8px 10px;
       line-height: 1.55;
     }
-    .ttv-storyboard-panel .ttv-textarea { min-height: 76px; }
     .ttv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .ttv-row { display: flex; gap: 8px; align-items: center; }
     .ttv-row-actions {
@@ -509,73 +551,6 @@
       padding: 8px;
       background: #111;
     }
-    .ttv-scene-list { display: grid; gap: 6px; }
-    .ttv-project-shell {
-      display: grid;
-      gap: 10px;
-      min-height: 0;
-    }
-    .ttv-scene-list.compact {
-      padding-right: 2px;
-    }
-    .ttv-scene-editor {
-      display: grid;
-      gap: 10px;
-      min-height: 0;
-    }
-    .ttv-scene {
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 8px;
-      background: #202020;
-      color: #d8d8d8;
-      padding: 8px;
-      text-align: left;
-      cursor: pointer;
-      font-size: 11px;
-      line-height: 1.45;
-    }
-    .ttv-scene.active { border-color: rgba(15,98,254,.85); background: #1b2540; }
-    .ttv-pill { color: #8f8f8f; font-size: 10px; margin-top: 4px; }
-    .ttv-candidate {
-      display: grid;
-      gap: 4px;
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 8px;
-      padding: 8px;
-      background: #202020;
-      font-size: 11px;
-    }
-    .ttv-understanding {
-      display: grid;
-      gap: 6px;
-      border: 1px solid rgba(79,140,255,.22);
-      border-radius: 8px;
-      padding: 8px;
-      background: #171d2a;
-      font-size: 11px;
-      color: #d8d8d8;
-    }
-    .ttv-understanding-title {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      color: #f1f5f9;
-      font-weight: 700;
-    }
-    .ttv-understanding-grid {
-      display: grid;
-      grid-template-columns: 54px 1fr;
-      gap: 4px 8px;
-      line-height: 1.4;
-    }
-    .ttv-understanding-key { color: #8f8f8f; }
-    .ttv-understanding-value { color: #d8d8d8; overflow-wrap: anywhere; }
-    .ttv-trace {
-      color: #8f8f8f;
-      border-top: 1px solid rgba(255,255,255,.07);
-      padding-top: 6px;
-      line-height: 1.45;
-    }
     .ttv-segment-strip {
       display: grid;
       gap: 6px;
@@ -583,14 +558,6 @@
       border: 1px solid rgba(255,255,255,.09);
       border-radius: 10px;
       background: #121212;
-    }
-    .ttv-segment-strip-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      color: #aaa;
-      font-size: 11px;
-      font-weight: 750;
     }
     .ttv-segment-lane {
       position: relative;
@@ -636,34 +603,6 @@
       border-radius: 4px;
       font-size: 9px;
       padding: 0 5px;
-    }
-    .ttv-storyboard-launcher {
-      display: none;
-      position: fixed;
-      left: 12px;
-      top: 84px;
-      z-index: 2147483000;
-      height: 32px;
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 8px;
-      padding: 0 11px;
-      background: #1f2937;
-      color: white;
-      font: 700 12px Inter, "Microsoft YaHei", system-ui, sans-serif;
-      box-shadow: 0 14px 34px rgba(0,0,0,.28);
-      cursor: pointer;
-    }
-    body.ttv-storyboard-undocked .ttv-storyboard-launcher { display: inline-flex; align-items: center; }
-    body.ttv-storyboard-undocked .ttv-storyboard-panel.open {
-      position: fixed;
-      left: 12px;
-      top: 122px;
-      bottom: 18px;
-      width: min(340px, calc(100vw - 24px));
-      z-index: 2147483001;
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 12px;
-      box-shadow: 0 24px 70px rgba(0,0,0,.46);
     }
     @media (max-width: 1180px) {
       .ttv-workbar.floating {
@@ -801,43 +740,37 @@
   `;
   document.body.appendChild(generatorPanel);
 
-  const storyboardLauncher = document.createElement("button");
-  storyboardLauncher.className = "ttv-storyboard-launcher";
-  storyboardLauncher.type = "button";
-  storyboardLauncher.textContent = "片段";
-  storyboardLauncher.onclick = () => setStoryboardOpen(true);
-  document.body.appendChild(storyboardLauncher);
-
-  const storyboardPanel = document.createElement("section");
-  storyboardPanel.className = "ttv-storyboard-panel";
-  storyboardPanel.innerHTML = `
-    <div class="ttv-head">
-      <div class="ttv-title">片段</div>
-      <div class="ttv-sub">一句/一段话绑定一个画面；生成控制台在右侧。</div>
-    </div>
-    <div class="ttv-body">
-      <div id="ttv-project"></div>
-    </div>
-  `;
+  const compositionTree = document.createElement("section");
+  compositionTree.className = "ttv-composition-tree";
+  compositionTree.setAttribute("aria-label", "项目合成树");
+  compositionTree.innerHTML = `<div class="ttv-composition-tree-head"><span>项目合成树</span><span>未载入</span></div>`;
 
   const timelineDock = document.createElement("section");
   timelineDock.className = "ttv-native-timeline-dock";
   timelineDock.setAttribute("aria-label", "片段条");
   document.body.appendChild(timelineDock);
 
-  const sideTab = document.createElement("button");
-  sideTab.type = "button";
-  sideTab.className = "ttv-side-tab";
-  sideTab.textContent = "片段";
-  sideTab.onclick = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setStoryboardOpen(true);
-  };
-
   const g = (selector) => generatorPanel.querySelector(selector);
-  const s = (selector) => storyboardPanel.querySelector(selector);
   const w = (selector) => workbar.querySelector(selector);
+
+  compositionTree.addEventListener(
+    "pointerdown",
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const sceneNode = target.closest("[data-scene-node]");
+      const compNode = target.closest("[data-comp-node]");
+      if (!sceneNode && !compNode) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (sceneNode) {
+        openProjectSceneFromTree(sceneNode.dataset.sceneNode || "").catch((error) => setStatus(error.message || String(error)));
+        return;
+      }
+      openProjectCompositionFromTree().catch((error) => setStatus(error.message || String(error)));
+    },
+    { capture: true },
+  );
 
   function setGeneratorOpen(open) {
     generatorPanel.classList.toggle("open", open);
@@ -916,12 +849,12 @@
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const node of nodes) {
-      if (storyboardPanel.contains(node.parentElement) || generatorPanel.contains(node.parentElement)) continue;
+      if (generatorPanel.contains(node.parentElement) || compositionTree.contains(node.parentElement)) continue;
       const next = translateValue(node.nodeValue);
       if (next !== node.nodeValue) node.nodeValue = next;
     }
     for (const element of document.querySelectorAll("input, textarea, button, [aria-label], [title]")) {
-      if (storyboardPanel.contains(element) || generatorPanel.contains(element)) continue;
+      if (generatorPanel.contains(element) || compositionTree.contains(element)) continue;
       if (element.placeholder) element.placeholder = translateValue(element.placeholder);
       if (element.getAttribute("aria-label")) element.setAttribute("aria-label", translateValue(element.getAttribute("aria-label")));
       if (element.getAttribute("title")) element.setAttribute("title", translateValue(element.getAttribute("title")));
@@ -945,7 +878,7 @@
 
   function findHelpMenuItem() {
     const candidates = Array.from(document.querySelectorAll("button, a, div, span")).filter((el) => {
-      if (workbar.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el) || timelineDock.contains(el)) return false;
+      if (workbar.contains(el) || generatorPanel.contains(el) || timelineDock.contains(el) || compositionTree.contains(el)) return false;
       return normalize(el.textContent) === "help" || normalize(el.textContent) === "帮助";
     });
     return candidates.find((el) => {
@@ -972,7 +905,7 @@
 
   function findNativeRenderButton() {
     const candidates = Array.from(document.querySelectorAll("button, [role='button']")).filter((el) => {
-      if (workbar.contains(el) || generatorLauncher.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el) || timelineDock.contains(el)) return false;
+      if (workbar.contains(el) || generatorLauncher.contains(el) || generatorPanel.contains(el) || timelineDock.contains(el) || compositionTree.contains(el)) return false;
       const text = normalize(el.textContent);
       return text === "render" || text === "渲染";
     });
@@ -1015,7 +948,7 @@
     }
 
     const labels = Array.from(document.querySelectorAll("button, [role='button'], div, span")).filter((el) => {
-      if (workbar.contains(el) || generatorPanel.contains(el) || storyboardPanel.contains(el) || timelineDock.contains(el)) return false;
+      if (workbar.contains(el) || generatorPanel.contains(el) || timelineDock.contains(el) || compositionTree.contains(el)) return false;
       const text = normalize(el.textContent);
       if (text !== "timeline" && text !== "时间线") return false;
       const rect = el.getBoundingClientRect();
@@ -1054,59 +987,104 @@
     timelineDock.classList.remove("floating");
   }
 
+  function ensureCompositionTreeDocked() {
+    const listHost = findCompositionListHost();
+    if (!listHost) {
+      compositionTree.classList.remove("open");
+      return;
+    }
+    const multiSceneRow = Array.from(listHost.querySelectorAll(".__remotion-composition"))
+      .find((item) => item.getAttribute("data-compname") === "MultiSceneVideo");
+    if (compositionTree.parentElement !== listHost) {
+      if (multiSceneRow?.parentElement === listHost) {
+        multiSceneRow.insertAdjacentElement("afterend", compositionTree);
+      } else {
+        listHost.insertBefore(compositionTree, listHost.firstChild);
+      }
+    } else if (multiSceneRow?.nextElementSibling !== compositionTree && multiSceneRow.parentElement === listHost) {
+      multiSceneRow.insertAdjacentElement("afterend", compositionTree);
+    }
+    renderCompositionTree(false);
+  }
+
+  function findCompositionListHost() {
+    const compositionRows = Array.from(document.querySelectorAll(".__remotion-composition"));
+    if (!compositionRows.length) return null;
+    const visibleRows = compositionRows.filter((row) => {
+      const rect = row.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && !compositionTree.contains(row);
+    });
+    const row = visibleRows.find((item) => item.getAttribute("data-compname") === "MultiSceneVideo") || visibleRows[0];
+    let node = row?.parentElement || null;
+    while (node && node !== document.body) {
+      const rowsInside = node.querySelectorAll(".__remotion-composition").length;
+      const rect = node.getBoundingClientRect();
+      if (rowsInside >= Math.min(3, visibleRows.length) && rect.height > 80) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return row?.parentElement || null;
+  }
+
+  function renderCompositionTree(force = true) {
+    const project = state.project;
+    if (!project) {
+      if (!force && state.compositionTreeKey === "empty") return;
+      state.compositionTreeKey = "empty";
+      compositionTree.classList.remove("open");
+      compositionTree.innerHTML = `<div class="ttv-composition-tree-head"><span>项目合成树</span><span>未载入</span></div>`;
+      return;
+    }
+    const segments = projectSegments(project);
+    const durationMs = Math.max(Number(project.durationMs || 0), ...segments.map((segment) => Number(segment.endMs || 0)), 0);
+    const key = [
+      project.id || "",
+      project.updatedAt || "",
+      state.selectedSceneId || "",
+      segments.length,
+      ...segments.map((segment) => `${segment.id}:${segment.startMs}:${segment.endMs}:${segment.visual?.templateId || segment.visual?.materialId || ""}:${segment.status || ""}`),
+    ].join("|");
+    if (!force && state.compositionTreeKey === key) {
+      compositionTree.classList.add("open");
+      return;
+    }
+    state.compositionTreeKey = key;
+    compositionTree.classList.add("open");
+    compositionTree.innerHTML = `
+      <div class="ttv-composition-tree-head">
+        <span>项目合成树</span>
+        <span>${segments.length} 片段</span>
+      </div>
+      <div class="ttv-composition-tree-body">
+        <button class="ttv-comp-node" data-comp-node="MultiSceneVideo" type="button">
+          ▾ MultiSceneVideo
+          <div class="ttv-node-meta">${escapeHtml(project.title || "当前项目")} · ${Math.round(durationMs / 100) / 10}s</div>
+        </button>
+        ${segments.map((segment, index) => renderCompositionTreeScene(segment, index)).join("")}
+      </div>
+    `;
+  }
+
+  function renderCompositionTreeScene(segment, index) {
+    const active = segment.id === state.selectedSceneId;
+    const visualSource = segment.visual?.providerType || segment.visual?.source || "template";
+    const title = String(segment.visual?.templateId || segment.visual?.materialId || segment.sceneType || "片段");
+    const text = String(segment.subtitleText || segment.text || title).replace(/\s+/g, " ").trim();
+    return `
+      <button class="ttv-scene-node ${active ? "active" : ""}" data-scene-node="${escapeHtml(segment.id)}" type="button">
+        ${String(index + 1).padStart(2, "0")} ${escapeHtml(text.slice(0, 34) || title)}
+        <div class="ttv-node-meta">${escapeHtml(title)} · ${Math.round(Number(segment.durationMs || 0) / 100) / 10}s · ${escapeHtml(visualSource)}</div>
+      </button>
+    `;
+  }
+
   function normalize(value) {
     return String(value || "").replace(/\s+/g, "").trim().toLowerCase();
   }
 
   function ensureDocked() {
-    const tabs = findExplorerTabs();
-    if (!tabs) {
-      setStoryboardUndocked(true);
-      return;
-    }
-    const root = tabs.parentElement?.parentElement;
-    if (!root) {
-      setStoryboardUndocked(true);
-      return;
-    }
-    setStoryboardUndocked(false);
-    if (!tabs.contains(sideTab)) {
-      tabs.appendChild(sideTab);
-    }
-    if (!tabs.dataset.ttvBound) {
-      tabs.dataset.ttvBound = "true";
-      tabs.addEventListener("click", (event) => {
-        if (!event.target.closest(".ttv-side-tab")) setStoryboardOpen(false);
-      });
-    }
-    if (storyboardPanel.parentElement !== root) {
-      root.appendChild(storyboardPanel);
-    }
-    syncStoryboardVisibility(root);
-  }
-
-  function setStoryboardUndocked(undocked) {
-    document.body.classList.toggle("ttv-storyboard-undocked", undocked);
-    if (undocked && storyboardPanel.parentElement !== document.body) {
-      document.body.appendChild(storyboardPanel);
-    }
-    sideTab.classList.toggle("active", state.storyboardOpen);
-    storyboardPanel.classList.toggle("open", state.storyboardOpen);
-  }
-
-  function syncStoryboardVisibility(root) {
-    sideTab.classList.toggle("active", state.storyboardOpen);
-    storyboardPanel.classList.toggle("open", state.storyboardOpen);
-    for (const child of Array.from(root.children)) {
-      if (child === storyboardPanel || child.contains(sideTab)) continue;
-      child.style.display = state.storyboardOpen ? "none" : "";
-    }
-  }
-
-  function setStoryboardOpen(open) {
-    state.storyboardOpen = open;
-    localStorage.setItem(storyboardPanelStorageKey, open ? "storyboard" : "native");
-    ensureDocked();
+    ensureCompositionTreeDocked();
   }
 
   async function fetchJson(url, options) {
@@ -1151,6 +1129,7 @@
     for (const button of workbar.querySelectorAll("[data-project]")) {
       button.onclick = () => switchProject(button.dataset.project);
     }
+    renderCompositionTree(false);
   }
 
   async function switchProject(projectId) {
@@ -1158,11 +1137,9 @@
     state.projectMenuOpen = false;
     const project = await loadProject(projectId);
     if (project?.scenes?.length) {
-      setStoryboardOpen(true);
       await applyProjectToStudioPreview(projectId);
     } else {
       setStatus("已切换到空项目。可以用右侧控制台生成内容，或继续选择已有项目。");
-      setStoryboardOpen(true);
     }
   }
 
@@ -1239,16 +1216,11 @@
   }
 
   async function applyProjectToStudioPreview(projectId) {
-    const props = await fetchJson(`${API}/api/projects/${encodeURIComponent(projectId)}/props`);
-    const enablePreviewAudio = isSafePreviewAudioSrc(props.audioSrc);
-    localStorage.setItem(
-      `remotion_inputPropsOverride${window.location.origin}`,
-      JSON.stringify({
-        ...props,
-        enableAudio: enablePreviewAudio,
-      }),
-    );
-    setStatus("已写入 Studio 预览参数，正在切换到 MultiSceneVideo。");
+    await fetchJson(`${API}/api/projects/${encodeURIComponent(projectId)}/studio-default-props`, {
+      method: "POST",
+    });
+    clearStudioPropsOverride();
+    setStatus("已写入 MultiSceneVideo defaultProps，正在切换到可编辑参数面板。");
     if (window.location.pathname !== "/MultiSceneVideo") {
       window.location.href = "/MultiSceneVideo";
     } else {
@@ -1256,87 +1228,94 @@
     }
   }
 
-  function isSafePreviewAudioSrc(src) {
-    const value = String(src || "").trim();
-    if (!value) return false;
-    if (/^(https?:)?\/\//i.test(value) || value.includes("..") || value.startsWith("/")) return false;
-    return /\.(mp3|wav|m4a|aac|ogg)(\?.*)?$/i.test(value);
+  function restorePreviewAudioOverride() {
+    clearStudioPropsOverride();
   }
 
-  function restorePreviewAudioOverride() {
+  function clearStudioPropsOverride() {
     const key = `remotion_inputPropsOverride${window.location.origin}`;
-    const raw = localStorage.getItem(key);
-    if (!raw) return;
-    try {
-      const props = JSON.parse(raw);
-      if (props && props.enableAudio === false && isSafePreviewAudioSrc(props.audioSrc)) {
-        localStorage.setItem(key, JSON.stringify({ ...props, enableAudio: true }));
-      }
-    } catch {
-      // Ignore invalid Studio override payloads written by external tools.
-    }
+    localStorage.removeItem(key);
   }
 
   function seekPreview(scene) {
     const frame = Math.max(0, Math.round((Number(scene.startMs || 0) / 1000) * 30));
     if (typeof window.remotion_setFrame === "function") {
       window.remotion_setFrame(frame, "MultiSceneVideo", 0);
+      return;
     }
+    seekPreviewViaFrameInput(frame);
+  }
+
+  function seekPreviewViaFrameInput(frame) {
+    const eventInit = {
+      key: "g",
+      code: "KeyG",
+      bubbles: true,
+      cancelable: true,
+    };
+    document.dispatchEvent(new KeyboardEvent("keypress", eventInit));
+    window.dispatchEvent(new KeyboardEvent("keypress", eventInit));
+    window.setTimeout(() => {
+      const input = document.activeElement;
+      if (!(input instanceof HTMLInputElement)) return;
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(input, String(frame));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keypress", { key: "Enter", code: "Enter", bubbles: true }));
+      input.blur();
+    }, 60);
+  }
+
+  async function openProjectCompositionFromTree() {
+    if (!state.project?.id) return;
+    await applyProjectToStudioPreview(state.project.id);
+  }
+
+  async function openProjectSceneFromTree(sceneId) {
+    if (!state.project?.id || !sceneId) return;
+    const scene = state.project.scenes.find((item) => item.id === sceneId);
+    if (!scene) return;
+    state.selectedSceneId = sceneId;
+    state.playheadMs = Number(scene.startMs || 0);
+    localStorage.setItem(pendingSceneStorageKey, sceneId);
+    renderCompositionTree(false);
+    if (window.location.pathname !== "/MultiSceneVideo") {
+      await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/studio-default-props`, { method: "POST" });
+      clearStudioPropsOverride();
+      window.location.href = "/MultiSceneVideo";
+      return;
+    }
+    localStorage.removeItem(pendingSceneStorageKey);
+    seekPreview(scene);
+  }
+
+  function applyPendingSceneSelection() {
+    const sceneId = localStorage.getItem(pendingSceneStorageKey);
+    if (!sceneId || !state.project?.scenes?.length) return;
+    const scene = state.project.scenes.find((item) => item.id === sceneId);
+    if (!scene) {
+      localStorage.removeItem(pendingSceneStorageKey);
+      return;
+    }
+    state.selectedSceneId = sceneId;
+    state.playheadMs = Number(scene.startMs || 0);
+    localStorage.removeItem(pendingSceneStorageKey);
+    window.setTimeout(() => seekPreview(scene), 120);
   }
 
   function renderProject() {
-    const wrap = s("#ttv-project");
     const project = state.project;
     if (!project) {
-      wrap.innerHTML = `<div class="ttv-status">还没有项目。先用右侧生成控制台生成初版视频。</div>`;
       g("#ttv-open-video").removeAttribute("href");
       renderSegmentStripDock();
+      renderCompositionTree(false);
       return;
     }
-    const scene = selectedScene();
-    const segments = projectSegments(project);
+    applyPendingSceneSelection();
     g("#ttv-open-video").href = project.videoUrl ? `${API}${project.videoUrl}` : "#";
-    wrap.innerHTML = `
-      <div class="ttv-project-shell">
-        <div class="ttv-row-actions">
-          <button class="ttv-button" id="ttv-new-draft" type="button">清空草稿</button>
-          <button class="ttv-button" id="ttv-lock" type="button">${scene?.locked ? "解除锁定" : "锁定片段"}</button>
-        </div>
-        <div class="ttv-scene-list compact">
-          ${segments
-            .map(
-              (item, index) => `
-                <button class="ttv-scene ${item.id === state.selectedSceneId ? "active" : ""}" data-scene="${item.id}" type="button">
-                  ${index + 1}. ${escapeHtml(item.subtitleText || item.text).slice(0, 70)}
-                  <div class="ttv-pill">${escapeHtml(item.visual?.templateId || item.visual?.materialId || "画面")} · ${Math.round(item.durationMs / 100) / 10}s${item.locked ? " · 已锁定" : ""}</div>
-                </button>
-              `,
-            )
-            .join("")}
-        </div>
-        <div class="ttv-scene-editor">
-          ${scene ? renderSceneEditor(scene) : ""}
-        </div>
-      </div>
-    `;
-    for (const button of wrap.querySelectorAll("[data-scene]")) {
-      button.onclick = () => {
-        state.selectedSceneId = button.dataset.scene;
-        state.candidates = [];
-        state.playheadMs = selectedScene()?.startMs || 0;
-        renderProject();
-        const next = selectedScene();
-        if (next) seekPreview(next);
-      };
-    }
-    s("#ttv-new-draft").onclick = () => {
-      state.project = null;
-      state.selectedSceneId = "";
-      state.candidates = [];
-      renderProject();
-    };
-    if (scene) bindSceneEditor(scene);
     renderSegmentStripDock();
+    renderCompositionTree(false);
   }
 
   function renderSegmentStripDock() {
@@ -1350,14 +1329,10 @@
     const segments = projectSegments(project);
     const durationMs = Math.max(Number(project.durationMs || 0), ...segments.map((segment) => Number(segment.endMs || 0)));
     if (!durationMs) {
-      return `<div class="ttv-segment-strip"><div class="ttv-status">片段条会在项目生成旁白和画面后显示。</div></div>`;
+      return `<div class="ttv-segment-strip"></div>`;
     }
     return `
       <div class="ttv-segment-strip">
-        <div class="ttv-segment-strip-head">
-          <span>片段条</span>
-          <span>${segments.length} 段 · 一段话绑定一个画面</span>
-        </div>
         <div class="ttv-segment-lane" data-segment-lane="true">
           ${segments.map((segment, index) => renderSegmentBlock(segment, index, durationMs)).join("")}
         </div>
@@ -1398,7 +1373,6 @@
         if (!scene) return;
         state.selectedSceneId = sceneId;
         state.playheadMs = scene.startMs || 0;
-        state.candidates = [];
         renderProject();
         seekPreview(scene);
       };
@@ -1449,164 +1423,6 @@
           state.playheadMs = scene.startMs || 0;
           seekPreview(scene);
         }
-        renderProject();
-      };
-    }
-  }
-
-  function renderSceneEditor(scene) {
-    return `
-      <label class="ttv-label">旁白 / 字幕
-        <textarea class="ttv-textarea" id="ttv-scene-text">${escapeHtml(scene.voiceText || "")}</textarea>
-      </label>
-      <label class="ttv-label">视觉意图
-        <textarea class="ttv-textarea" id="ttv-visual-intent">${escapeHtml(scene.visualIntent || "")}</textarea>
-      </label>
-      ${renderSceneUnderstanding(scene)}
-      <div class="ttv-grid">
-        <label class="ttv-label">模板
-          <select class="ttv-select" id="ttv-scene-template">
-            ${templates.map(([id, label]) => `<option value="${id}" ${scene.templateId === id ? "selected" : ""}>${label}</option>`).join("")}
-          </select>
-        </label>
-        <label class="ttv-label">类型
-          <input class="ttv-input" id="ttv-scene-type" value="${escapeHtml(scene.sceneType || "")}" />
-        </label>
-      </div>
-      <div class="ttv-grid">
-        <label class="ttv-label">开始 ms
-          <input class="ttv-input" id="ttv-start-ms" type="number" value="${Number(scene.startMs || 0)}" />
-        </label>
-        <label class="ttv-label">结束 ms
-          <input class="ttv-input" id="ttv-end-ms" type="number" value="${Number(scene.endMs || 0)}" />
-        </label>
-      </div>
-      <div class="ttv-grid">
-        <button class="ttv-button primary" id="ttv-save-scene" type="button">保存片段</button>
-        <button class="ttv-button" id="ttv-rematch" type="button">重配画面</button>
-      </div>
-      <div id="ttv-candidates">${renderCandidates()}</div>
-    `;
-  }
-
-  function renderSceneUnderstanding(scene) {
-    const card = scene.semanticCard || {};
-    const entities = card.entities || {};
-    const need = card.visualNeed || scene.visualContract || {};
-    const grounding = scene.visualGrounding || {};
-    const trace = scene.decisionTrace || {};
-    const visualLayer = scene.visualLayer || {};
-    const finalChoice = trace.finalChoice || {};
-    return `
-      <div class="ttv-understanding">
-        <div class="ttv-understanding-title">
-          <span>片段理解</span>
-          <span>${escapeHtml(need.kind || "fallback")} · ${escapeHtml(grounding.hallucinationRisk || "risk?")}</span>
-        </div>
-        <div class="ttv-understanding-grid">
-          ${understandingRow("主体", firstNonEmpty([entities.documents, entities.people, entities.objects, entities.locations]))}
-          ${understandingRow("动作", card.event?.action || "explain")}
-          ${understandingRow("地点", joinList(entities.locations))}
-          ${understandingRow("文件", joinList(entities.documents))}
-          ${understandingRow("必须", joinList(need.mustShow))}
-          ${understandingRow("禁止", joinList(need.mustNotShow))}
-        </div>
-        <div class="ttv-trace">
-          当前画面：${escapeHtml(scene.providerType || visualLayer.providerType || visualLayer.type || "template")} ${escapeHtml(scene.visualProviderId || visualLayer.clipId || scene.templateId || "")}
-          · 置信度 ${Math.round(Number(visualLayer.confidence || finalChoice.score || 0))}
-          <br />
-          原因：${escapeHtml(visualLayer.reason || finalChoice.reason || scene.decisionReason || "无")}
-        </div>
-      </div>
-    `;
-  }
-
-  function understandingRow(label, value) {
-    return `
-      <div class="ttv-understanding-key">${escapeHtml(label)}</div>
-      <div class="ttv-understanding-value">${escapeHtml(value || "无")}</div>
-    `;
-  }
-
-  function joinList(value) {
-    return Array.isArray(value) ? value.filter(Boolean).slice(0, 6).join("、") : String(value || "");
-  }
-
-  function firstNonEmpty(groups) {
-    for (const group of groups || []) {
-      const value = joinList(group);
-      if (value) return value;
-    }
-    return "";
-  }
-
-  function renderCandidates() {
-    if (!state.candidates.length) return "";
-    return state.candidates
-      .map(
-        (item) => `
-          <div class="ttv-candidate">
-            <strong>${escapeHtml(item.title || item.id)}</strong>
-            <span>${escapeHtml(item.reason || "")} · score ${item.score}</span>
-            <button class="ttv-button" data-candidate="${escapeHtml(item.id)}" type="button">替换为此素材</button>
-          </div>
-        `,
-      )
-      .join("");
-  }
-
-  function bindSceneEditor(scene) {
-    s("#ttv-save-scene").onclick = async () => {
-      const patch = {
-        voiceText: s("#ttv-scene-text").value,
-        subtitle: s("#ttv-scene-text").value,
-        visualIntent: s("#ttv-visual-intent").value,
-        templateId: s("#ttv-scene-template").value,
-        sceneType: s("#ttv-scene-type").value,
-        startMs: Number(s("#ttv-start-ms").value),
-        endMs: Number(s("#ttv-end-ms").value),
-        props: { body: s("#ttv-scene-text").value },
-      };
-      state.project = await fetchJson(`${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patch }),
-      });
-      setStatus("片段已保存。需要看画面时点“刷新 Studio 预览”。");
-      renderProject();
-    };
-    s("#ttv-lock").onclick = async () => {
-      state.project = await fetchJson(
-        `${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}/lock`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ locked: !scene.locked }),
-        },
-      );
-      renderProject();
-    };
-    s("#ttv-rematch").onclick = async () => {
-      const data = await fetchJson(
-        `${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}/rematch-visual`,
-        { method: "POST" },
-      );
-      state.candidates = data.candidates || [];
-      renderProject();
-    };
-    for (const button of storyboardPanel.querySelectorAll("[data-candidate]")) {
-      button.onclick = async () => {
-        const candidate = state.candidates.find((item) => item.id === button.dataset.candidate);
-        if (!candidate) return;
-        state.project = await fetchJson(
-          `${API}/api/projects/${encodeURIComponent(state.project.id)}/segments/${encodeURIComponent(scene.id)}/replace-visual`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ candidate }),
-          },
-        );
-        setStatus("片段画面已替换。");
         renderProject();
       };
     }
@@ -1696,7 +1512,6 @@
           const project = await loadProject(job.result.projectId);
           await loadProjects().catch(() => {});
           if (project.scenes?.length) {
-            setStoryboardOpen(true);
             await applyProjectToStudioPreview(job.result.projectId);
           } else {
             setStatus("单模板视频已生成；片段预览仅用于 MultiSceneVideo 项目。");

@@ -2,10 +2,13 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadLocalEnv } from "./local-env.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const remotionCli = path.join(projectRoot, "node_modules", "@remotion", "cli", "remotion-cli.js");
+
+loadLocalEnv(projectRoot);
 
 const children = [];
 

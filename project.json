@@ -1,0 +1,163 @@
+{
+  "projectName": "remotion-project",
+  "tts": {
+    "provider": "dashscope",
+    "apiKeyEnv": "QWEN3_TTS_DASHSCOPE_API_KEY",
+    "model": "cosyvoice-v3.5-plus",
+    "voice": "cosyvoice-v3.5-plus-bailian-f04eec5bf9e64f14afeefd3bb09cccfe",
+    "languageType": "Chinese",
+    "wsUrl": "wss://dashscope.aliyuncs.com/api-ws/v1/inference/"
+  },
+  "videoInfrastructure": {
+    "root": "src/video-infrastructure",
+    "editableAfterGeneration": true,
+    "remotionSchemaPorts": true,
+    "schemaCompositions": ["MultiSceneVideo", "GeneratedTemplateVideo", "NarratedVideo"],
+    "projectPatchApi": "/api/projects/:id/infrastructure",
+    "caption": {
+      "source": "original_text_plus_audio_duration",
+      "defaultMaxChars": 22,
+      "renderingRule": "single_line_only",
+      "styles": ["typewriter", "classic", "none"],
+      "defaultStyle": "typewriter",
+      "layout": {
+        "left": 78,
+        "right": 78,
+        "bottom": 34,
+        "minHeight": 0,
+        "paddingX": 24,
+        "paddingY": 4,
+        "fontSize": 30,
+        "borderRadius": 0,
+        "textColor": "#f8fafc",
+        "backgroundColor": "transparent",
+        "fontWeight": 850,
+        "lineHeight": 1.22
+      },
+      "manualTuningFields": [
+        "captionLeft",
+        "captionRight",
+        "captionBottom",
+        "captionMinHeight",
+        "captionPaddingX",
+        "captionPaddingY",
+        "captionFontSize",
+        "captionBorderRadius",
+        "captionTextColor",
+        "captionBackgroundColor",
+        "captionFontWeight",
+        "captionLineHeight"
+      ]
+    },
+    "progress": {
+      "component": "VideoProgressBar",
+      "styles": ["gradient", "thin", "none"],
+      "defaultStyle": "gradient",
+      "singleProgressBarOnly": true,
+      "segmentedBy": "segment",
+      "segmentTitleSources": ["scene.props.title", "keywords[0]", "sceneType"],
+      "layout": {
+        "left": 0,
+        "right": 0,
+        "bottom": 0,
+        "height": 30,
+        "gap": 4,
+        "paddingX": 0,
+        "labelFontSize": 14,
+        "minSegmentWidth": 36
+      },
+      "manualTuningFields": [
+        "progressLeft",
+        "progressRight",
+        "progressBottom",
+        "progressHeight",
+        "progressGap",
+        "progressPaddingX",
+        "progressLabelFontSize",
+        "progressMinSegmentWidth"
+      ],
+      "forbiddenLayers": ["chapter", "chapterGenerator", "chapterApi", "chapterEditor"]
+    },
+    "timeModel": {
+      "layers": ["caption", "segment"],
+      "captionRole": "subtitle_audio_alignment",
+      "segmentRole": "visual_unit_and_progress_unit",
+      "canonicalPipeline": "sourceText -> TTS audio -> captions(time) -> caption-derived segments -> Remotion props",
+      "invariants": [
+        "captions text must come from original source text, not ASR transcript text",
+        "display captions must be segment-derived and single-line",
+        "segments must carry parentCaptionIndex or captionIndex when captions exist",
+        "each caption must be covered by one or more segments with matching startMs/endMs",
+        "project export and studio-default-props must validate or rebuild timeline before writing props"
+      ],
+      "validator": "scripts/project-store.mjs#repairProjectTimeline",
+      "forbidden": [
+        "mixing old captions with newly planned scenes",
+        "using ASR typo text as subtitle source",
+        "exporting MultiSceneVideo props without timeline validation"
+      ]
+    }
+  },
+  "animationOrchestration": {
+    "contractVersion": "1.0",
+    "canonicalManifest": "src/templates/visual-provider-manifest.json",
+    "contractValidator": "scripts/animation-contracts.mjs",
+    "validatorCommand": "npm run validate-animation-contracts",
+    "runtimeRegistry": "src/templates/sceneRegistry.tsx",
+    "compositionRegistry": "src/Root.tsx",
+    "resolver": "scripts/visual-resolver.mjs",
+    "pencilRole": "visual_blueprint_only",
+    "pencilIntake": {
+      "designRoot": "designs/animation-blueprints",
+      "referenceExportRoot": "public/design-references",
+      "allowedUse": [
+        "read .pen variables and layout",
+        "export selected frames as visual references",
+        "record layer model in provider.design",
+        "manually implement Remotion template or improve existing template"
+      ],
+      "forbiddenUse": [
+        "treat Pencil export as executable Remotion animation",
+        "let AI directly invent visual behavior without a provider contract",
+        "add a provider without sceneRegistry and Root schema alignment"
+      ]
+    },
+    "handoffPipeline": [
+      "Pencil frame or AE reference",
+      "provider.design.layerModel",
+      "provider.accepts/capabilities/propMapping",
+      "sceneRegistry runtime template",
+      "Root composition schema/defaultProps",
+      "visual-resolver decisionTrace"
+    ],
+    "coreProviderLimit": 8
+  },
+  "evidenceSystem": {
+    "version": 1,
+    "goal": "text -> evidence -> visual",
+    "extractor": "scripts/evidence-resolver.mjs#extractEvidenceNeedsForScene",
+    "resolver": "scripts/evidence-resolver.mjs#resolveEvidenceForProject",
+    "cacheRoot": "public/evidence-cache",
+    "api": {
+      "extract": "POST /api/projects/:id/evidence/extract",
+      "resolve": "POST /api/projects/:id/evidence/resolve",
+      "getSegmentEvidence": "GET /api/projects/:id/segments/:segmentId/evidence",
+      "patchSegmentEvidence": "PATCH /api/projects/:id/segments/:segmentId/evidence"
+    },
+    "activeSourcePriority": ["local", "wikimedia", "wikipedia", "programmatic"],
+    "plannedSources": ["archive", "loc"],
+    "hardRules": {
+      "noFakeDocument": true,
+      "noFakePortrait": true,
+      "noFakeHistoricalPhoto": true,
+      "evidenceFirst": true,
+      "fallbackMustBeMarked": true
+    },
+    "visualPolicy": {
+      "document": "real scan/image first, then DocumentReveal with fallback_used",
+      "person": "real portrait/photo first, then PortraitFocus with fallback_used",
+      "map": "real map/place image first, then MapRouteFlyover",
+      "abstract": "programmatic templates allowed"
+    }
+  }
+}

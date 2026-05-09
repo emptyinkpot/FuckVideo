@@ -8,6 +8,17 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import {
+  activeCaptionAt,
+  VideoInfrastructure,
+  type CaptionStyle,
+  type ProgressStyle,
+} from "../video-infrastructure/VideoInfrastructure";
+import {
+  resolveCaptionLayout,
+  resolveProgressLayout,
+  type VideoInfrastructureLayoutProps,
+} from "./MultiSceneVideo";
 
 export type NarratedCaption = {
   index: number;
@@ -24,7 +35,9 @@ export type NarratedVideoProps = {
   captions?: NarratedCaption[];
   durationSeconds?: number;
   theme?: "historical" | "clean";
-};
+  captionStyle?: CaptionStyle;
+  progressStyle?: ProgressStyle;
+} & VideoInfrastructureLayoutProps;
 
 const fallbackText =
   "输入文本后，脚本会调用 Qwen TTS 生成旁白音频，并把音频、字幕和文本送入 Remotion 渲染成视频。";
@@ -35,17 +48,6 @@ const splitText = (value: string): string[] => {
   return chunks.map((chunk) => chunk.trim()).filter(Boolean).slice(0, 8);
 };
 
-const activeCaption = (captions: NarratedCaption[] | undefined, timeMs: number) => {
-  if (!captions?.length) {
-    return null;
-  }
-  return (
-    captions.find((caption) => timeMs >= caption.startMs && timeMs <= caption.endMs) ||
-    captions.find((caption) => timeMs < caption.endMs) ||
-    captions[captions.length - 1]
-  );
-};
-
 export const NarratedVideo = ({
   title,
   subtitle,
@@ -53,13 +55,18 @@ export const NarratedVideo = ({
   audioSrc,
   captions,
   theme = "historical",
+  captionStyle = "typewriter",
+  progressStyle = "gradient",
+  ...layoutProps
 }: NarratedVideoProps) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const progress = frame / Math.max(1, durationInFrames - 1);
   const timeMs = (frame / fps) * 1000;
   const lines = splitText(bodyText);
-  const caption = activeCaption(captions, timeMs);
+  const caption = activeCaptionAt(captions, timeMs);
+  const captionLayout = resolveCaptionLayout(layoutProps);
+  const progressLayout = resolveProgressLayout(layoutProps);
   const headlineIn = interpolate(frame, [0, 36], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -195,44 +202,38 @@ export const NarratedVideo = ({
           position: "absolute",
           left: 64,
           right: 64,
-          bottom: 46,
+          bottom: 58,
           display: "grid",
           gap: 16,
         }}
       >
-        <div
-          style={{
-            height: 4,
-            borderRadius: 999,
-            overflow: "hidden",
-            background: isHistorical ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.13)",
-          }}
-        >
+        {!caption ? (
           <div
             style={{
-              width: `${progress * 100}%`,
-              height: "100%",
-              background: isHistorical ? "#facc15" : "#171717",
+              minHeight: 76,
+              padding: "18px 22px",
+              borderRadius: 12,
+              background: isHistorical ? "rgba(4,8,16,0.74)" : "rgba(255,255,255,0.72)",
+              border: isHistorical ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(0,0,0,0.1)",
+              fontSize: 28,
+              lineHeight: 1.35,
+              fontWeight: 800,
+              color: isHistorical ? "#ffffff" : "#171717",
+              textShadow: isHistorical ? "0 0 18px rgba(0,0,0,0.72)" : "none",
             }}
-          />
-        </div>
-        <div
-          style={{
-            minHeight: 76,
-            padding: "18px 22px",
-            borderRadius: 12,
-            background: isHistorical ? "rgba(4,8,16,0.74)" : "rgba(255,255,255,0.72)",
-            border: isHistorical ? "1px solid rgba(255,255,255,0.14)" : "1px solid rgba(0,0,0,0.1)",
-            fontSize: 28,
-            lineHeight: 1.35,
-            fontWeight: 800,
-            color: isHistorical ? "#ffffff" : "#171717",
-            textShadow: isHistorical ? "0 0 18px rgba(0,0,0,0.72)" : "none",
-          }}
-        >
-          {caption?.text || lines[Math.min(lines.length - 1, Math.floor(progress * lines.length))] || ""}
-        </div>
+          >
+            {lines[Math.min(lines.length - 1, Math.floor(progress * lines.length))] || ""}
+          </div>
+        ) : null}
       </div>
+
+      <VideoInfrastructure
+        captions={captions}
+        captionStyle={captionStyle}
+        progressStyle={progressStyle}
+        captionLayout={captionLayout}
+        progressLayout={progressLayout}
+      />
     </AbsoluteFill>
   );
 };

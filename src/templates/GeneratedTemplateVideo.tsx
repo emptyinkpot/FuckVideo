@@ -1,9 +1,7 @@
 import {
   AbsoluteFill,
   Audio,
-  interpolate,
   staticFile,
-  useCurrentFrame,
 } from "remotion";
 import { HistoricalGlobeTexture1938 } from "../historical-globe/compositions/HistoricalGlobeTexture1938";
 import { SinoJapaneseWarDemo } from "../historical-globe/compositions/SinoJapaneseWarDemo";
@@ -40,6 +38,17 @@ import {
   QuoteReveal,
 } from "./AutoSceneTemplates";
 import { FootageScene } from "./FootageScene";
+import {
+  VideoInfrastructure,
+  type CaptionStyle,
+  type ProgressStyle,
+} from "../video-infrastructure/VideoInfrastructure";
+import {
+  defaultVideoInfrastructureLayoutProps,
+  resolveCaptionLayout,
+  resolveProgressLayout,
+  type VideoInfrastructureLayoutProps,
+} from "./MultiSceneVideo";
 
 export type ExistingTemplateId =
   | "DocumentReveal"
@@ -77,7 +86,9 @@ export type GeneratedTemplateVideoProps = {
   captions?: NarratedCaption[];
   durationSeconds?: number;
   showCaptions?: boolean;
-};
+  captionStyle?: CaptionStyle;
+  progressStyle?: ProgressStyle;
+} & VideoInfrastructureLayoutProps;
 
 const asTemplate = <Props extends object>(
   Component: React.ComponentType<Props>,
@@ -154,51 +165,35 @@ export const defaultGeneratedTemplateProps = {
   captions: [],
   durationSeconds: 12,
   showCaptions: true,
-} satisfies Required<GeneratedTemplateVideoProps>;
+  captionStyle: "typewriter" as const,
+  progressStyle: "gradient" as const,
+  ...defaultVideoInfrastructureLayoutProps,
+} satisfies GeneratedTemplateVideoProps;
 
 export const GeneratedTemplateVideo = ({
   templateId,
   audioSrc,
   captions = [],
   showCaptions = true,
+  captionStyle = "typewriter",
+  progressStyle = "gradient",
+  ...layoutProps
 }: GeneratedTemplateVideoProps) => {
-  const frame = useCurrentFrame();
   const Template = templates[templateId] || templates.SinoJapaneseWarDemo;
-  const timeMs = (frame / 30) * 1000;
-  const caption = captions.find(
-    (item) => timeMs >= item.startMs && timeMs <= item.endMs,
-  );
-  const captionOpacity =
-    showCaptions && caption ? interpolate(frame % 12, [0, 6], [0.9, 1]) : 0;
+  const captionLayout = resolveCaptionLayout(layoutProps);
+  const progressLayout = resolveProgressLayout(layoutProps);
 
   return (
     <AbsoluteFill style={{ background: "#050505", overflow: "hidden" }}>
       <Template />
       {audioSrc ? <Audio src={staticFile(audioSrc)} /> : null}
-      {showCaptions && caption ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 70,
-            right: 70,
-            bottom: 44,
-            minHeight: 70,
-            padding: "18px 22px",
-            borderRadius: 12,
-            background: "rgba(0,0,0,0.62)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            color: "#fff",
-            fontSize: 28,
-            lineHeight: 1.35,
-            fontWeight: 800,
-            textAlign: "center",
-            textShadow: "0 2px 12px rgba(0,0,0,0.82)",
-            opacity: captionOpacity,
-          }}
-        >
-          {caption.text}
-        </div>
-      ) : null}
+      <VideoInfrastructure
+        captions={showCaptions ? captions : []}
+        captionStyle={showCaptions ? captionStyle : "none"}
+        progressStyle={progressStyle}
+        captionLayout={captionLayout}
+        progressLayout={progressLayout}
+      />
     </AbsoluteFill>
   );
 };
