@@ -1,6 +1,15 @@
 # Remotion 视频工作台与文本生成视频系统
 
+GitHub 仓库标识：`emptyinkpot/FuckVideo`
 GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
+
+## 仓库来源与上游标识
+
+- 本仓库的 GitHub owning repo 是 `emptyinkpot/FuckVideo`。
+- 本仓库不是 GitHub fork：GitHub API 当前显示 `isFork=false`、`parent=null`、`templateRepository=null`。
+- 本仓库不是从某一个 GitHub 仓库直接复刻而来；初始提交是本地创建的 Remotion 视频工作台工程，首个提交为 `05bb1e1 Initial Remotion video workspace`。
+- 本仓库的核心框架上游是 `remotion-dev/remotion`，GitHub 地址为 `https://github.com/remotion-dev/remotion`。
+- 本仓库的设计、模板、素材和数据参考来源列在下方“研究与素材来源说明”；这些是研究/素材/实现参考来源，不等同于 GitHub fork parent。
 
 ## 研究与素材来源说明
 

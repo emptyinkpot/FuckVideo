@@ -1,5 +1,36 @@
 {
   "projectName": "remotion-project",
+  "repository": {
+    "githubIdentifier": "emptyinkpot/FuckVideo",
+    "url": "https://github.com/emptyinkpot/FuckVideo",
+    "isGithubFork": false,
+    "githubForkParent": null,
+    "githubTemplateRepository": null,
+    "origin": "local initial Remotion video workspace",
+    "initialCommit": "05bb1e1 Initial Remotion video workspace",
+    "frameworkUpstream": {
+      "githubIdentifier": "remotion-dev/remotion",
+      "url": "https://github.com/remotion-dev/remotion",
+      "role": "core Remotion framework upstream, not fork parent"
+    },
+    "referenceUpstreams": [
+      {
+        "githubIdentifier": "av/remotion-bits",
+        "url": "https://github.com/av/remotion-bits",
+        "role": "programmatic Remotion animation component and utility reference"
+      },
+      {
+        "githubIdentifier": "reactvideoeditor/remotion-templates",
+        "url": "https://github.com/reactvideoeditor/remotion-templates",
+        "role": "Remotion template pattern reference"
+      },
+      {
+        "githubIdentifier": "aourednik/historical-basemaps",
+        "url": "https://github.com/aourednik/historical-basemaps",
+        "role": "historical map and basemap data reference"
+      }
+    ]
+  },
   "tts": {
     "provider": "dashscope",
     "apiKeyEnv": "QWEN3_TTS_DASHSCOPE_API_KEY",
