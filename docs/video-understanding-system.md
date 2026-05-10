@@ -254,6 +254,7 @@ P0 active skeleton:
 - `services/material-vector-search/` exposes LanceDB-backed vector search.
 - `MATERIAL_EMBEDDING_BACKEND=hash` is wiring-only.
 - `MATERIAL_EMBEDDING_BACKEND=sentence-transformers` is the first real local embedding path.
+- `MATERIAL_EMBEDDING_BACKEND=openai-compatible` is the hosted embedding path and keeps base URL, model, dimensions, key env name and timeout configurable.
 
 ## API And Registration Policy
 
@@ -267,7 +268,7 @@ Default development should not require a new external API:
 External accounts are only needed for:
 
 - DashScope TTS, already represented by `QWEN3_TTS_DASHSCOPE_API_KEY`.
-- OpenAI-compatible embedding if we choose a hosted/private gateway.
+- OpenAI-compatible embedding through `MATERIAL_EMBEDDING_API_*` if we choose a hosted/private gateway.
 - Qwen-VL cloud captioning if we do not self-host.
 - TwelveLabs/VideoDB hosted video understanding if self-hosted retrieval is insufficient.
 

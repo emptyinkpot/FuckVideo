@@ -46,6 +46,24 @@ python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .run
 
 `requirements-ml.txt` is intentionally separate because PyTorch/model dependencies are heavier than the API/LanceDB skeleton. Keep the TypeScript/Remotion workflow usable without installing ML packages.
 
+Hosted/OpenAI-compatible API mode:
+
+```console
+MATERIAL_EMBEDDING_BACKEND=openai-compatible
+MATERIAL_EMBEDDING_API_BASE_URL=https://api.openai.com/v1
+MATERIAL_EMBEDDING_API_MODEL=text-embedding-3-small
+MATERIAL_EMBEDDING_DIMENSIONS=384
+MATERIAL_EMBEDDING_API_KEY_ENV=OPENAI_API_KEY
+OPENAI_API_KEY=<your-key>
+python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
+```
+
+The API backend intentionally uses an OpenAI-compatible `/embeddings` contract. It can point at OpenAI, an OpenAI-compatible gateway, or a self-hosted proxy by changing `MATERIAL_EMBEDDING_API_BASE_URL`, `MATERIAL_EMBEDDING_API_MODEL` and `MATERIAL_EMBEDDING_API_KEY_ENV`.
+
+The committed default model is OpenAI `text-embedding-3-small`; OpenAI documents custom `dimensions` support for `text-embedding-3` and later embedding models. Other compatible providers may ignore or reject that field, so set dimensions according to the selected provider and rebuild the index.
+
+Do not reuse a LanceDB table across embedding dimensions. If the model or dimensions change, rebuild `.runtime/lancedb`.
+
 ## API
 
 ```console

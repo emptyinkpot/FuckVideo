@@ -4,7 +4,7 @@ from typing import Any
 
 import lancedb
 
-from .embeddings import VECTOR_DIMENSIONS, embed_text
+from .embeddings import embed_text, embedding_dimensions
 
 
 TABLE_NAME = "material_shots"
@@ -96,5 +96,5 @@ def empty_row() -> dict[str, Any]:
         "endMs": 0.0,
         "indexText": "",
         "metadata": "{}",
-        "vector": [0.0] * VECTOR_DIMENSIONS,
+        "vector": [0.0] * embedding_dimensions(),
     }

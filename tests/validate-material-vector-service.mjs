@@ -60,3 +60,53 @@ execFileSync("python", ["-c", sentenceTransformersSmoke], {
   cwd: serviceRoot,
   stdio: "inherit",
 });
+
+const openAiCompatibleSmoke = `
+import json
+import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        assert self.path == "/v1/embeddings"
+        assert self.headers.get("Authorization") == "Bearer test-key"
+        length = int(self.headers.get("Content-Length", "0"))
+        payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        assert payload["model"] == "fake-embedding-model"
+        assert payload["input"] == "上海 夜景 city"
+        assert payload["dimensions"] == 3
+        body = json.dumps({"data": [{"embedding": [0.1, 0.2, 0.3]}]}).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+    def log_message(self, format, *args):
+        return
+
+server = HTTPServer(("127.0.0.1", 0), Handler)
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+thread.start()
+
+os.environ["MATERIAL_EMBEDDING_BACKEND"] = "openai-compatible"
+os.environ["MATERIAL_EMBEDDING_API_BASE_URL"] = f"http://127.0.0.1:{server.server_port}/v1"
+os.environ["MATERIAL_EMBEDDING_API_MODEL"] = "fake-embedding-model"
+os.environ["MATERIAL_EMBEDDING_API_KEY"] = "test-key"
+os.environ["MATERIAL_EMBEDDING_DIMENSIONS"] = "3"
+
+from app.embeddings import embed_text, embedding_status
+v = embed_text("上海 夜景 city")
+assert v == [0.1, 0.2, 0.3]
+status = embedding_status()
+assert status["backend"] == "openai-compatible"
+assert status["model"] == "fake-embedding-model"
+assert status["dimensions"] == 3
+server.shutdown()
+print("material vector openai-compatible backend smoke ok")
+`;
+
+execFileSync("python", ["-c", openAiCompatibleSmoke], {
+  cwd: serviceRoot,
+  stdio: "inherit",
+});

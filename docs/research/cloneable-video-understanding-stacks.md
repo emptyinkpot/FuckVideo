@@ -67,6 +67,7 @@ Current P0 implementation:
 - `scripts/material-seed.mjs` creates the JSONL input.
 - The default embedding is a deterministic hash placeholder for wiring only.
 - `MATERIAL_EMBEDDING_BACKEND=sentence-transformers` enables the first real local embedding path.
+- `MATERIAL_EMBEDDING_BACKEND=openai-compatible` enables hosted embeddings through a configurable `/embeddings` API.
 - First target model: `sentence-transformers/clip-ViT-B-32`; later evaluate SigLIP/OpenCLIP variants.
 - Replace the placeholder before evaluating real search quality.
 

@@ -174,6 +174,34 @@ python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .run
 
 On Linux/macOS use `export` instead of `set`.
 
+For hosted/OpenAI-compatible embeddings:
+
+```console
+set MATERIAL_EMBEDDING_BACKEND=openai-compatible
+set MATERIAL_EMBEDDING_API_BASE_URL=https://api.openai.com/v1
+set MATERIAL_EMBEDDING_API_MODEL=text-embedding-3-small
+set MATERIAL_EMBEDDING_DIMENSIONS=384
+set MATERIAL_EMBEDDING_API_KEY_ENV=OPENAI_API_KEY
+set OPENAI_API_KEY=<your-key>
+python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
+```
+
+Provider knobs:
+
+| Env var | Purpose |
+| --- | --- |
+| `MATERIAL_EMBEDDING_BACKEND` | `hash`, `sentence-transformers` or `openai-compatible`. |
+| `MATERIAL_EMBEDDING_API_BASE_URL` | OpenAI-compatible API base URL. |
+| `MATERIAL_EMBEDDING_API_MODEL` | Hosted embedding model name. |
+| `MATERIAL_EMBEDDING_DIMENSIONS` | Vector length used by both query and LanceDB table bootstrap. |
+| `MATERIAL_EMBEDDING_API_KEY_ENV` | Name of the provider key env var, default `OPENAI_API_KEY`. |
+| `MATERIAL_EMBEDDING_API_KEY` | Direct key override for local testing; prefer provider-specific env vars on servers. |
+| `MATERIAL_EMBEDDING_API_TIMEOUT_SECONDS` | HTTP timeout for hosted embedding calls. |
+
+The default hosted model is OpenAI `text-embedding-3-small`. OpenAI documents custom `dimensions` support for `text-embedding-3` and later embedding models; other OpenAI-compatible providers may require their own dimensions/model pairing.
+
+Do not commit real keys. Put them in `.env.local`, server environment files or the deployment secret store. If backend/model/dimensions change, delete/rebuild `.runtime/lancedb` before comparing retrieval quality.
+
 Then set:
 
 ```env

@@ -75,8 +75,11 @@ Embedding backend policy:
 
 - `hash` is the default wiring backend and has no semantic quality.
 - `sentence-transformers` is the first real local embedding backend.
+- `openai-compatible` is the hosted/API backend for OpenAI-compatible embedding services.
 - `requirements-ml.txt` is separate so normal Remotion development does not require PyTorch/model dependencies.
 - First target model: `sentence-transformers/clip-ViT-B-32`; later evaluate SigLIP/OpenCLIP variants.
+- Hosted defaults are `MATERIAL_EMBEDDING_API_BASE_URL=https://api.openai.com/v1` and `MATERIAL_EMBEDDING_API_MODEL=text-embedding-3-small`, but the base URL, model, key env name, dimensions and timeout must remain configurable.
+- Rebuild LanceDB whenever embedding backend, model or dimensions change.
 
 ## Source Layers
 
