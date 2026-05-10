@@ -240,14 +240,20 @@ Existing files:
 
 Not active yet:
 
-- real vector DB integration.
-- CLIP/SigLIP embedding worker.
+- production vector DB integration.
+- production CLIP/SigLIP embedding worker.
 - video shot detection.
 - frame-level OCR.
 - ASR material understanding.
 - Qwen-VL frame captioning.
 - LLM reranking.
 - automatic B-roll timeline optimization.
+
+P0 active skeleton:
+
+- `services/material-vector-search/` exposes LanceDB-backed vector search.
+- `MATERIAL_EMBEDDING_BACKEND=hash` is wiring-only.
+- `MATERIAL_EMBEDDING_BACKEND=sentence-transformers` is the first real local embedding path.
 
 ## API And Registration Policy
 

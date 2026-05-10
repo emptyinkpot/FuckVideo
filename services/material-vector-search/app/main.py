@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from .embeddings import embedding_status
 from .store import TABLE_NAME, search
 
 
@@ -24,7 +25,7 @@ def health() -> dict[str, Any]:
         "ok": True,
         "dbPath": DB_PATH,
         "table": TABLE_NAME,
-        "embedding": "hash-placeholder",
+        "embedding": embedding_status(),
     }
 
 

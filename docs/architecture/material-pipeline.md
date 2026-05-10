@@ -71,6 +71,13 @@ asset-source / public / OpenList-backed material
 
 The vector path is opt-in. Set `MATERIAL_VECTOR_SEARCH_URL=http://127.0.0.1:4141` to let TypeScript query the Python sidecar. Without that env var, the existing local asset-index path remains unchanged.
 
+Embedding backend policy:
+
+- `hash` is the default wiring backend and has no semantic quality.
+- `sentence-transformers` is the first real local embedding backend.
+- `requirements-ml.txt` is separate so normal Remotion development does not require PyTorch/model dependencies.
+- First target model: `sentence-transformers/clip-ViT-B-32`; later evaluate SigLIP/OpenCLIP variants.
+
 ## Source Layers
 
 | Layer | Examples | Role |

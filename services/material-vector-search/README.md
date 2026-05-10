@@ -2,7 +2,7 @@
 
 Python sidecar for material semantic retrieval.
 
-Status: source skeleton only. The default embedding backend is deterministic `hash` for wiring tests. Replace it with OpenCLIP/SigLIP before judging retrieval quality.
+Status: source skeleton only. The default embedding backend is deterministic `hash` for wiring tests. Use the optional `sentence-transformers` backend for real CLIP/SigLIP-style embeddings before judging retrieval quality.
 
 ## Inputs
 
@@ -26,6 +26,25 @@ pip install -r requirements.txt
 python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
 uvicorn app.main:app --host 127.0.0.1 --port 4141
 ```
+
+## Real Embeddings
+
+Default wiring mode:
+
+```console
+MATERIAL_EMBEDDING_BACKEND=hash
+```
+
+Real local model mode:
+
+```console
+pip install -r requirements-ml.txt
+MATERIAL_EMBEDDING_BACKEND=sentence-transformers
+MATERIAL_EMBEDDING_MODEL=sentence-transformers/clip-ViT-B-32
+python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
+```
+
+`requirements-ml.txt` is intentionally separate because PyTorch/model dependencies are heavier than the API/LanceDB skeleton. Keep the TypeScript/Remotion workflow usable without installing ML packages.
 
 ## API
 

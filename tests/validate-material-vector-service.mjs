@@ -26,3 +26,37 @@ execFileSync("python", ["-c", smoke], {
   cwd: serviceRoot,
   stdio: "inherit",
 });
+
+const sentenceTransformersSmoke = `
+import os
+import sys
+import types
+
+class FakeVector:
+    def tolist(self):
+        return [0.5, 0.5, 0.5]
+
+class FakeModel:
+    def __init__(self, name, device=None):
+        self.name = name
+        self.device = device
+    def encode(self, texts, normalize_embeddings=True):
+        return [FakeVector()]
+
+fake_module = types.ModuleType("sentence_transformers")
+fake_module.SentenceTransformer = FakeModel
+sys.modules["sentence_transformers"] = fake_module
+os.environ["MATERIAL_EMBEDDING_BACKEND"] = "sentence-transformers"
+os.environ["MATERIAL_EMBEDDING_MODEL"] = "fake/clip"
+
+from app.embeddings import embed_text, embedding_status
+v = embed_text("上海 夜景 city")
+assert v == [0.5, 0.5, 0.5]
+assert embedding_status()["backend"] == "sentence-transformers"
+print("material vector sentence-transformers backend smoke ok")
+`;
+
+execFileSync("python", ["-c", sentenceTransformersSmoke], {
+  cwd: serviceRoot,
+  stdio: "inherit",
+});

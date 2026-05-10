@@ -163,6 +163,17 @@ python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .run
 uvicorn app.main:app --host 127.0.0.1 --port 4141
 ```
 
+For real local embeddings:
+
+```console
+pip install -r requirements-ml.txt
+set MATERIAL_EMBEDDING_BACKEND=sentence-transformers
+set MATERIAL_EMBEDDING_MODEL=sentence-transformers/clip-ViT-B-32
+python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
+```
+
+On Linux/macOS use `export` instead of `set`.
+
 Then set:
 
 ```env
