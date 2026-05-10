@@ -19,6 +19,7 @@
   },
   "canonicalDocs": {
     "readmeSystem": "docs/architecture/readme-system.md",
+    "languageBoundary": "docs/architecture/language-boundary.md",
     "videoUnderstandingSystem": "docs/video-understanding-system.md",
     "materialPipeline": "docs/architecture/material-pipeline.md",
     "videoProjectSchema": "docs/contracts/video-project-schema.md",

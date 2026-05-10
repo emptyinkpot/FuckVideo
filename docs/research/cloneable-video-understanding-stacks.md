@@ -21,6 +21,25 @@ Keep FuckVideo focused on:
 - editable project generation
 - render output
 
+## Language Choice
+
+Use TypeScript for FuckVideo's core and Python for ML sidecars.
+
+Why TypeScript:
+
+- Remotion is React/TypeScript-native.
+- Studio plugin and frontend/editor state are TypeScript/JavaScript concerns.
+- timeline project JSON, `project-store`, `scene-planner` and `visual-resolver` already live in Node.
+- keeping orchestration in one runtime reduces drift.
+
+Why Python:
+
+- CLIP/SigLIP/OpenCLIP, Whisper, OCR and Qwen-VL adapters are mature in Python.
+- GPU batching, model downloads and vector ingestion recipes are easier in Python.
+- Python can run as a sidecar and return JSON/JSONL without owning the Remotion project.
+
+Cloneable stacks should be evaluated with this split in mind: TypeScript integrates contracts and timeline decisions; Python services produce derived ML facts.
+
 ## Recommended Adoption Order
 
 ### 1. LanceDB + CLIP/SigLIP
@@ -203,6 +222,7 @@ Prefer no-registration local models for the core retrieval loop. Use hosted APIs
 
 - useful mainly for Python code quality
 - this repo is primarily TypeScript/Node/Remotion, so keep it comment-only unless a Python subservice is introduced
+- if enabled for a Python sidecar, scope it to that sidecar and keep timeline/project contracts protected
 - do not allow architecture or timeline behavior rewrites without human review
 
 GitHub Actions:

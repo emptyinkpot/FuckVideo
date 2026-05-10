@@ -25,6 +25,26 @@ public/footage
   -> .runtime/video-projects/*.json
 ```
 
+## Language Boundary
+
+The orchestration and timeline side stays in TypeScript / Node:
+
+- `scripts/asset-indexer.mjs`
+- `scripts/asset-matcher.mjs`
+- `scripts/visual-resolver.mjs`
+- `scripts/project-store.mjs`
+- Remotion templates and Studio plugin
+
+The model-heavy material understanding side should be Python sidecars:
+
+- CLIP / SigLIP / OpenCLIP embeddings
+- Whisper / faster-whisper ASR
+- OCR
+- Qwen-VL frame captioning
+- batch frame preprocessing
+
+Reason: Remotion timeline logic belongs with the TypeScript renderer/editor, while the mature ML tooling and GPU execution path are Python-first. Cross-runtime handoff must use JSON/JSONL or local HTTP contracts.
+
 Planned semantic path:
 
 ```text

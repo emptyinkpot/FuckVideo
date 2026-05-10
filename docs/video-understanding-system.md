@@ -66,6 +66,25 @@ Material pool
 | Timeline | `.runtime/video-projects/*.json` and project-store | Editable video project truth | Source media bytes |
 | Renderer | Remotion / FFmpeg | Preview, composition and export | Material understanding |
 
+## Language Boundary
+
+Canonical language split: `docs/architecture/language-boundary.md`.
+
+FuckVideo keeps the product core in TypeScript / Node because Remotion, React composition, Studio plugin integration, project-store, visual resolver and render orchestration are TypeScript-native in this repository.
+
+Model-heavy material understanding belongs in Python sidecars because CLIP/SigLIP/OpenCLIP, Whisper, OCR, Qwen-VL adapters, GPU batching and vector ingestion libraries are more mature in Python.
+
+The boundary is contract-based:
+
+```text
+Python sidecar
+  -> JSON / JSONL / local HTTP results
+  -> TypeScript visual-resolver and project-store
+  -> Remotion timeline and render
+```
+
+Python may produce derived ML outputs. It must not become timeline truth or bypass `visual-resolver.mjs`.
+
 ## Mature Industry Route
 
 The stable route is:

@@ -10,6 +10,8 @@ This document describes how to run and verify the FuckVideo workspace.
 - ffprobe.
 - Git LFS for large assets.
 
+Python is optional for the current TypeScript/Remotion workflow. It becomes required only when running material-understanding sidecars such as CLIP/SigLIP embeddings, Whisper ASR, OCR or Qwen-VL adapters.
+
 Check:
 
 ```console
@@ -53,6 +55,27 @@ Local material indexing and Remotion preview do not require a new API key.
 | `npm run text-to-video` | Generate video through script path. |
 | `npm run export-project` | Export editable project to Remotion props/render flow. |
 | `npm run lint` | Run ESLint and TypeScript checks. |
+
+## Language Runtime Split
+
+TypeScript / Node is the default runtime for this repository:
+
+- Remotion Studio
+- Studio plugin
+- project-store
+- scene planning
+- visual resolver
+- render orchestration
+
+Python is reserved for sidecars where the ML ecosystem is stronger:
+
+- embeddings
+- ASR
+- OCR
+- vision-language captioning
+- vector ingestion workers
+
+Do not move timeline truth or Remotion composition logic into Python. Do not force CLIP/Whisper/OCR into Node when mature Python packages are available.
 
 ## Ports
 

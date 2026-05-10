@@ -12,6 +12,7 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 | `README.md` | 人类主入口：项目目的、运行方式、当前工作流、上游来源和总体规则。 |
 | `project.json` | 机器可读入口：仓库标识、项目目标、核心合同和文档索引。 |
 | `docs/architecture/readme-system.md` | README / docs 体系、读文档顺序、vendor 文档边界和 bot 策略。 |
+| `docs/architecture/language-boundary.md` | TypeScript 主体、Python sidecar 的语言边界及原因。 |
 | `docs/video-understanding-system.md` | AI 素材理解、语义检索、自动编排、花生 AI 类路线的唯一架构真源。 |
 | `docs/architecture/material-pipeline.md` | 素材入库、抽帧、OCR、ASR、embedding、向量库和检索接入边界。 |
 | `docs/contracts/video-project-schema.md` | `ShotPlan`、`TimelineScene`、`VectorSearchResult`、项目 JSON 和 Remotion handoff 合同。 |
@@ -41,6 +42,8 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 ```
 
 真正的难点不是“剪”，而是“从素材库里找对东西”。FFmpeg/Remotion 渲染只是下游执行层；上游必须先把素材库理解成可检索的镜头记忆。
+
+语言边界：本仓库主体采用 TypeScript / Node，因为 Remotion、React composition、Studio 插件、项目时间轴和渲染编排都在这个生态内；素材理解、embedding、ASR、OCR、Qwen-VL/CLIP/SigLIP 等模型重活采用 Python sidecar，因为成熟模型库、GPU/批处理和向量入库生态主要在 Python。完整规则见 `docs/architecture/language-boundary.md`。
 
 ## 仓库来源与上游标识
 
