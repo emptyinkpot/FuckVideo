@@ -18,7 +18,12 @@
     "humanInLoop": true
   },
   "canonicalDocs": {
+    "readmeSystem": "docs/architecture/readme-system.md",
     "videoUnderstandingSystem": "docs/video-understanding-system.md",
+    "materialPipeline": "docs/architecture/material-pipeline.md",
+    "videoProjectSchema": "docs/contracts/video-project-schema.md",
+    "runtimeRunbook": "docs/operations/runtime-runbook.md",
+    "cloneableVideoUnderstandingStacks": "docs/research/cloneable-video-understanding-stacks.md",
     "readme": "README.md",
     "projectManifest": "project.json"
   },

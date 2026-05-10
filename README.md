@@ -5,6 +5,19 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 
 视频理解、素材语义检索、自动编排和“花生 AI 复刻路线”的唯一架构真源：`docs/video-understanding-system.md`。
 
+## 文档体系
+
+| 文档 | 职责 |
+| --- | --- |
+| `README.md` | 人类主入口：项目目的、运行方式、当前工作流、上游来源和总体规则。 |
+| `project.json` | 机器可读入口：仓库标识、项目目标、核心合同和文档索引。 |
+| `docs/architecture/readme-system.md` | README / docs 体系、读文档顺序、vendor 文档边界和 bot 策略。 |
+| `docs/video-understanding-system.md` | AI 素材理解、语义检索、自动编排、花生 AI 类路线的唯一架构真源。 |
+| `docs/architecture/material-pipeline.md` | 素材入库、抽帧、OCR、ASR、embedding、向量库和检索接入边界。 |
+| `docs/contracts/video-project-schema.md` | `ShotPlan`、`TimelineScene`、`VectorSearchResult`、项目 JSON 和 Remotion handoff 合同。 |
+| `docs/operations/runtime-runbook.md` | 启动、端口、环境变量、验证命令和排障。 |
+| `docs/research/cloneable-video-understanding-stacks.md` | 可克隆/可复刻技术栈、大公司分层方式、bot 使用建议。 |
+
 ## 0. 项目目的
 
 本项目的目标不是做一个传统“自动剪辑器”，也不是把 FFmpeg 自动切片包装成产品。
