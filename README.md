@@ -3,6 +3,8 @@
 GitHub 仓库标识：`emptyinkpot/FuckVideo`
 GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 
+视频理解、素材语义检索、自动编排和“花生 AI 复刻路线”的唯一架构真源：`docs/video-understanding-system.md`。
+
 ## 0. 项目目的
 
 本项目的目标不是做一个传统“自动剪辑器”，也不是把 FFmpeg 自动切片包装成产品。

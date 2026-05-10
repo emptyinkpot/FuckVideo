@@ -17,6 +17,11 @@
     ],
     "humanInLoop": true
   },
+  "canonicalDocs": {
+    "videoUnderstandingSystem": "docs/video-understanding-system.md",
+    "readme": "README.md",
+    "projectManifest": "project.json"
+  },
   "repository": {
     "githubIdentifier": "emptyinkpot/FuckVideo",
     "url": "https://github.com/emptyinkpot/FuckVideo",
