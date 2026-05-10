@@ -27,7 +27,10 @@
     "runtimeRunbook": "docs/operations/runtime-runbook.md",
     "cloneableVideoUnderstandingStacks": "docs/research/cloneable-video-understanding-stacks.md",
     "readme": "README.md",
-    "projectManifest": "project.json"
+    "projectManifest": "project.json",
+    "contributing": "CONTRIBUTING.md",
+    "security": "SECURITY.md",
+    "support": "SUPPORT.md"
   },
   "repository": {
     "githubIdentifier": "emptyinkpot/FuckVideo",

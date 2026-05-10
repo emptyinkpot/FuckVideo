@@ -5,6 +5,19 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 
 视频理解、素材语义检索、自动编排和“花生 AI 复刻路线”的唯一架构真源：`docs/video-understanding-system.md`。
 
+```yaml
+projectName: FuckVideo
+canonicalDoc: README.md
+machineReadableEntry: project.json
+githubRepo: https://github.com/emptyinkpot/FuckVideo
+visibility: private
+projectType: AI video understanding and Remotion generation application
+runtimeRunbook: docs/operations/runtime-runbook.md
+contributing: CONTRIBUTING.md
+security: SECURITY.md
+support: SUPPORT.md
+```
+
 ## 文档体系
 
 | 文档 | 职责 |
@@ -19,6 +32,9 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 | `docs/contracts/material-seed-schema.md` | `material-seed.jsonl` 素材理解/向量 sidecar 输入合同。 |
 | `docs/operations/runtime-runbook.md` | 启动、端口、环境变量、验证命令和排障。 |
 | `docs/research/cloneable-video-understanding-stacks.md` | 可克隆/可复刻技术栈、大公司分层方式、bot 使用建议。 |
+| `CONTRIBUTING.md` | 改动规则、验证命令和提交约定。 |
+| `SECURITY.md` | 密钥、素材和生成文件的安全边界。 |
+| `SUPPORT.md` | 排障信息入口和支持边界。 |
 
 ## 0. 项目目的
 
