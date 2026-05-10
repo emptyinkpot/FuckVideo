@@ -3,6 +3,30 @@
 GitHub 仓库标识：`emptyinkpot/FuckVideo`
 GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 
+## 0. 项目目的
+
+本项目的目标不是做一个传统“自动剪辑器”，也不是把 FFmpeg 自动切片包装成产品。
+
+本项目要做的是：
+
+```text
+输入文案
+  -> 自动生成配音
+  -> 理解文案并拆成镜头语义
+  -> 在素材库中做语义检索和素材匹配
+  -> 自动编排 B-roll / 程序化 Remotion 镜头 / 字幕 / 进度条
+  -> 生成可继续编辑的 Remotion 工程
+  -> 渲染带配音、带剪辑、带素材证据的成片
+```
+
+因此项目的核心能力应被定义为：
+
+```text
+AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
+```
+
+真正的难点不是“剪”，而是“从素材库里找对东西”。FFmpeg/Remotion 渲染只是下游执行层；上游必须先把素材库理解成可检索的镜头记忆。
+
 ## 仓库来源与上游标识
 
 - 本仓库的 GitHub owning repo 是 `emptyinkpot/FuckVideo`。
@@ -27,6 +51,57 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 | Wikimedia Commons | https://commons.wikimedia.org/ | 作为证据素材缓存来源之一，用于自动片段中的公共图片证据素材。 | `public/evidence-cache/` |
 
 除上述来源外，本项目还有本地实现的文本生成视频链路、千问 TTS 集成、Studio 注入插件、项目存储、片段调度、字幕/进度条布局和 Remotion 多镜头时间轴组合逻辑。若新增上游参考、复制代码、导入素材或引入数据集，应同步更新本节与对应 `asset-source/*/README.md`。
+
+## 可借鉴的成熟路线
+
+行业里成熟的方向是“素材 embedding + 向量数据库 + 多模态检索 + 时间轴编排”，而不是单纯做 FFmpeg 自动切片。本项目应借鉴这些路线，但保持 Remotion 作为可编辑工程和最终渲染层：
+
+| 可借鉴方向 | 项目中的落点 | 说明 |
+| --- | --- | --- |
+| VideoDB 式视频语义搜索 | `asset-index.json` + future vector store | 借鉴“视频入库后可按自然语言检索具体片段”的数据模型。 |
+| Towhee / CLIP / Milvus pipeline | 素材预处理层 | 抽帧、OCR、ASR、视觉标签、embedding 写入向量库。 |
+| LanceDB / Weaviate multimodal retrieval | 本地轻量向量检索 | 适合先做本地版素材库，避免一开始引入重型服务。 |
+| LLM rerank | `visual-resolver.mjs` 候选重排阶段 | 先粗搜 Top N 素材，再让 LLM 按上下文、情绪、镜头目的重排。 |
+| JSON timeline | `.runtime/video-projects/*.json` 和 `MultiSceneVideo` props | 时间轴必须是结构化、可编辑、可回写的工程数据。 |
+
+当前项目已经预留了轻量素材索引和 embedding 接口：
+
+- `scripts/asset-indexer.mjs` 生成 `public/generated/asset-index.json`
+- `scripts/asset-matcher.mjs` 提供词法匹配和 `optionalEmbeddingRerank()`
+- `scripts/visual-resolver.mjs` 负责把语义镜头映射到 Remotion 模板或素材
+- `scripts/project-store.mjs` 负责把生成结果保存成可编辑 timeline project
+
+下一步素材理解层应该产出统一结构，而不是绕过现有编排器：
+
+```json
+{
+  "id": "clip-001",
+  "type": "footage",
+  "path": "footage/city-night.mp4",
+  "description": "深夜城市航拍，霓虹灯，高楼，车流",
+  "semantic": {
+    "kind": "atmosphere",
+    "visualObjects": ["高楼", "街道", "车流", "霓虹"],
+    "actions": ["establish"],
+    "location": ["上海"],
+    "ocrText": "",
+    "asrText": ""
+  },
+  "shots": [
+    {
+      "id": "clip-001:shot-001",
+      "startMs": 0,
+      "endMs": 4200,
+      "embeddingRef": "lancedb://footage/clip-001/shot-001"
+    }
+  ],
+  "retrieval": {
+    "vectorStore": "lancedb",
+    "collection": "footage_shots",
+    "embeddingModel": "openclip"
+  }
+}
+```
 
 这是一个本地 Remotion 工程，核心能力是：
 
