@@ -16,6 +16,7 @@ GitHub 仓库地址：`https://github.com/emptyinkpot/FuckVideo`
 | `docs/video-understanding-system.md` | AI 素材理解、语义检索、自动编排、花生 AI 类路线的唯一架构真源。 |
 | `docs/architecture/material-pipeline.md` | 素材入库、抽帧、OCR、ASR、embedding、向量库和检索接入边界。 |
 | `docs/contracts/video-project-schema.md` | `ShotPlan`、`TimelineScene`、`VectorSearchResult`、项目 JSON 和 Remotion handoff 合同。 |
+| `docs/contracts/material-seed-schema.md` | `material-seed.jsonl` 素材理解/向量 sidecar 输入合同。 |
 | `docs/operations/runtime-runbook.md` | 启动、端口、环境变量、验证命令和排障。 |
 | `docs/research/cloneable-video-understanding-stacks.md` | 可克隆/可复刻技术栈、大公司分层方式、bot 使用建议。 |
 
@@ -85,6 +86,7 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 当前项目已经预留了轻量素材索引和 embedding 接口：
 
 - `scripts/asset-indexer.mjs` 生成 `public/generated/asset-index.json`
+- `scripts/material-seed.mjs` 从 `asset-index.json` 生成 `public/generated/material-seed.jsonl`
 - `scripts/asset-matcher.mjs` 提供词法匹配和 `optionalEmbeddingRerank()`
 - `scripts/visual-resolver.mjs` 负责把语义镜头映射到 Remotion 模板或素材
 - `scripts/project-store.mjs` 负责把生成结果保存成可编辑 timeline project

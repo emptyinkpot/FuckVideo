@@ -20,6 +20,8 @@ Active lightweight path:
 public/footage
   -> scripts/asset-indexer.mjs
   -> public/generated/asset-index.json
+  -> scripts/material-seed.mjs
+  -> public/generated/material-seed.jsonl
   -> scripts/asset-matcher.mjs
   -> scripts/visual-resolver.mjs
   -> .runtime/video-projects/*.json
@@ -45,11 +47,20 @@ The model-heavy material understanding side should be Python sidecars:
 
 Reason: Remotion timeline logic belongs with the TypeScript renderer/editor, while the mature ML tooling and GPU execution path are Python-first. Cross-runtime handoff must use JSON/JSONL or local HTTP contracts.
 
+Current P0 files:
+
+- `scripts/material-seed.mjs`
+- `docs/contracts/material-seed-schema.md`
+- `services/material-vector-search/`
+- `scripts/material-vector-client.mjs`
+- `visual-resolver.mjs#resolveVisualForSegmentWithVectors`
+
 Planned semantic path:
 
 ```text
 asset-source / public / OpenList-backed material
   -> file identity and metadata
+  -> public/generated/material-seed.jsonl
   -> frame extraction / OCR / ASR
   -> CLIP or SigLIP embeddings
   -> LanceDB first
@@ -57,6 +68,8 @@ asset-source / public / OpenList-backed material
   -> visual-resolver footage candidate scoring
   -> project-store timeline scene
 ```
+
+The vector path is opt-in. Set `MATERIAL_VECTOR_SEARCH_URL=http://127.0.0.1:4141` to let TypeScript query the Python sidecar. Without that env var, the existing local asset-index path remains unchanged.
 
 ## Source Layers
 

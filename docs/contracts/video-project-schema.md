@@ -120,6 +120,8 @@ Vector search is a candidate source for `visual-resolver.mjs`.
 }
 ```
 
+The first vector sidecar is `services/material-vector-search/`. TypeScript reads it through `scripts/material-vector-client.mjs` and maps matches back into asset candidates. Vector search results are candidates only; they do not become timeline truth until `visual-resolver.mjs` and `project-store.mjs` accept them.
+
 ## Remotion Handoff
 
 `project-store.mjs` converts project scenes to `MultiSceneVideo` props. The handoff must preserve:

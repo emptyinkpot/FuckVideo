@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { normalizeAnimationProviders } from "./animation-contracts.mjs";
 import { evaluateAssetQuality, qualityScoreBonus } from "./asset-quality.mjs";
+import { searchMaterialVectors, vectorMatchToAsset } from "./material-vector-client.mjs";
 
 const DEFAULT_PROVIDER_MANIFEST = "src/templates/visual-provider-manifest.json";
 const DEFAULT_ASSET_INDEX = "public/generated/asset-index.json";
@@ -81,6 +82,20 @@ export function resolveVisualForSegment(segment, options = {}) {
   return applyVisualChoice(normalized, finalChoice, trace, config);
 }
 
+export async function resolveVisualForSegmentWithVectors(segment, options = {}) {
+  const vectorMatches = await searchMaterialVectors(vectorQueryForSegment(segment), {
+    baseUrl: options.materialVectorSearchUrl,
+    assetTypes: options.vectorAssetTypes || ["footage", "static"],
+    limit: options.vectorLimit || 8,
+  });
+  const vectorAssets = vectorMatches.map(vectorMatchToAsset).filter((asset) => asset.path);
+  const existingAssets = options.assets || loadJsonSafe(options.assetIndex || DEFAULT_ASSET_INDEX, []);
+  return resolveVisualForSegment(segment, {
+    ...options,
+    assets: [...vectorAssets, ...existingAssets],
+  });
+}
+
 function buildContractFromSemantic(card) {
   const visualNeed = card.visualNeed || {};
   return {
@@ -100,6 +115,24 @@ function buildContractFromSemantic(card) {
     evidenceMode: "explicit_text",
     allowedSources: ["programmatic", "footage", "static", "fallback", "template"],
   };
+}
+
+function vectorQueryForSegment(segment) {
+  const card = segment.semanticCard || {};
+  return [
+    segment.narrationText,
+    segment.text,
+    segment.visualIntent,
+    segment.sceneType,
+    ...(segment.keywords || []),
+    card.summary,
+    card.event?.action,
+    ...(card.visualNeed?.mustShow || []),
+    ...(card.visualNeed?.shouldShow || []),
+    ...(card.searchQueries || []),
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function createTrace() {

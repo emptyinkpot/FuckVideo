@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 2,
+  "assets": [
+    {
+      "id": "city-night",
+      "type": "footage",
+      "providerType": "footage",
+      "path": "footage/city-night.mp4",
+      "title": "city night",
+      "kind": "atmosphere",
+      "description": "深夜城市航拍，霓虹灯，高楼，车流",
+      "tags": ["城市", "夜景", "车流"],
+      "bestFor": ["urban_opening"],
+      "avoidFor": [],
+      "mood": ["lonely", "busy"],
+      "durationSec": 4.2,
+      "license": "local",
+      "source": "fixture",
+      "shots": [
+        {
+          "id": "city-night:shot-001",
+          "startMs": 0,
+          "endMs": 4200,
+          "captions": []
+        }
+      ],
+      "semantic": {
+        "kind": "atmosphere",
+        "visualKinds": ["city", "night"],
+        "entities": ["上海"],
+        "visualObjects": ["高楼", "车流", "霓虹"],
+        "actions": ["establish"],
+        "location": ["上海"],
+        "captions": [],
+        "ocrText": "",
+        "asrText": ""
+      }
+    }
+  ]
+}

@@ -218,6 +218,8 @@ Active:
 - TTS narration path through DashScope.
 - scene planning scripts.
 - local asset indexer and matcher.
+- material seed JSONL generation.
+- material vector search sidecar skeleton.
 - visual resolver.
 - evidence resolver.
 - project-store editable timeline project model.

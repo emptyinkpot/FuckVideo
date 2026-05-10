@@ -61,6 +61,13 @@ asset/shot rows -> embeddings -> LanceDB -> VectorSearchResult
 
 Status: target candidate.
 
+Current P0 implementation:
+
+- `services/material-vector-search/` provides the Python/LanceDB skeleton.
+- `scripts/material-seed.mjs` creates the JSONL input.
+- The default embedding is a deterministic hash placeholder for wiring only.
+- Replace the placeholder with OpenCLIP/SigLIP before evaluating real search quality.
+
 ### 2. OpenCLIP / SigLIP
 
 Use for text-image/frame embeddings.

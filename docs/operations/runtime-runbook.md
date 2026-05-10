@@ -52,6 +52,9 @@ Local material indexing and Remotion preview do not require a new API key.
 | `npm run smoke:minimal` | Run minimal pipeline smoke test. |
 | `npm run validate-animation-contracts` | Validate visual provider contracts. |
 | `npm run index-assets` | Build local asset index from footage. |
+| `npm run material:seed` | Build `public/generated/material-seed.jsonl` for Python vector sidecars. |
+| `npm run test:material-seed` | Validate material seed generation. |
+| `npm run test:material-vector-service` | Validate Python vector sidecar syntax/smoke path. |
 | `npm run text-to-video` | Generate video through script path. |
 | `npm run export-project` | Export editable project to Remotion props/render flow. |
 | `npm run lint` | Run ESLint and TypeScript checks. |
@@ -147,3 +150,21 @@ Footage does not match:
 - Run `npm run index-assets`.
 - Inspect `public/generated/asset-index.json`.
 - Check that matching is scoped to the current scene, not the full script.
+
+Material vector sidecar:
+
+```console
+npm run material:seed
+cd services/material-vector-search
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
+uvicorn app.main:app --host 127.0.0.1 --port 4141
+```
+
+Then set:
+
+```env
+MATERIAL_VECTOR_SEARCH_URL=http://127.0.0.1:4141
+```

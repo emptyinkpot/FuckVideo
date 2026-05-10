@@ -23,6 +23,7 @@
     "videoUnderstandingSystem": "docs/video-understanding-system.md",
     "materialPipeline": "docs/architecture/material-pipeline.md",
     "videoProjectSchema": "docs/contracts/video-project-schema.md",
+    "materialSeedSchema": "docs/contracts/material-seed-schema.md",
     "runtimeRunbook": "docs/operations/runtime-runbook.md",
     "cloneableVideoUnderstandingStacks": "docs/research/cloneable-video-understanding-stacks.md",
     "readme": "README.md",
@@ -225,6 +226,7 @@
     "currentIndex": "public/generated/asset-index.json",
     "currentScripts": [
       "scripts/asset-indexer.mjs",
+      "scripts/material-seed.mjs",
       "scripts/asset-matcher.mjs",
       "scripts/visual-resolver.mjs"
     ],
