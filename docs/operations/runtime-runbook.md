@@ -186,6 +186,19 @@ set OPENAI_API_KEY=<your-key>
 python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
 ```
 
+Preferred gateway-backed configuration:
+
+```console
+set MATERIAL_EMBEDDING_BACKEND=openai-compatible
+set MATERIAL_EMBEDDING_API_BASE_URL=https://<private-sub2api-host>/v1
+set MATERIAL_EMBEDDING_API_MODEL=<embedding-model-exposed-by-sub2api>
+set MATERIAL_EMBEDDING_API_KEY_ENV=SUB2API_API_KEY
+set SUB2API_API_KEY=<your-sub2api-key>
+python -m app.ingest --seed ../../public/generated/material-seed.jsonl --db .runtime/lancedb
+```
+
+`E:\My Project\sub2api` is the upstream AI gateway for hosted provider access. Keep GLM/OpenAI/DashScope provider keys inside sub2api or deployment secret stores when possible; FuckVideo should only need the sub2api-issued key plus the OpenAI-compatible base URL.
+
 Provider knobs:
 
 | Env var | Purpose |

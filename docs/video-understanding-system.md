@@ -272,6 +272,27 @@ External accounts are only needed for:
 - Qwen-VL cloud captioning if we do not self-host.
 - TwelveLabs/VideoDB hosted video understanding if self-hosted retrieval is insufficient.
 
+## Upstream AI Gateway
+
+For hosted model access, FuckVideo is the downstream video system and `E:\My Project\sub2api` is the preferred upstream AI API gateway.
+
+Supply relationship:
+
+- sub2api owns API keys, account pools, provider routing, quota control, model mapping and OpenAI-compatible endpoint exposure.
+- FuckVideo owns material indexing, vector search, shot matching, timeline generation and Remotion rendering.
+- FuckVideo should not hard-code GLM, OpenAI or other provider secrets in source. It should call sub2api through `MATERIAL_EMBEDDING_API_BASE_URL` when hosted embeddings are used.
+
+Default hosted embedding direction:
+
+```env
+MATERIAL_EMBEDDING_BACKEND=openai-compatible
+MATERIAL_EMBEDDING_API_BASE_URL=https://<private-sub2api-host>/v1
+MATERIAL_EMBEDDING_API_MODEL=<embedding-model-exposed-by-sub2api>
+MATERIAL_EMBEDDING_API_KEY_ENV=SUB2API_API_KEY
+```
+
+GLM chat/completions access is useful for script planning, shot expansion, reranking and timeline reasoning. It is not sufficient for vector retrieval unless sub2api exposes a GLM/Zhipu embedding-capable model through `/v1/embeddings`.
+
 Secrets must stay in `.env.local`, server env files or provider secret stores. They must not enter Git, README examples with real values, screenshots, logs or generated project JSON.
 
 ## Target Data Contracts
