@@ -12,7 +12,7 @@ import { DEFAULT_EMBEDDING_DIM } from './embedder.js';
 
 const TABLE_NAME = 'materials';
 
-export interface MaterialRecord {
+export interface MaterialRecord extends Record<string, unknown> {
   id: string;
   kind: string;
   uri: string;

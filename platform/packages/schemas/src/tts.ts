@@ -33,3 +33,4 @@ export const TtsResultSchema = z.object({
     })
   ),
 });
+export type TtsResult = z.infer<typeof TtsResultSchema>;

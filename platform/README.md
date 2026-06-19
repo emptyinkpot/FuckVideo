@@ -42,6 +42,10 @@ huasheng-clone/
 ## Quick start (Stage 1)
 
 ```bash
+# 0. Use Node 22 LTS (see .node-version).
+#    Node 24 currently forces native better-sqlite3 builds on Windows.
+node -v
+
 # 1. Install deps
 pnpm install
 
@@ -57,6 +61,8 @@ pnpm --filter @huasheng-clone/worker exec npx remotion browser ensure
 pnpm dev
 
 # 5. Smoke test
+curl http://localhost:3001/health
+
 curl -X POST http://localhost:3001/api/innovideo/create \
   -H 'Content-Type: application/json' \
   -d @docs/fixtures/default_script.json

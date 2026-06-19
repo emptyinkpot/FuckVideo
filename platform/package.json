@@ -5,8 +5,8 @@
   "description": "Open-source clone of huasheng.cn (Bilibili's AI video creation tool) with programmatic-animation moats (geo / 3D / data-viz / narrative) inherited from remotion-project.",
   "packageManager": "pnpm@9.12.0",
   "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "node": "22.x",
+    "pnpm": "9.x"
   },
   "scripts": {
     "dev": "pnpm -r --parallel --stream run dev",

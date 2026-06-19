@@ -43,6 +43,7 @@ pnpm-debug.log*
 !.vscode/settings.json
 !.vscode/extensions.json
 .idea/
+.serena/
 .DS_Store
 Thumbs.db
 
