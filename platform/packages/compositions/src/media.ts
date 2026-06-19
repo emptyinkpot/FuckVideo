@@ -4,7 +4,12 @@ const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 export function normalizeStaticMediaPath(value?: string): string {
   const raw = String(value || '').trim();
   if (!raw) return '';
-  if (/^https?:\/\//i.test(raw) || raw.startsWith('data:') || raw.startsWith('blob:')) {
+  if (
+    /^https?:\/\//i.test(raw) ||
+    raw.startsWith('file://') ||
+    raw.startsWith('data:') ||
+    raw.startsWith('blob:')
+  ) {
     return raw;
   }
   return raw.replace(/^\/+/, '').replace(/\\/g, '/');

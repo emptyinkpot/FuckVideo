@@ -3,26 +3,22 @@
  * render jobs serially. No Redis, no BullMQ — keeps local-dev to zero
  * external services per the storage-tiered plan.
  *
- * Real Remotion bundle/render integration lands in subsequent Stage 1 tasks
- * (after compositions/core migration completes via Task #11).
+ * Remotion integration is local-dev first: bundle the registered composition
+ * entrypoint, select `MultiSceneVideo` with the job props, and render an MP4
+ * into the job's output path.
  */
 import PQueue from 'p-queue';
+import { renderScenePlan, type RenderJob } from './render.js';
 
 const renderQueue = new PQueue({ concurrency: 1 });
 
 const port = Number(process.env.PORT ?? 3002);
 
-interface RenderJob {
-  draftId: string;
-  scenePlan: unknown;
-  outputPath: string;
-}
-
 export async function enqueueRender(job: RenderJob): Promise<void> {
   await renderQueue.add(async () => {
     console.log(`[worker] render start ${job.draftId} -> ${job.outputPath}`);
-    // TODO Task #9 part 2 (after #11 lands): @remotion/renderer pipeline.
-    throw new Error('[worker] render() not implemented yet — pending compositions migration');
+    await renderScenePlan(job);
+    console.log(`[worker] render done ${job.draftId}`);
   });
 }
 

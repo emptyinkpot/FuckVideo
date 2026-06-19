@@ -74,6 +74,7 @@ export function MultiSceneVideo({
       {timeline.map(({ scene, from, durationInFrames }) => (
         <Sequence key={scene.id} from={from} durationInFrames={durationInFrames}>
           {renderScene(scene)}
+          {enableAudio ? <SceneAudio scene={scene} /> : null}
           {showSceneLabels ? <SceneLabel scene={scene} /> : null}
         </Sequence>
       ))}
@@ -81,6 +82,18 @@ export function MultiSceneVideo({
       <ProgressBar segments={buildProgressSegments(timeline)} style={progressStyle} />
     </AbsoluteFill>
   );
+}
+
+function SceneAudio({ scene }: { scene: Scene }) {
+  const audioSrc = normalizeStaticMediaPath(String(scene.templateProps?.audioSrc || ''));
+  if (!audioSrc) return null;
+  return <Audio src={mediaSource(audioSrc)} />;
+}
+
+function mediaSource(src: string): string {
+  return /^https?:\/\//i.test(src) || src.startsWith('file://') || src.startsWith('data:') || src.startsWith('blob:')
+    ? src
+    : staticFile(src);
 }
 
 function renderScene(scene: Scene) {

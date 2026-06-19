@@ -36,6 +36,18 @@ const MultiSceneComposition: React.FC<Record<string, unknown>> = (props) => (
   <MultiSceneVideo {...(props as unknown as MultiSceneVideoProps)} />
 );
 
+const calculateMultiSceneMetadata = ({ props }: { props: Record<string, unknown> }) => {
+  const parsed = multiSceneVideoSchema.parse(props);
+  const durationInFrames = parsed.scenes.reduce(
+    (sum, scene) => sum + Math.max(30, scene.durationFrames),
+    0
+  );
+
+  return {
+    durationInFrames: Math.max(30, durationInFrames),
+  };
+};
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
@@ -48,6 +60,7 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
         schema={multiSceneVideoSchema}
         defaultProps={defaultMultiSceneVideoProps}
+        calculateMetadata={calculateMultiSceneMetadata}
       />
       <Composition
         id="FootageScene"
