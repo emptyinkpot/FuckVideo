@@ -1,6 +1,12 @@
-// Stage 1 placeholder. Task #11 will populate this barrel with the real
-// composition modules ported from remotion-project (MultiSceneVideo, NarratedVideo,
-// FootageScene, basic map, basic 3D — 5–8 components for Stage 1; the rest
-// land in Stage 2a / Stage 3 per the staged migration plan).
+export { RemotionRoot } from './Root';
+export {
+  MultiSceneVideo,
+  defaultMultiSceneVideoProps,
+  type MultiSceneVideoProps,
+} from './MultiSceneVideo';
+export { FootageScene, type FootageSceneProps } from './templates/FootageScene';
+export { NarratedVideo, type NarratedVideoProps } from './templates/NarratedVideo';
+export { MapFlyover, type MapFlyoverProps } from './templates/MapFlyover';
+export { ProductStage, type ProductStageProps } from './templates/ProductStage';
 
 export const COMPOSITIONS_VERSION = '0.1.0';

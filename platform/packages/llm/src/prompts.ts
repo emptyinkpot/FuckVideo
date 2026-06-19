@@ -13,8 +13,9 @@ export const SCRIPT_TO_SCENES_SYSTEM_PROMPT = `你是一名视频分镜助手。
 
 可用的 templateId（Stage 1 范围）：
 - "footage-scene": 单段视频素材 + Ken Burns 缩放，适合大多数旁白型镜头
-- "multi-scene-video": 多段组合容器（一般是顶层，不在 scene 内选）
 - "narrated-video": 标题 + 副标题 + 主体文本 + 背景，适合"陈述事实"型片段
+- "map-flyover": 地图路线飞行动画，适合地理、历史、迁移、路线类片段
+- "product-stage": 程序化 3D 舞台，适合抽象概念、产品、技术流程类片段
 
 输出要求：
 - 严格 JSON，不要 markdown 代码块包裹
