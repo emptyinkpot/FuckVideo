@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { innovideoRoutes } from './routes/innovideo.js';
 import { healthRoutes } from './routes/health.js';
+import { bootstrapDb } from './db/init.js';
 
 const app = new Hono();
 
@@ -30,6 +31,9 @@ app.onError((err, c) => {
 });
 
 const port = Number(process.env.PORT ?? 3001);
+
+await bootstrapDb();
+
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`[api] huasheng-clone api listening on http://localhost:${info.port}`);
 });
