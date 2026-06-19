@@ -10,10 +10,13 @@ import Database from 'better-sqlite3';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as schema from './schema.js';
 
 let cachedDb: BetterSQLite3Database<typeof schema> | null = null;
 let cachedSqlite: Database.Database | null = null;
+const packageDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(packageDir, '../../..');
 
 export interface CreateDbOptions {
   /** SQLite file URL (e.g. "file:./storage/db.sqlite") or absolute path. */
@@ -27,7 +30,7 @@ export async function getDb(options: CreateDbOptions = {}): Promise<BetterSQLite
 
   const raw = options.url ?? process.env.DATABASE_URL ?? 'file:./storage/huasheng-clone.sqlite';
   const filePath = raw.startsWith('file:') ? raw.slice('file:'.length) : raw;
-  const absolute = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+  const absolute = path.isAbsolute(filePath) ? filePath : path.resolve(repoRoot, filePath);
   await mkdir(path.dirname(absolute), { recursive: true });
 
   const sqlite = new Database(absolute);

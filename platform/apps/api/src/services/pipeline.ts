@@ -9,7 +9,7 @@
  * once the worker can bundle a real Composition.
  */
 import { eq, sql } from 'drizzle-orm';
-import { getDb, drafts, type Draft } from '@huasheng-clone/db';
+import { getDb, drafts, renderJobs, type Draft, type RenderJob } from '@huasheng-clone/db';
 import { scriptToScenes } from '@huasheng-clone/llm';
 import { renderTimeline } from '@huasheng-clone/tts-dashscope';
 import { searchMaterials } from '@huasheng-clone/material-search';
@@ -18,6 +18,8 @@ import {
   type ScenePlan,
   type Scene,
 } from '@huasheng-clone/schemas';
+import { newRenderJobId } from '../db/init.js';
+import { enqueueWorkerRender } from './worker-client.js';
 
 export async function runDraftPipeline(draftId: string): Promise<void> {
   const db = await getDb();
@@ -43,8 +45,16 @@ export async function runDraftPipeline(draftId: string): Promise<void> {
     const planWithAssets = await attachAssets(planWithTts);
     await persistScenePlan(draftId, planWithAssets);
 
-    // Stage 1 stops here. Real renderer enqueue happens once Task #11 lands.
-    console.log(`[pipeline] draft ${draftId} ready for rendering (Stage 1 boundary)`);
+    await setStatus(draftId, 'rendering');
+    const outputPath = `renders/${draftId}.mp4`;
+    const renderJobId = await createRenderJob(draftId);
+    await enqueueWorkerRender({
+      renderJobId,
+      draftId,
+      scenePlan: planWithAssets,
+      outputPath,
+    });
+    await waitForRenderJob(renderJobId);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[pipeline] draft ${draftId} failed:`, message);
@@ -78,6 +88,45 @@ async function persistScenePlan(draftId: string, plan: ScenePlan): Promise<void>
     .update(drafts)
     .set({ scenePlanJson: JSON.stringify(plan), updatedAt: sql`CURRENT_TIMESTAMP` })
     .where(eq(drafts.id, draftId));
+}
+
+async function createRenderJob(draftId: string): Promise<string> {
+  const db = await getDb();
+  const renderJobId = newRenderJobId();
+  await db.insert(renderJobs).values({
+    id: renderJobId,
+    draftId,
+    status: 'queued',
+  });
+  return renderJobId;
+}
+
+async function waitForRenderJob(renderJobId: string): Promise<RenderJob> {
+  const timeoutMs = Number(process.env.RENDER_JOB_TIMEOUT_MS ?? 180_000);
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const job = await loadRenderJob(renderJobId);
+    if (job.status === 'done') return job;
+    if (job.status === 'failed' || job.status === 'cancelled') {
+      throw new Error(job.errorMessage || `[pipeline] render job ${renderJobId} ${job.status}`);
+    }
+    await sleep(1000);
+  }
+
+  throw new Error(`[pipeline] render job ${renderJobId} timed out after ${timeoutMs}ms`);
+}
+
+async function loadRenderJob(renderJobId: string): Promise<RenderJob> {
+  const db = await getDb();
+  const rows = await db.select().from(renderJobs).where(eq(renderJobs.id, renderJobId)).limit(1);
+  const job = rows[0];
+  if (!job) throw new Error(`[pipeline] render job ${renderJobId} not found`);
+  return job;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function mergeTtsIntoScenes(

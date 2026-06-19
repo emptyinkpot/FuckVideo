@@ -1,7 +1,7 @@
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import { defaultMultiSceneVideoProps, type MultiSceneVideoProps } from '@huasheng-clone/compositions';
-import { ScenePlanSchema, type ScenePlan } from '@huasheng-clone/schemas';
+import { RenderRequestSchema, ScenePlanSchema, type RenderRequest, type ScenePlan } from '@huasheng-clone/schemas';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -15,13 +15,22 @@ export interface RenderJob {
   draftId: string;
   scenePlan: ScenePlan | unknown;
   outputPath: string;
+  onProgress?: (progressPercent: number) => void | Promise<void>;
+}
+
+export function resolveStoragePath(relativePath: string): string {
+  return path.isAbsolute(relativePath) ? relativePath : path.resolve(repoRoot, 'storage', relativePath);
+}
+
+export function normalizeRenderRequest(value: unknown): RenderRequest {
+  return RenderRequestSchema.parse(value);
 }
 
 export async function renderScenePlan(job: RenderJob): Promise<{ outputPath: string }> {
   const scenePlan = ScenePlanSchema.parse(job.scenePlan);
   const inputProps = toMultiSceneVideoProps(scenePlan);
   const rendererInputProps = inputProps as unknown as Record<string, unknown>;
-  const outputPath = path.resolve(job.outputPath);
+  const outputPath = resolveStoragePath(job.outputPath);
 
   await mkdir(path.dirname(outputPath), { recursive: true });
   await mkdir(bundleOutDir, { recursive: true });
@@ -53,6 +62,7 @@ export async function renderScenePlan(job: RenderJob): Promise<{ outputPath: str
       console.log(
         `[worker] render ${job.draftId}: ${pct}% (${progress.renderedFrames}/${composition.durationInFrames} frames)`
       );
+      void job.onProgress?.(pct);
     },
     chromiumOptions: {
       gl: 'swangle',

@@ -4,7 +4,7 @@ import type { ScenePlan } from '@huasheng-clone/schemas';
 
 const outputPath =
   process.env.SMOKE_RENDER_OUT ??
-  path.join(process.cwd(), 'storage', 'renders', 'smoke-stage1.mp4');
+  path.join('renders', 'smoke-stage1.mp4');
 
 const scenePlan: ScenePlan = {
   scriptHash: 'smoke-render-fixture',
