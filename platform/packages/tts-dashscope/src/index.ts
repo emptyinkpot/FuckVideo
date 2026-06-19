@@ -1,4 +1,15 @@
-// Stage 1 placeholder — real TS migration of scripts/dashscope-tts.mjs lands in Task #12.
-export { synthesize } from './client.js';
-export { renderTimeline } from './timeline.js';
-export { alignSubtitles } from './aligner.js';
+export { synthesize, type SynthesizeOptions } from './client.js';
+export {
+  renderTimeline,
+  concatScenesToSingleAudio,
+  type SynthesizeScenesOptions,
+  type SynthesizedScene,
+  type SynthesizedTimeline,
+} from './timeline.js';
+export {
+  alignSubtitles,
+  buildEstimatedCaptionsFromText,
+  captionsToSrt,
+  type Caption,
+  type BuildCaptionsOptions,
+} from './aligner.js';

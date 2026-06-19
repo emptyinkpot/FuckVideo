@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@huasheng-clone/db": "workspace:*",
     "@huasheng-clone/schemas": "workspace:*",
+    "@huasheng-clone/tts-dashscope": "workspace:*",
     "@huasheng-clone/compositions": "workspace:*",
     "@remotion/bundler": "^4.0.250",
     "@remotion/renderer": "^4.0.250",

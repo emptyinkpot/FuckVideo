@@ -12,6 +12,7 @@
   "dependencies": {
     "@hono/node-server": "^1.13.2",
     "@hono/zod-validator": "^0.4.1",
+    "@huasheng-clone/db": "workspace:*",
     "@huasheng-clone/schemas": "workspace:*",
     "@huasheng-clone/tts-dashscope": "workspace:*",
     "@huasheng-clone/material-search": "workspace:*",
