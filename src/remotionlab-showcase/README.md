@@ -13,5 +13,5 @@ catalog.ts
 Regenerate it with:
 
 ```console
-node scripts/sync-remotionlab-showcase.mjs --skip-media
+node pipeline/sync-remotionlab-showcase.mjs --skip-media
 ```

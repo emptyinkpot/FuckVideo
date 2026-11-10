@@ -14,7 +14,7 @@ Project files live under:
 .runtime/video-projects/<id>.json
 ```
 
-The project file is editable timeline truth. It is consumed by `scripts/project-store.mjs` and converted to Remotion props.
+The project file is editable timeline truth. It is consumed by `pipeline/project-store.mjs` and converted to Remotion props.
 
 Minimum shape:
 
@@ -120,7 +120,7 @@ Vector search is a candidate source for `visual-resolver.mjs`.
 }
 ```
 
-The first vector sidecar is `services/material-vector-search/`. TypeScript reads it through `scripts/material-vector-client.mjs` and maps matches back into asset candidates. Vector search results are candidates only; they do not become timeline truth until `visual-resolver.mjs` and `project-store.mjs` accept them.
+The first vector sidecar is `services/material-vector-search/`. TypeScript reads it through `pipeline/material-vector-client.mjs` and maps matches back into asset candidates. Vector search results are candidates only; they do not become timeline truth until `visual-resolver.mjs` and `project-store.mjs` accept them.
 
 ## Remotion Handoff
 

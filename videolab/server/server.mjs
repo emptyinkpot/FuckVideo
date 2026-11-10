@@ -22,16 +22,16 @@ import {
   replaceSceneMaterial,
   saveProject,
   setSceneLocked,
-} from "./project-store.mjs";
-import { extractEvidenceNeedsForProject, extractEvidenceNeedsForScene, resolveEvidenceForProject } from "./evidence-resolver.mjs";
+} from "../../pipeline/project-store.mjs";
+import { extractEvidenceNeedsForProject, extractEvidenceNeedsForScene, resolveEvidenceForProject } from "../../pipeline/evidence-resolver.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(__dirname, "..");
+const projectRoot = path.resolve(__dirname, "..", "..");
 const runtimeRoot = path.join(projectRoot, ".runtime", "text-to-video");
 const jobsRoot = path.join(runtimeRoot, "jobs");
-const pagePath = path.join(projectRoot, "frontend", "video-generator.html");
-const projectPagePath = path.join(projectRoot, "frontend", "video-project.html");
-const pluginScriptPath = path.join(projectRoot, "frontend", "remotion-studio-plugin.js");
+const pagePath = path.join(projectRoot, "videolab", "legacy-ui", "video-generator.html");
+const projectPagePath = path.join(projectRoot, "videolab", "legacy-ui", "video-project.html");
+const pluginScriptPath = path.join(projectRoot, "videolab", "legacy-ui", "remotion-studio-plugin.js");
 const currentStudioPropsPath = path.join(projectRoot, "src", "generated", "currentMultiSceneDefaultProps.ts");
 const port = Number(process.env.TEXT_TO_VIDEO_PORT || 3037);
 const DEFAULT_CAPTION_LAYOUT = {
@@ -302,7 +302,7 @@ function runJob(job) {
     const isAutoScenes = job.input.mode === "auto-scenes";
     const script = isAutoScenes ? "text-to-scenes-tts-video.mjs" : "text-to-video.mjs";
     const args = [
-      path.join(projectRoot, "scripts", script),
+      path.join(projectRoot, "pipeline", script),
       "--text-file",
       textPath,
       "--title",
@@ -579,7 +579,7 @@ function exportProject(req, res, project) {
   const outputPath = path.join(projectRoot, "out", `video-project-${project.id}-${Date.now()}.mp4`);
   const child = execFile(
     process.execPath,
-    [path.join(projectRoot, "scripts", "export-video-project.mjs"), "--project", project.id, "--output", outputPath],
+    [path.join(projectRoot, "pipeline", "export-video-project.mjs"), "--project", project.id, "--output", outputPath],
     { cwd: projectRoot, windowsHide: true, maxBuffer: 1024 * 1024 * 50 },
   );
   let output = "";

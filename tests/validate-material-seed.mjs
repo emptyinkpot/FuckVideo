@@ -9,7 +9,7 @@ const summaryPath = path.join(outDir, "material-seed-summary.json");
 
 fs.mkdirSync(path.join(repoRoot, outDir), { recursive: true });
 execFileSync(process.execPath, [
-  "scripts/material-seed.mjs",
+  "pipeline/material-seed.mjs",
   "--asset-index",
   "tests/fixtures/asset-index.sample.json",
   "--out",

@@ -28,7 +28,7 @@ Use TypeScript for FuckVideo's core and Python for ML sidecars.
 Why TypeScript:
 
 - Remotion is React/TypeScript-native.
-- Studio plugin and frontend/editor state are TypeScript/JavaScript concerns.
+- Studio plugin and videolab/legacy-ui/editor state are TypeScript/JavaScript concerns.
 - timeline project JSON, `project-store`, `scene-planner` and `visual-resolver` already live in Node.
 - keeping orchestration in one runtime reduces drift.
 
@@ -64,7 +64,7 @@ Status: target candidate.
 Current P0 implementation:
 
 - `services/material-vector-search/` provides the Python/LanceDB skeleton.
-- `scripts/material-seed.mjs` creates the JSONL input.
+- `pipeline/material-seed.mjs` creates the JSONL input.
 - The default embedding is a deterministic hash placeholder for wiring only.
 - `MATERIAL_EMBEDDING_BACKEND=sentence-transformers` enables the first real local embedding path.
 - `MATERIAL_EMBEDDING_BACKEND=openai-compatible` enables hosted embeddings through a configurable `/embeddings` API.

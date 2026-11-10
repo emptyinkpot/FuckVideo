@@ -1,7 +1,7 @@
 // FuckVideo.exe — double-click launcher for the FuckVideo workbench.
 //
 // - If the workbench (http://127.0.0.1:3057) is already up, just opens it in the browser.
-// - Otherwise starts `node scripts/studio-with-video-ui.mjs` hidden (no console window),
+// - Otherwise starts `node videolab/server/start.mjs` hidden (no console window),
 //   logs to out\launcher.log, shows a small "starting" window, and opens the browser
 //   once the workbench answers. The launcher itself then exits.
 // - Shutting down is done from the workbench: the "关闭" button in the top bar calls

@@ -2,10 +2,10 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadLocalEnv } from "./local-env.mjs";
+import { loadLocalEnv } from "../../pipeline/local-env.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(__dirname, "..");
+const projectRoot = path.resolve(__dirname, "..", "..");
 const remotionCli = path.join(projectRoot, "node_modules", "@remotion", "cli", "remotion-cli.js");
 
 loadLocalEnv(projectRoot);
@@ -18,13 +18,13 @@ const pluginReady = await isReady("http://127.0.0.1:3057");
 if (videoUiReady) {
   process.stdout.write("[video-ui] 已检测到 3037 服务，复用现有文本生成视频 API。\n");
 } else {
-  start("video-ui", process.execPath, [path.join(projectRoot, "scripts", "video-ui-server.mjs")]);
+  start("video-ui", process.execPath, [path.join(projectRoot, "videolab", "server", "server.mjs")]);
 }
 start("studio", process.execPath, [remotionCli, "studio", "src/index.ts", "--port=3000", "--no-open"]);
 if (pluginReady) {
   process.stdout.write("[studio-plugin] 已检测到 3057 服务，复用现有 Remotion 工作台插件入口。\n");
 } else {
-  start("studio-plugin", process.execPath, [path.join(projectRoot, "scripts", "studio-plugin-proxy.mjs")]);
+  start("studio-plugin", process.execPath, [path.join(projectRoot, "videolab", "server", "studio-plugin-proxy.mjs")]);
 }
 setTimeout(() => {
   process.stdout.write("\n打开带生成视频扩展的 Remotion 工作台：http://127.0.0.1:3057\n\n");

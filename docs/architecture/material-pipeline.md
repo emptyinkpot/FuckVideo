@@ -18,12 +18,12 @@ Active lightweight path:
 
 ```text
 public/footage
-  -> scripts/asset-indexer.mjs
+  -> pipeline/asset-indexer.mjs
   -> public/generated/asset-index.json
-  -> scripts/material-seed.mjs
+  -> pipeline/material-seed.mjs
   -> public/generated/material-seed.jsonl
-  -> scripts/asset-matcher.mjs
-  -> scripts/visual-resolver.mjs
+  -> pipeline/asset-matcher.mjs
+  -> pipeline/visual-resolver.mjs
   -> .runtime/video-projects/*.json
 ```
 
@@ -31,10 +31,10 @@ public/footage
 
 The orchestration and timeline side stays in TypeScript / Node:
 
-- `scripts/asset-indexer.mjs`
-- `scripts/asset-matcher.mjs`
-- `scripts/visual-resolver.mjs`
-- `scripts/project-store.mjs`
+- `pipeline/asset-indexer.mjs`
+- `pipeline/asset-matcher.mjs`
+- `pipeline/visual-resolver.mjs`
+- `pipeline/project-store.mjs`
 - Remotion templates and Studio plugin
 
 The model-heavy material understanding side should be Python sidecars:
@@ -49,10 +49,10 @@ Reason: Remotion timeline logic belongs with the TypeScript renderer/editor, whi
 
 Current P0 files:
 
-- `scripts/material-seed.mjs`
+- `pipeline/material-seed.mjs`
 - `docs/contracts/material-seed-schema.md`
 - `services/material-vector-search/`
-- `scripts/material-vector-client.mjs`
+- `pipeline/material-vector-client.mjs`
 - `visual-resolver.mjs#resolveVisualForSegmentWithVectors`
 
 Planned semantic path:

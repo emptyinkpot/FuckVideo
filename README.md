@@ -45,7 +45,7 @@ support: SUPPORT.md
 - 关闭：点工作台顶栏右侧的「关闭」按钮，所有服务一起停止（`POST /api/shutdown`，只接受本机工作台页面发起的请求）。
 - 日志：`out/launcher.log`。
 
-`FuckVideo.exe` 不进 git，源码在 `launcher/FuckVideo.cs`，运行 `launcher\build.cmd` 用 Windows 自带的 .NET Framework 编译器生成。需要本机装有 Node.js 18+，找不到 PATH 里的 node 时会退回 `platform/.runtime` 里的便携 Node 22。
+`FuckVideo.exe` 不进 git，源码在 `videolab/launcher/FuckVideo.cs`，运行 `launcher\build.cmd` 用 Windows 自带的 .NET Framework 编译器生成。需要本机装有 Node.js 18+，找不到 PATH 里的 node 时会退回 `platform/.runtime` 里的便携 Node 22。
 
 本地目录布局：`data/`（图片、视频素材）、`artifacts/`（导出任务、成片）、`_backup/` 都在仓库根目录下，全部被 gitignore，只存在本机。
 
@@ -96,7 +96,7 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 与根目录的关系和边界：
 
 - 根目录是 npm 工程（React 19、Remotion 4.0.456），`platform/` 是独立的 pnpm workspace（Next 14 所以 React 18、Remotion 4.0.481），两边各自安装依赖，互不引用。根 `tsconfig.json` 已排除 `platform/`。
-- `platform/packages/compositions` 和 `platform/packages/tts-dashscope` 是从根目录 `src/templates/` 和 `scripts/*tts*.mjs`、`subtitle-aligner.mjs` 改写来的 TypeScript 版本，已经和原版分开演化（props 合同改成 zod schema，模板裁剪重写）。合成一份需要先定下统一的 props 合同，并把 web 升到 Next 15 / React 19，属于后续重构。
+- `platform/packages/compositions` 和 `platform/packages/tts-dashscope` 是从根目录 `src/templates/` 和 `pipeline/*tts*.mjs`、`subtitle-aligner.mjs` 改写来的 TypeScript 版本，已经和原版分开演化（props 合同改成 zod schema，模板裁剪重写）。合成一份需要先定下统一的 props 合同，并把 web 升到 Next 15 / React 19，属于后续重构。
 - 运行方式见 `platform/README.md`，路线图 `platform/docs/ROADMAP.md` 只保存在本机（gitignore）。`platform/.runtime/` 里放着本地便携 Node 22（被 gitignore），pnpm 命令用它跑。
 
 ## 研究与素材来源说明
@@ -130,11 +130,11 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 
 当前项目已经预留了轻量素材索引和 embedding 接口：
 
-- `scripts/asset-indexer.mjs` 生成 `public/generated/asset-index.json`
-- `scripts/material-seed.mjs` 从 `asset-index.json` 生成 `public/generated/material-seed.jsonl`
-- `scripts/asset-matcher.mjs` 提供词法匹配和 `optionalEmbeddingRerank()`
-- `scripts/visual-resolver.mjs` 负责把语义镜头映射到 Remotion 模板或素材
-- `scripts/project-store.mjs` 负责把生成结果保存成可编辑 timeline project
+- `pipeline/asset-indexer.mjs` 生成 `public/generated/asset-index.json`
+- `pipeline/material-seed.mjs` 从 `asset-index.json` 生成 `public/generated/material-seed.jsonl`
+- `pipeline/asset-matcher.mjs` 提供词法匹配和 `optionalEmbeddingRerank()`
+- `pipeline/visual-resolver.mjs` 负责把语义镜头映射到 Remotion 模板或素材
+- `pipeline/project-store.mjs` 负责把生成结果保存成可编辑 timeline project
 
 下一步素材理解层应该产出统一结构，而不是绕过现有编排器：
 
@@ -188,7 +188,7 @@ Remotion Studio 模板预览与参数编辑
 
 它不是一个单独的控制台页面，也不是把控制面板塞进视频画面里。当前做法是：保留 Remotion Studio 原有工作流，右侧用浮层控制台负责“生成视频”，左侧在 `合成列表 / 素材` 旁边注入 `片段` 页签负责“一段话绑定一个画面”的微调；中央画布仍然使用 Remotion Studio 原生预览屏幕。生成成功后，插件会把项目转换成 `MultiSceneVideo` props，写入 Remotion 的 input props override，并切到 `MultiSceneVideo` composition 预览。
 
-**唯一真源规则：Remotion Studio 工作台是唯一产品入口和唯一预览真源。** 入口固定为 `npm run dev:video` -> `http://127.0.0.1:3057`。不得为了部署、预览或调试另起独立静态网页、独立 Vercel 项目、`dist` 项目、`vercel-static-preview` 项目，或把 `frontend/*.html` 当成新的产品入口发布。`/video-generator`、`/video-project/:id` 只允许作为 Remotion 工作台服务内的备用调试页面存在，不能成为并行控制面。
+**唯一真源规则：Remotion Studio 工作台是唯一产品入口和唯一预览真源。** 入口固定为 `npm run dev:video` -> `http://127.0.0.1:3057`。不得为了部署、预览或调试另起独立静态网页、独立 Vercel 项目、`dist` 项目、`vercel-static-preview` 项目，或把 `videolab/legacy-ui/*.html` 当成新的产品入口发布。`/video-generator`、`/video-project/:id` 只允许作为 Remotion 工作台服务内的备用调试页面存在，不能成为并行控制面。
 
 本文档按“给一个不了解项目的人复现出近似工程”的标准编写，包含运行环境、目录结构、端口、数据流、模板系统、参数系统、API 合约、排障和验证方式。
 
@@ -221,7 +221,7 @@ Remotion Studio 模板预览与参数编辑
 
 - `npm run dev:video` 会启动 Remotion Studio、生成视频 API、Studio 代理。
 - 访问 `http://127.0.0.1:3057`。
-- 代理会把 `frontend/remotion-studio-plugin.js` 注入 Studio 页面。
+- 代理会把 `videolab/legacy-ui/remotion-studio-plugin.js` 注入 Studio 页面。
 - Remotion 原生 `渲染` 按钮旁边会出现 `生成视频` 按钮，点击后打开右侧生成控制台；控制台打开时按钮自动隐藏。
 - Remotion Studio 左侧栏 `合成列表 / 素材` 旁边会出现 `片段` 页签。
 - 插件默认模式是“一站式生成视频”：文本 -> 千问 TTS -> 自动片段规划 -> `MultiSceneVideo` -> MP4。
@@ -337,9 +337,9 @@ http://127.0.0.1:3057
 
 对应脚本：
 
-- `scripts/studio-with-video-ui.mjs`
-- `scripts/video-ui-server.mjs`
-- `scripts/studio-plugin-proxy.mjs`
+- `videolab/server/start.mjs`
+- `videolab/server/server.mjs`
+- `videolab/server/studio-plugin-proxy.mjs`
 
 ### 4.3 只启动独立生成页面
 
@@ -367,12 +367,12 @@ http://127.0.0.1:3057
 
 ```text
 FuckVideo/
-  frontend/
+  videolab/legacy-ui/
     remotion-studio-plugin.js       Studio 内注入的“生成视频”扩展
     video-generator.html            独立文本生成视频页面
     video-project.html              生成后继续微调的项目编辑器
 
-  scripts/
+  pipeline/
     text-to-video.mjs               命令行生成视频主链路
     scene-planner.mjs               caption/micro-segment 切分、语义卡、视觉合约、Visual Resolver 调用
     visual-resolver.mjs             Programmatic / Template / Footage 三类 VisualProvider 调度器
@@ -464,20 +464,20 @@ FuckVideo/
   |
   | 访问 http://127.0.0.1:3057
   v
-Studio 插件代理 scripts/studio-plugin-proxy.mjs
+Studio 插件代理 videolab/server/studio-plugin-proxy.mjs
   |
   | 代理 http://127.0.0.1:3000
-  | 注入 frontend/remotion-studio-plugin.js
+  | 注入 videolab/legacy-ui/remotion-studio-plugin.js
   v
 Remotion Studio 页面
   |
   | 点击“生成视频”
   v
-本地任务 API scripts/video-ui-server.mjs
+本地任务 API videolab/server/server.mjs
   |
   | POST /api/jobs
   v
-命令行生成链路 scripts/text-to-video.mjs
+命令行生成链路 pipeline/text-to-video.mjs
   |
   | 调用千问 TTS
   | 下载音频
@@ -504,7 +504,7 @@ src/templates/GeneratedTemplateVideo.tsx
 自动片段生成时，任务 API 会调用：
 
 ```text
-scripts/text-to-scenes-tts-video.mjs
+pipeline/text-to-scenes-tts-video.mjs
 ```
 
 它会执行：
@@ -871,12 +871,12 @@ src/Root.tsx
    - `src/templates/GeneratedTemplateVideo.tsx` 的 `ExistingTemplateId`
    - `src/templates/sceneRegistry.tsx` 的 `AutoSceneTemplateId` 和 `renderSceneTemplate`
    - `src/templates/visual-provider-manifest.json` 的 provider 握手说明
-   - `scripts/visual-resolver.mjs` 能识别的新 provider 能力
-   - `scripts/scene-planner.mjs` 生成的 `semanticCard / visualContract`
+   - `pipeline/visual-resolver.mjs` 能识别的新 provider 能力
+   - `pipeline/scene-planner.mjs` 生成的 `semanticCard / visualContract`
    - `templates` 映射
    - `templateOptions`
-   - `frontend/remotion-studio-plugin.js` 的模板下拉
-   - `frontend/video-generator.html` 的模板下拉
+   - `videolab/legacy-ui/remotion-studio-plugin.js` 的模板下拉
+   - `videolab/legacy-ui/video-generator.html` 的模板下拉
 
 最小示意：
 
@@ -908,7 +908,7 @@ const myTemplateDefaultProps = {
 主脚本：
 
 ```text
-scripts/text-to-video.mjs
+pipeline/text-to-video.mjs
 ```
 
 基础命令：
@@ -954,14 +954,14 @@ npm run text-to-video -- --text "短文本" --json=true
 --json             是否输出 TEXT_TO_VIDEO_RESULT
 ```
 
-默认配置在 `scripts/text-to-video.mjs` 顶部的 `defaults` 中。
+默认配置在 `pipeline/text-to-video.mjs` 顶部的 `defaults` 中。
 
 ## 9.1 一站式自动片段生成命令行
 
 主脚本：
 
 ```text
-scripts/text-to-scenes-tts-video.mjs
+pipeline/text-to-scenes-tts-video.mjs
 ```
 
 基础命令：
@@ -1102,7 +1102,7 @@ progressMinSegmentWidth
 命令行也支持同名 kebab 参数，例如：
 
 ```console
-node scripts/text-to-scenes-tts-video.mjs --caption-bottom=34 --caption-background-color=transparent --caption-font-size=28 --progress-height=34 --progress-padding-x=0
+node pipeline/text-to-scenes-tts-video.mjs --caption-bottom=34 --caption-background-color=transparent --caption-font-size=28 --progress-height=34 --progress-padding-x=0
 ```
 
 默认视频基础设施采用紧凑底部布局：字幕没有黑色底板，默认 `captionBackgroundColor=transparent`；分段进度条贴底且横向全长，默认 `progressLeft=0`、`progressRight=0`、`progressPaddingX=0`；字幕默认放在进度条上方约 4px 的位置。画面字幕只允许单行，渲染层强制 `whiteSpace: nowrap`，并按字幕字数和可用宽度自动压缩字号，不能通过换成两行来撑开。
@@ -1290,7 +1290,7 @@ POST /srt
 ```text
 TTS 音频
   -> SRT/captions
-  -> scripts/scene-planner.mjs 的 planScenesFromCaptions()
+  -> pipeline/scene-planner.mjs 的 planScenesFromCaptions()
   -> 每条 caption 生成一个或多个 semantic micro-segment，并写入 fromFrame / durationInFrames / audioStartMs / audioEndMs
   -> MultiSceneVideo 按音频真实时间切镜头
 ```
@@ -1304,7 +1304,7 @@ TTS 音频
 本地任务服务：
 
 ```text
-scripts/video-ui-server.mjs
+videolab/server/server.mjs
 ```
 
 默认端口：
@@ -1603,7 +1603,7 @@ Remotion 官方 Studio 当前没有稳定的插件 API，所以本项目使用�
 注入脚本：
 
 ```text
-frontend/remotion-studio-plugin.js
+videolab/legacy-ui/remotion-studio-plugin.js
 ```
 
 插件做了五件事：
@@ -1622,7 +1622,7 @@ frontend/remotion-studio-plugin.js
 Studio 内嵌扩展前端集中在：
 
 ```text
-frontend/remotion-studio-plugin.js
+videolab/legacy-ui/remotion-studio-plugin.js
 ```
 
 它是一个运行时注入脚本，不修改 Remotion Studio 源码和 `node_modules`。注意：这不是项目里唯一的前端；它只负责把“生成视频”和“片段编辑”嵌入 Remotion Studio。完整前端还包括 Remotion Studio 原生界面、两个备用独立 HTML 页面，以及 `src/Root.tsx` 注册的 32 个 Composition 画布 UI。
@@ -1946,7 +1946,7 @@ GET  http://127.0.0.1:3037/files/:id
 默认点击“一站式生成视频”后：
 
 1. 插件 `POST /api/jobs`。
-2. 本地任务 API 启动 `scripts/text-to-scenes-tts-video.mjs`。
+2. 本地任务 API 启动 `pipeline/text-to-scenes-tts-video.mjs`。
 3. 脚本生成 TTS、自动片段 scenes、`MultiSceneVideo` props 和 MP4。
 4. 前端每 2 秒轮询 `GET /api/jobs/:id`。
 5. 成功后保存 `.runtime/video-projects/<id>.json`。
@@ -1956,7 +1956,7 @@ GET  http://127.0.0.1:3037/files/:id
 9. 左侧自动打开 `片段` 页签继续编辑项目。
 10. 右侧继续保留生成进度日志和打开成片入口。
 
-如果把“生成模式”改成“单模板”，则任务 API 会启动旧链路 `scripts/text-to-video.mjs`。
+如果把“生成模式”改成“单模板”，则任务 API 会启动旧链路 `pipeline/text-to-video.mjs`。
 
 ### 15.6 前端扩展原则
 
@@ -1986,8 +1986,8 @@ GET  http://127.0.0.1:3037/files/:id
 ```text
 1. Remotion Studio 原生前端
 2. Remotion Studio 注入插件前端
-3. 备用独立生成页 frontend/video-generator.html
-4. 备用独立项目编辑页 frontend/video-project.html
+3. 备用独立生成页 videolab/legacy-ui/video-generator.html
+4. 备用独立项目编辑页 videolab/legacy-ui/video-project.html
 5. Remotion Composition / Template 画布前端
 ```
 
@@ -2007,7 +2007,7 @@ Remotion Studio 自带的前端不要重写，它是主预览和参数编辑外�
 - 右侧原生 props 面板：读取 `src/Root.tsx` 中每个 `<Composition>` 的 `schema` 和 `defaultProps`，生成可交互参数编辑器。
 - 顶部 / 底部 Studio 控件：播放、暂停、帧定位、渲染入口等仍由 Remotion 原生 UI 负责。
 
-本项目只通过 `frontend/studio-plugin-proxy.mjs` 代理 HTML，并注入 `frontend/remotion-studio-plugin.js`。不要改 `node_modules`，不要复制一套 Studio。中文化也是运行时 `MutationObserver` 替换常见英文文案，例如 `Compositions` -> `合成列表`、`Assets` -> `素材`、`Render` -> `渲染`。
+本项目只通过 `videolab/legacy-ui/studio-plugin-proxy.mjs` 代理 HTML，并注入 `videolab/legacy-ui/remotion-studio-plugin.js`。不要改 `node_modules`，不要复制一套 Studio。中文化也是运行时 `MutationObserver` 替换常见英文文案，例如 `Compositions` -> `合成列表`、`Assets` -> `素材`、`Render` -> `渲染`。
 
 参数编辑的真实来源是 `src/Root.tsx`：
 
@@ -2027,7 +2027,7 @@ Remotion Studio 自带的前端不要重写，它是主预览和参数编辑外�
 文件：
 
 ```text
-frontend/remotion-studio-plugin.js
+videolab/legacy-ui/remotion-studio-plugin.js
 ```
 
 它只加两块 UI：
@@ -2074,7 +2074,7 @@ localStorage["remotion_inputPropsOverride" + window.location.origin] = JSON.stri
 文件：
 
 ```text
-frontend/video-generator.html
+videolab/legacy-ui/video-generator.html
 ```
 
 入口：
@@ -2145,7 +2145,7 @@ GET  /api/jobs/:id
 文件：
 
 ```text
-frontend/video-project.html
+videolab/legacy-ui/video-project.html
 ```
 
 入口：
@@ -2316,7 +2316,7 @@ SinoJapaneseWarDemo
 
 ### 15.8 Segment-based 项目工作流
 
-新一层工作台能力已经落在 `frontend/remotion-studio-plugin.js`，不是新建入口页。主方向不是自由剪辑软件，而是花生 AI 一类的 Segment-based Video Editor：
+新一层工作台能力已经落在 `videolab/legacy-ui/remotion-studio-plugin.js`，不是新建入口页。主方向不是自由剪辑软件，而是花生 AI 一类的 Segment-based Video Editor：
 
 ```text
 一句/一段话 = 一个片段 = 一个画面 = 一个可管理单元
@@ -2466,7 +2466,7 @@ async function switchProject(projectId) {
 
 #### 15.8.2 片段条
 
-服务端在 `scripts/project-store.mjs` 中提供：
+服务端在 `pipeline/project-store.mjs` 中提供：
 
 ```js
 projectToSegments(project)
@@ -2561,7 +2561,7 @@ div.ttv-segment-block
 建议里的 React/Tailwind 组件、Zustand store、`dnd-kit` 和 `wavesurfer.js` 是后续“独立专业编辑器”路线的合适技术栈，但当前主前端是运行时注入到 Remotion Studio 的单文件 vanilla 插件：
 
 ```text
-frontend/remotion-studio-plugin.js
+videolab/legacy-ui/remotion-studio-plugin.js
 ```
 
 所以当前源码没有引入一套平行 React 编辑器，也没有安装未使用依赖。等未来需要独立编辑器时，落地方式应该是：
@@ -2673,7 +2673,7 @@ PromptAnimatedShapes         提示词动态图形
 
 注意：`GeneratedTemplateVideo` 包装这些模板时，主要控制的是模板选择、音频、字幕和视频时长。每个单独模板的细颗粒 props 编辑是在 Remotion Studio 合成详情里完成。
 
-自动片段模式不使用这个下拉选择的单一模板，而是由 `scripts/scene-planner.mjs` 根据文本内容自动选择多个镜头模板。
+自动片段模式不使用这个下拉选择的单一模板，而是由 `pipeline/scene-planner.mjs` 根据文本内容自动选择多个镜头模板。
 
 ## 18. 从零复现近似工程的步骤
 
@@ -2702,7 +2702,7 @@ src/templates/AutoSceneTemplates.tsx
 src/templates/FootageScene.tsx
 src/templates/sceneRegistry.tsx
 src/templates/visual-provider-manifest.json
-frontend/video-project.html
+videolab/legacy-ui/video-project.html
 ```
 
 4. 在 `src/Root.tsx` 注册所有 Composition。
@@ -2717,7 +2717,7 @@ width
 height
 ```
 
-6. 写 `scripts/text-to-video.mjs`：
+6. 写 `pipeline/text-to-video.mjs`：
 
 ```text
 解析 CLI 参数
@@ -2729,7 +2729,7 @@ ffprobe 读时长
 调用 Remotion CLI render
 ```
 
-7. 写 `scripts/scene-planner.mjs` 和 `scripts/text-to-scenes-tts-video.mjs`：
+7. 写 `pipeline/scene-planner.mjs` 和 `pipeline/text-to-scenes-tts-video.mjs`：
 
 ```text
 分句 / 读取 captions
@@ -2752,7 +2752,7 @@ ffprobe 读时长
 没有 captions 时才使用文本估算时长
 ```
 
-9. 写 `src/templates/visual-provider-manifest.json` 和 `scripts/visual-resolver.mjs`：
+9. 写 `src/templates/visual-provider-manifest.json` 和 `pipeline/visual-resolver.mjs`：
 
 ```text
 把程序动画、兜底模板、footage 统一登记为 VisualProvider
@@ -2761,7 +2761,7 @@ resolver 对 Programmatic / Template / Footage 三类 provider 做硬过滤、�
 每个 scene 输出 providerType / visualProviderId / visualCandidates / decisionTrace
 ```
 
-10. 写 `scripts/asset-indexer.mjs`、`scripts/asset-matcher.mjs` 和 `scripts/scene-asset-planner.mjs`：
+10. 写 `pipeline/asset-indexer.mjs`、`pipeline/asset-matcher.mjs` 和 `pipeline/scene-asset-planner.mjs`：
 
 ```text
 扫描 public/footage
@@ -2770,7 +2770,7 @@ resolver 对 Programmatic / Template / Footage 三类 provider 做硬过滤、�
 兼容旧流程：给已有 scenes 单独追加 visualLayer
 ```
 
-11. 写 `scripts/project-store.mjs` 和 `scripts/export-video-project.mjs`：
+11. 写 `pipeline/project-store.mjs` 和 `pipeline/export-video-project.mjs`：
 
 ```text
 把生成结果转成 VideoProject
@@ -2780,7 +2780,7 @@ resolver 对 Programmatic / Template / Footage 三类 provider 做硬过滤、�
 调用 Remotion 总导出
 ```
 
-12. 写 `scripts/video-ui-server.mjs`：
+12. 写 `videolab/server/server.mjs`：
 
 ```text
 GET /video-generator
@@ -2796,7 +2796,7 @@ POST /api/projects/:id/export
 GET /files/:id
 ```
 
-12. 写 `frontend/remotion-studio-plugin.js` 和 `frontend/video-project.html`：
+12. 写 `videolab/legacy-ui/remotion-studio-plugin.js` 和 `videolab/legacy-ui/video-project.html`：
 
 ```text
 右侧生成视频按钮
@@ -2809,18 +2809,18 @@ GET /files/:id
 GET /api/projects/:id/props 写入 Remotion input props override
 中央 Remotion Studio 预览 MultiSceneVideo
 左侧片段列表 / 当前片段属性 / 画面候选
-备用项目编辑器 frontend/video-project.html
+备用项目编辑器 videolab/legacy-ui/video-project.html
 Studio 中文化替换
 ```
 
-13. 写 `scripts/studio-plugin-proxy.mjs`：
+13. 写 `videolab/server/studio-plugin-proxy.mjs`：
 
 ```text
 代理 Remotion Studio
 注入 studio-plugin.js
 ```
 
-14. 写 `scripts/studio-with-video-ui.mjs`：
+14. 写 `videolab/server/start.mjs`：
 
 ```text
 同时启动 video-ui-server
@@ -2834,15 +2834,15 @@ Studio 中文化替换
 {
   "scripts": {
     "dev": "remotion studio",
-    "dev:video": "node scripts/studio-with-video-ui.mjs",
-    "plan-scenes": "node scripts/scene-planner.mjs",
-    "text-to-scenes-video": "node scripts/text-to-scenes-video.mjs",
-    "text-to-scenes-tts-video": "node scripts/text-to-scenes-tts-video.mjs",
-    "index-assets": "node scripts/asset-indexer.mjs",
-    "match-assets": "node scripts/scene-asset-planner.mjs",
-    "export-project": "node scripts/export-video-project.mjs",
-    "text-to-video": "node scripts/text-to-video.mjs",
-    "video-ui": "node scripts/video-ui-server.mjs",
+    "dev:video": "node videolab/server/start.mjs",
+    "plan-scenes": "node pipeline/scene-planner.mjs",
+    "text-to-scenes-video": "node pipeline/text-to-scenes-video.mjs",
+    "text-to-scenes-tts-video": "node pipeline/text-to-scenes-tts-video.mjs",
+    "index-assets": "node pipeline/asset-indexer.mjs",
+    "match-assets": "node pipeline/scene-asset-planner.mjs",
+    "export-project": "node pipeline/export-video-project.mjs",
+    "text-to-video": "node pipeline/text-to-video.mjs",
+    "video-ui": "node videolab/server/server.mjs",
     "lint": "eslint src && tsc"
   }
 }
@@ -3058,7 +3058,7 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 
 ```text
 文本 + TTS 音频
-  -> scripts/scene-planner.mjs 拆句
+  -> pipeline/scene-planner.mjs 拆句
   -> captions/SRT 存在时建立父 caption 时间轴
   -> 过长 caption 拆成 semantic micro-segments
   -> SegmentSemanticCard
@@ -3074,15 +3074,15 @@ cmd /c node_modules\.bin\remotion.cmd compositions src/index.ts
 
 新增文件：
 
-- `scripts/scene-planner.mjs`：文本拆块、caption 驱动片段生成、关键词提取、语义卡、视觉合约、调用 Visual Resolver 生成 scene。
-- `scripts/visual-resolver.mjs`：统一调度 `VisualProvider`，按 `programmatic / footage / static / fallback` 四类资源执行握手、打分、填参和决策追踪。
-- `scripts/sound-resolver.mjs`：根据 `visualContract.kind`、事件动作和叙事角色生成 `soundDesign` 元数据。
-- `scripts/timeline-aligner.mjs`：旧兼容工具；新一站式生成不再用它把 captions 按文本长度分组到 scenes。
-- `scripts/asset-indexer.mjs`：扫描 `public/footage/`，生成素材索引草稿。
-- `scripts/asset-matcher.mjs`：旧兼容工具，给已有 scenes 单独追加 footage 候选；一站式生成主链路优先走 `visual-resolver.mjs`。
-- `scripts/scene-asset-planner.mjs`：给已有 scenes JSON 追加 `visualLayer`。
-- `scripts/text-to-scenes-video.mjs`：生成 scenes/props，并可直接渲染 `MultiSceneVideo`。
-- `scripts/import-mixkit-reveal.mjs`：抓取 Mixkit Reveal 分类两页，解析 26 个详情页、下载 AE zip/preview/poster，并写入可追踪 manifest。
+- `pipeline/scene-planner.mjs`：文本拆块、caption 驱动片段生成、关键词提取、语义卡、视觉合约、调用 Visual Resolver 生成 scene。
+- `pipeline/visual-resolver.mjs`：统一调度 `VisualProvider`，按 `programmatic / footage / static / fallback` 四类资源执行握手、打分、填参和决策追踪。
+- `pipeline/sound-resolver.mjs`：根据 `visualContract.kind`、事件动作和叙事角色生成 `soundDesign` 元数据。
+- `pipeline/timeline-aligner.mjs`：旧兼容工具；新一站式生成不再用它把 captions 按文本长度分组到 scenes。
+- `pipeline/asset-indexer.mjs`：扫描 `public/footage/`，生成素材索引草稿。
+- `pipeline/asset-matcher.mjs`：旧兼容工具，给已有 scenes 单独追加 footage 候选；一站式生成主链路优先走 `visual-resolver.mjs`。
+- `pipeline/scene-asset-planner.mjs`：给已有 scenes JSON 追加 `visualLayer`。
+- `pipeline/text-to-scenes-video.mjs`：生成 scenes/props，并可直接渲染 `MultiSceneVideo`。
+- `pipeline/import-mixkit-reveal.mjs`：抓取 Mixkit Reveal 分类两页，解析 26 个详情页、下载 AE zip/preview/poster，并写入可追踪 manifest。
 - `src/templates/DocumentReveal.tsx`：唯一文件证据展示模板，承接条约、文件、策论、档案、原文证据类片段。
 - `src/templates/MixkitReveal.tsx`：把 26 个 Mixkit reveal 源素材复刻为一个可参数化 Remotion composition，运行时通过 `presetId` 切换视觉结构。
 - `src/templates/mixkitRevealPresets.ts`：记录 26 个 Mixkit 源素材的 `presetId`、`mixkitId`、源链接、颜色和 `effectKind`。
@@ -3118,7 +3118,7 @@ Pencil / AE / 参考视频
 npm run validate-animation-contracts
 ```
 
-校验器在 `scripts/animation-contracts.mjs`。它会读取 `visual-provider-manifest.json`，并检查：
+校验器在 `pipeline/animation-contracts.mjs`。它会读取 `visual-provider-manifest.json`，并检查：
 
 - provider id 是否唯一。
 - programmatic provider 的 `runtime.sceneRegistryId` 是否存在于 `sceneRegistry.tsx`。
@@ -3189,7 +3189,7 @@ Pencil 导出的 PNG/PDF 只能当参考图或验收图，不得直接进入 `vi
 实现入口：
 
 ```text
-scripts/evidence-resolver.mjs
+pipeline/evidence-resolver.mjs
 ```
 
 核心类型：
@@ -3535,10 +3535,10 @@ http://127.0.0.1:3057/MultiSceneVideo
 核心文件：
 
 ```text
-frontend/video-project.html
-frontend/remotion-studio-plugin.js
-scripts/project-store.mjs
-scripts/export-video-project.mjs
+videolab/legacy-ui/video-project.html
+videolab/legacy-ui/remotion-studio-plugin.js
+pipeline/project-store.mjs
+pipeline/export-video-project.mjs
 ```
 
 `locked` 是给后续 AI 微调预留的边界。后续做“重新生成当前项目”时，应该跳过 `locked: true` 的片段。
@@ -3810,7 +3810,7 @@ type VisualContract = {
 
 ### 24.3 Visual Resolver 策略
 
-`scene-planner.mjs` 不再直接用 `chooseTemplate()` 决定画面，主链路改为调用 `scripts/visual-resolver.mjs`。Resolver 的输入是 `SegmentSemanticCard + VisualContract`，输出是统一的 `VisualProvider` 决策：
+`scene-planner.mjs` 不再直接用 `chooseTemplate()` 决定画面，主链路改为调用 `pipeline/visual-resolver.mjs`。Resolver 的输入是 `SegmentSemanticCard + VisualContract`，输出是统一的 `VisualProvider` 决策：
 
 ```text
 Segment 语义
@@ -3867,11 +3867,11 @@ Resolver 优先级：
 TTS -> SRT/captions -> planScenesFromCaptions -> scenes[fromFrame,durationInFrames,audioStartMs,audioEndMs]
 ```
 
-`scripts/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `planScenesFromCaptions()`。caption 仍是父时间轴，但 planner 会继续做 semantic micro-segment：如果 caption 里超过 22 个有效汉字，或同时出现多个实体、地点、文件名、人物名、隐喻、转折词，就尝试切成更小片段。每个 micro-segment 都有 `parentCaptionId`、`parentCaptionIndex` 和 `estimatedTiming`，时间按文本 token 比例分配在父 caption 内。这样仍满足“一段话、一段音频、一个画面”，但不会把一句里三件事塞进一个画面。
+`pipeline/text-to-scenes-tts-video.mjs` 在生成 SRT 成功后会调用 `planScenesFromCaptions()`。caption 仍是父时间轴，但 planner 会继续做 semantic micro-segment：如果 caption 里超过 22 个有效汉字，或同时出现多个实体、地点、文件名、人物名、隐喻、转折词，就尝试切成更小片段。每个 micro-segment 都有 `parentCaptionId`、`parentCaptionIndex` 和 `estimatedTiming`，时间按文本 token 比例分配在父 caption 内。这样仍满足“一段话、一段音频、一个画面”，但不会把一句里三件事塞进一个画面。
 
 scene 的时间来自 caption 或父 caption 内的 micro-segment 分配，scene 的语义文本优先来自原始文案：当原始句子数和 caption 数不一致时，用 caption 文本在原文中找锚点切片，避免 ASR 错字污染画面匹配。禁止再用旁白文本长度把多个 captions 分组到旧 scenes；那会造成画面和声音错位。只有在跳过字幕或字幕接口失败时，才使用文本拆句估算并按音频总时长拉伸。
 
-项目持久层也必须执行同一条规则，不能只在生成脚本里校验。`scripts/project-store.mjs#repairProjectTimeline()` 是统一闸门：
+项目持久层也必须执行同一条规则，不能只在生成脚本里校验。`pipeline/project-store.mjs#repairProjectTimeline()` 是统一闸门：
 
 - captions 的显示文本以原始文案为准；如果旧项目里保存了 ASR 错字字幕，会保留时间戳并把文本重写为原文切片。
 - Remotion props 里的显示字幕由 segment/micro-segment 派生，而不是直接显示父 caption 大段文本；父 caption 只负责音频时间校验。
@@ -3999,7 +3999,7 @@ visual-resolver.mjs
 
 不要复刻通用“自动剪片源码”。本项目需要的是“历史旁白 -> 分镜 -> 画面合约 -> 镜头级素材语义检索 -> 人工审核闭环”。成熟开源组件用于素材理解和检索层，Remotion、`scene-planner.mjs`、`visual-resolver.mjs` 保留为生成和调度主链路。
 
-白布写字、纯字幕卡、白底大字这类素材不能进入真实 footage 池。`scripts/asset-quality.mjs` 统一计算 `qualityGate`：
+白布写字、纯字幕卡、白底大字这类素材不能进入真实 footage 池。`pipeline/asset-quality.mjs` 统一计算 `qualityGate`：
 
 ```text
 visualValueScore =

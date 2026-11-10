@@ -228,12 +228,12 @@ Active:
 
 Existing files:
 
-- `scripts/asset-indexer.mjs`
-- `scripts/asset-matcher.mjs`
-- `scripts/visual-resolver.mjs`
-- `scripts/evidence-resolver.mjs`
-- `scripts/scene-planner.mjs`
-- `scripts/project-store.mjs`
+- `pipeline/asset-indexer.mjs`
+- `pipeline/asset-matcher.mjs`
+- `pipeline/visual-resolver.mjs`
+- `pipeline/evidence-resolver.mjs`
+- `pipeline/scene-planner.mjs`
+- `pipeline/project-store.mjs`
 - `src/templates/`
 - `src/video-infrastructure/`
 - `asset-source/`
