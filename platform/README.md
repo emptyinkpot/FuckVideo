@@ -1,8 +1,10 @@
-# huasheng-clone
+# platform (huasheng-clone)
 
+> **Location**: this is the `platform/` subdirectory of `emptyinkpot/FuckVideo`. It was a standalone repo (`emptyinkpot/huasheng-clone`) until 2026-11-10, when it was merged here with its full commit history. Run all commands below from `platform/`. The "root Remotion workspace" mentioned below is the FuckVideo repo root (`src/`, `scripts/`), formerly called `remotion-project`.
+>
 > Open-source clone of [huasheng.cn](https://www.huasheng.cn/) (Bilibili's AI video creation tool, internal codename `innovideo`).
 >
-> **Differentiator**: while replicating huasheng's full feature set (script → auto-storyboard → TTS → semantic asset matching → 1080P export → timeline editor), this project layers on **programmatic-animation moats** that huasheng cannot do — historical-globe flyovers, 3D scenes, vector earth textures, data-driven charts, narrative templates — inherited from `E:\My Project\remotion-project`.
+> **Differentiator**: while replicating huasheng's full feature set (script → auto-storyboard → TTS → semantic asset matching → 1080P export → timeline editor), this project layers on **programmatic-animation moats** that huasheng cannot do — historical-globe flyovers, 3D scenes, vector earth textures, data-driven charts, narrative templates — inherited from the FuckVideo root Remotion workspace.
 
 ## Status
 
@@ -25,13 +27,13 @@ See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the 5-stage plan.
 ## Layout
 
 ```
-huasheng-clone/
+FuckVideo/platform/
 ├── apps/
 │   ├── web/        Next.js 14 frontend (huasheng-like UI)
 │   ├── api/        Hono backend (innovideo/* endpoints)
 │   └── worker/     Remotion render worker
 ├── packages/
-│   ├── compositions/   Programmatic-animation moat (from remotion-project)
+│   ├── compositions/   Programmatic-animation moat (rewritten from root src/templates)
 │   ├── schemas/        Shared Zod definitions
 │   ├── tts-dashscope/  TTS pipeline
 │   └── material-search/ Vector retrieval (LanceDB embedded)

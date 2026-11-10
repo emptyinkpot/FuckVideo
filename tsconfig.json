@@ -17,6 +17,7 @@
     "src/remotionlab-showcase",
     ".runtime",
     "out",
-    "public/generated"
+    "public/generated",
+    "platform"
   ]
 }

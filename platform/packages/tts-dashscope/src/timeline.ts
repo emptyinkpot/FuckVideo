@@ -1,6 +1,6 @@
 /**
  * Speech timeline orchestration.
- * Library-form port of remotion-project/scripts/speech-timeline-tts.mjs.
+ * Library-form port of FuckVideo root scripts/speech-timeline-tts.mjs.
  *
  * Responsibility:
  *   Given a Scene[] (text per scene), synthesize each segment via the

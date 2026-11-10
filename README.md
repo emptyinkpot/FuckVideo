@@ -69,6 +69,22 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 - 本仓库不是从某一个 GitHub 仓库直接复刻而来；初始提交是本地创建的 Remotion 视频工作台工程，首个提交为 `05bb1e1 Initial Remotion video workspace`。
 - 本仓库的核心框架上游是 `remotion-dev/remotion`，GitHub 地址为 `https://github.com/remotion-dev/remotion`。
 - 本仓库的设计、模板、素材和数据参考来源列在下方“研究与素材来源说明”；这些是研究/素材/实现参考来源，不等同于 GitHub fork parent。
+- 本仓库早期的本地目录名和 npm 包名是 `remotion-project`，2026-11-10 统一改为 FuckVideo；其他仓库或文档里提到的 `remotion-project` 指的就是本仓库根目录。
+
+## platform/：产品化子系统（原 huasheng-clone）
+
+`platform/` 原本是独立仓库 `emptyinkpot/huasheng-clone`，2026-11-10 连同全部 10 个提交合并进本仓库。它把根目录这条“文案 → 配音 → 分镜 → 素材匹配 → Remotion 渲染”的流程做成在线产品形态，仿照 B 站「花生」的使用流程：
+
+- `platform/apps/web`：Next.js 14 前端（:3000）
+- `platform/apps/api`：Hono 后端（:3001）
+- `platform/apps/worker`：Remotion 服务端渲染 worker（:3002）
+- `platform/packages/*`：schemas、tts-dashscope、llm、material-search、db、compositions
+
+与根目录的关系和边界：
+
+- 根目录是 npm 工程（React 19、Remotion 4.0.456），`platform/` 是独立的 pnpm workspace（Next 14 所以 React 18、Remotion 4.0.481），两边各自安装依赖，互不引用。根 `tsconfig.json` 已排除 `platform/`。
+- `platform/packages/compositions` 和 `platform/packages/tts-dashscope` 是从根目录 `src/templates/` 和 `scripts/*tts*.mjs`、`subtitle-aligner.mjs` 改写来的 TypeScript 版本，已经和原版分开演化（props 合同改成 zod schema，模板裁剪重写）。合成一份需要先定下统一的 props 合同，并把 web 升到 Next 15 / React 19，属于后续重构。
+- 运行方式见 `platform/README.md`，路线图见 `platform/docs/ROADMAP.md`。`platform/.runtime/` 里放着本地便携 Node 22（被 gitignore），pnpm 命令用它跑。
 
 ## 研究与素材来源说明
 

@@ -1,6 +1,6 @@
 /**
  * Subtitle alignment helpers — ported verbatim from
- * remotion-project/scripts/subtitle-aligner.mjs (zero external deps).
+ * FuckVideo root scripts/subtitle-aligner.mjs (zero external deps).
  *
  * Two responsibilities:
  *   1. Given a script + estimated TTS duration, slice it into evenly-weighted

@@ -1,5 +1,5 @@
 {
-  "projectName": "remotion-project",
+  "projectName": "FuckVideo",
   "purpose": {
     "oneLine": "输入文案后自动生成带配音、带素材匹配、带 Remotion 可编辑镜头编排的成片工程。",
     "notA": ["traditional auto cutter", "ffmpeg-only editing wrapper", "static demo page"],
@@ -40,6 +40,15 @@
     "githubTemplateRepository": null,
     "origin": "local initial Remotion video workspace",
     "initialCommit": "05bb1e1 Initial Remotion video workspace",
+    "formerNames": ["remotion-project"],
+    "mergedRepositories": [
+      {
+        "githubIdentifier": "emptyinkpot/huasheng-clone",
+        "mergedInto": "platform/",
+        "mergedOn": "2026-11-10",
+        "historyPreserved": true
+      }
+    ],
     "frameworkUpstream": {
       "githubIdentifier": "remotion-dev/remotion",
       "url": "https://github.com/remotion-dev/remotion",
@@ -248,5 +257,16 @@
     "candidateVectorStores": ["LanceDB", "Milvus", "Weaviate"],
     "candidateUnderstandingModels": ["Qwen2.5-VL", "GPT-4o", "Whisper", "OpenCLIP"],
     "rule": "Do not bypass visual-resolver or project-store. Material understanding must write searchable asset metadata and embeddings, then feed the existing Remotion timeline orchestration layer."
+  },
+  "platform": {
+    "path": "platform/",
+    "role": "productized web app (Next.js web + Hono api + Remotion render worker), huasheng.cn-style workflow",
+    "packageManager": "pnpm workspace, independent from root npm install",
+    "readme": "platform/README.md",
+    "roadmap": "platform/docs/ROADMAP.md",
+    "divergedPorts": {
+      "platform/packages/compositions": "rewrite of root src/templates with zod props contract",
+      "platform/packages/tts-dashscope": "TS rewrite of root scripts/dashscope-tts.mjs, speech-timeline-tts.mjs, subtitle-aligner.mjs"
+    }
   }
 }

@@ -2,7 +2,7 @@
   "name": "huasheng-clone",
   "version": "0.1.0",
   "private": true,
-  "description": "Open-source clone of huasheng.cn (Bilibili's AI video creation tool) with programmatic-animation moats (geo / 3D / data-viz / narrative) inherited from remotion-project.",
+  "description": "Open-source clone of huasheng.cn (Bilibili's AI video creation tool) with programmatic-animation moats (geo / 3D / data-viz / narrative) inherited from the FuckVideo root Remotion workspace.",
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": "22.x",

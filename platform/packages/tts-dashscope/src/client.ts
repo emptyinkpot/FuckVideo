@@ -1,6 +1,6 @@
 /**
  * DashScope CosyVoice TTS client.
- * Ported from remotion-project/scripts/dashscope-tts.mjs and TS-ified.
+ * Ported from FuckVideo root scripts/dashscope-tts.mjs and TS-ified.
  *
  * Provider: Alibaba DashScope (https://dashscope.aliyuncs.com/api-ws/v1/inference/).
  * Default model: cosyvoice-v3.5-plus. Mirrors the working voices observed in
