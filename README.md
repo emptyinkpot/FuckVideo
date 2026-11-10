@@ -10,7 +10,7 @@ projectName: FuckVideo
 canonicalDoc: README.md
 machineReadableEntry: project.json
 githubRepo: https://github.com/emptyinkpot/FuckVideo
-visibility: private
+visibility: public
 projectType: AI video understanding and Remotion generation application
 runtimeRunbook: docs/operations/runtime-runbook.md
 contributing: CONTRIBUTING.md
@@ -84,7 +84,7 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 
 - 根目录是 npm 工程（React 19、Remotion 4.0.456），`platform/` 是独立的 pnpm workspace（Next 14 所以 React 18、Remotion 4.0.481），两边各自安装依赖，互不引用。根 `tsconfig.json` 已排除 `platform/`。
 - `platform/packages/compositions` 和 `platform/packages/tts-dashscope` 是从根目录 `src/templates/` 和 `scripts/*tts*.mjs`、`subtitle-aligner.mjs` 改写来的 TypeScript 版本，已经和原版分开演化（props 合同改成 zod schema，模板裁剪重写）。合成一份需要先定下统一的 props 合同，并把 web 升到 Next 15 / React 19，属于后续重构。
-- 运行方式见 `platform/README.md`，路线图见 `platform/docs/ROADMAP.md`。`platform/.runtime/` 里放着本地便携 Node 22（被 gitignore），pnpm 命令用它跑。
+- 运行方式见 `platform/README.md`，路线图 `platform/docs/ROADMAP.md` 只保存在本机（gitignore）。`platform/.runtime/` 里放着本地便携 Node 22（被 gitignore），pnpm 命令用它跑。
 
 ## 研究与素材来源说明
 

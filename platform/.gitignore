@@ -13,7 +13,6 @@ out/
 .env
 .env.local
 .env.*.local
-!.env.example
 
 # runtime data
 .runtime/
@@ -59,3 +58,8 @@ lancedb-data/
 coverage/
 .nyc_output/
 *.local
+
+# Local-only docs/config (never commit; kept on this machine only).
+.env.example
+docs/ROADMAP.md
+docs/HUASHENG_REVERSE_ENGINEERING.md

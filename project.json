@@ -263,7 +263,7 @@
     "role": "productized web app (Next.js web + Hono api + Remotion render worker), huasheng.cn-style workflow",
     "packageManager": "pnpm workspace, independent from root npm install",
     "readme": "platform/README.md",
-    "roadmap": "platform/docs/ROADMAP.md",
+    "roadmap": "platform/docs/ROADMAP.md (local-only, gitignored)",
     "divergedPorts": {
       "platform/packages/compositions": "rewrite of root src/templates with zod props contract",
       "platform/packages/tts-dashscope": "TS rewrite of root scripts/dashscope-tts.mjs, speech-timeline-tts.mjs, subtitle-aligner.mjs"

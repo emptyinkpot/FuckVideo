@@ -3,7 +3,6 @@ dist
 .DS_Store
 .env
 .env.*
-!.env.example
 
 # Ignore the output video from Git but not videos you import into src/.
 out
@@ -27,3 +26,7 @@ screenshots/
 
 # Local Vercel project binding.
 .vercel
+
+# Local-only config and private material (never commit; kept on this machine only).
+.env.example
+asset-source/remotionlab/

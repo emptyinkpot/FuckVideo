@@ -10,7 +10,7 @@
 
 **v0.1.0 / Stage 1 — MVP end-to-end pipeline scaffolding in progress.**
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the 5-stage plan.
+The 5-stage roadmap (`docs/ROADMAP.md`) is kept local-only and is not in the public repo.
 
 ## Stack
 
@@ -52,7 +52,7 @@ node -v
 pnpm install
 
 # 2. Copy env template & fill in keys
-cp .env.example .env.local
+cp .env.example .env.local   # .env.example is local-only (gitignored); create .env.local with the keys below
 # Required: DASHSCOPE_API_KEY, SUB2API_BASE_URL, SUB2API_KEY,
 #           QWEN_EMBEDDING_BASE_URL, QWEN_EMBEDDING_KEY
 
@@ -72,7 +72,7 @@ curl -X POST http://localhost:3001/api/innovideo/create \
 
 ## Reverse-engineering notes
 
-Real evidence captured via Playwright MCP on 2026-06-19 (not extrapolation). See [`docs/HUASHENG_REVERSE_ENGINEERING.md`](docs/HUASHENG_REVERSE_ENGINEERING.md) for full findings: Next.js App Router + Bilibili jinkela ecosystem, 4 working TTS voices, single Index LLM, real quotas, full API topology.
+Real evidence captured via Playwright MCP on 2026-06-19 (not extrapolation). The full findings doc (`docs/HUASHENG_REVERSE_ENGINEERING.md`) is local-only; summary: Next.js App Router + Bilibili jinkela ecosystem, 4 working TTS voices, single Index LLM, real quotas, full API topology.
 
 ## License
 
