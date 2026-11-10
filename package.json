@@ -10,20 +10,22 @@
   "private": true,
   "dependencies": {
     "@react-three/fiber": "^9.1.0",
-    "@remotion/cli": "4.0.456",
-    "@remotion/tailwind-v4": "4.0.456",
-    "@remotion/three": "^4.0.456",
+    "@remotion/bundler": "4.0.542",
+    "@remotion/cli": "4.0.542",
+    "@remotion/renderer": "4.0.542",
+    "@remotion/tailwind-v4": "4.0.542",
+    "@remotion/three": "4.0.542",
     "d3-geo": "^3.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "remotion": "4.0.456",
+    "remotion": "4.0.542",
     "roughjs": "^4.6.6",
     "tailwindcss": "4.0.0",
     "three": "^0.178.0",
     "ws": "^8.20.0"
   },
   "devDependencies": {
-    "@remotion/eslint-config-flat": "4.0.456",
+    "@remotion/eslint-config-flat": "4.0.542",
     "@types/d3-geo": "^3.1.0",
     "@types/react": "19.2.7",
     "@types/three": "^0.176.0",
@@ -53,7 +55,8 @@
     "text-to-video": "node scripts/text-to-video.mjs",
     "video-ui": "node scripts/video-ui-server.mjs",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc"
+    "lint": "eslint src && tsc",
+    "verify:upstream": "node tests/verify-upstream.mjs"
   },
   "sideEffects": [
     "*.css"
