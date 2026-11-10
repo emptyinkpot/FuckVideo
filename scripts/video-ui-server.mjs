@@ -70,6 +70,18 @@ const server = createServer(async (req, res) => {
       return sendJson(res, { success: true });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/shutdown") {
+      // Only the local workbench pages may stop the services; other sites the browser
+      // visits could otherwise POST here, since every response allows any origin.
+      const origin = req.headers.origin;
+      if (origin && !shutdownOrigins.has(origin)) {
+        return sendJson(res, { success: false, error: "不允许的来源" }, 403);
+      }
+      sendJson(res, { success: true });
+      setTimeout(shutdownAllServices, 300);
+      return;
+    }
+
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/video-generator")) {
       return sendText(res, await readFile(pagePath, "utf8"), "text/html; charset=utf-8");
     }
@@ -597,6 +609,30 @@ async function readJson(req) {
   }
   const raw = Buffer.concat(chunks).toString("utf8");
   return raw ? JSON.parse(raw) : {};
+}
+
+const shutdownOrigins = new Set(
+  [3000, 3037, 3057].flatMap((p) => [`http://127.0.0.1:${p}`, `http://localhost:${p}`]),
+);
+
+// Started by studio-with-video-ui.mjs (npm run dev:video / FuckVideo.exe): kill the
+// launcher's whole process tree (studio, plugin proxy, this server). Started alone:
+// just exit this server.
+function shutdownAllServices() {
+  console.log("收到关闭请求，正在停止所有服务。");
+  const launcherPid = Number(process.env.FUCKVIDEO_LAUNCHER_PID);
+  if (!launcherPid) {
+    process.exit(0);
+  }
+  if (process.platform === "win32") {
+    execFile("taskkill", ["/PID", String(launcherPid), "/T", "/F"], { windowsHide: true }, () => process.exit(0));
+  } else {
+    try {
+      process.kill(launcherPid, "SIGTERM");
+    } finally {
+      process.exit(0);
+    }
+  }
 }
 
 function sendJson(res, value, statusCode = 200) {

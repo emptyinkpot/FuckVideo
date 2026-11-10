@@ -350,6 +350,30 @@
       background: #4f8cff;
       color: white;
     }
+    .ttv-workbar-button.danger {
+      border-color: rgba(248,113,113,.35);
+      color: #fca5a5;
+    }
+    .ttv-workbar-button.danger:hover {
+      background: #3b1d1d;
+    }
+    .ttv-shutdown-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: #0b0d12;
+      color: #e5e7eb;
+      font: 600 15px Inter, "Microsoft YaHei", system-ui, sans-serif;
+    }
+    .ttv-shutdown-screen small {
+      color: #9ca3af;
+      font-weight: 500;
+    }
     .ttv-workbar-status {
       color: #9ca3af;
       font-size: 11px;
@@ -669,6 +693,7 @@
       <div class="ttv-workbar-status" id="ttv-workbar-status">自动保存</div>
       <button class="ttv-workbar-button" id="ttv-workbar-compact" type="button">收纳</button>
       <button class="ttv-workbar-button primary" id="ttv-workbar-export" type="button">导出</button>
+      <button class="ttv-workbar-button danger" id="ttv-workbar-quit" type="button" title="停止 FuckVideo 的全部后台服务">关闭</button>
     </div>
   `;
   document.body.appendChild(workbar);
@@ -793,6 +818,21 @@
   w("#ttv-quick-create").onclick = () => createProject().catch((error) => setStatus(error.message || String(error)));
   w("#ttv-reload-projects").onclick = () => loadProjects().catch((error) => setStatus(error.message || String(error)));
   w("#ttv-workbar-export").onclick = () => exportCurrentProject().catch((error) => setStatus(error.message || String(error)));
+  w("#ttv-workbar-quit").onclick = async () => {
+    if (!window.confirm("关闭 FuckVideo？\n\n工作台、文本生成视频服务和插件代理都会停止。正在进行的渲染会中断。")) return;
+    try {
+      await fetch(`${API}/api/shutdown`, { method: "POST" });
+    } catch (error) {
+      setStatus(`关闭失败：${error.message || error}`);
+      return;
+    }
+    const screen = document.createElement("div");
+    screen.className = "ttv-shutdown-screen";
+    screen.innerHTML = "<div>FuckVideo 已关闭</div><small>可以关掉这个标签页了。下次双击 FuckVideo.exe 重新启动。</small>";
+    document.body.appendChild(screen);
+    // Browsers only allow this for tabs opened by script; otherwise the message stays.
+    setTimeout(() => window.close(), 800);
+  };
   w("#ttv-workbar-compact").onclick = () => {
     state.workbarCollapsed = !state.workbarCollapsed;
     localStorage.setItem(workbarStorageKey, state.workbarCollapsed ? "collapsed" : "expanded");

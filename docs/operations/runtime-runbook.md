@@ -48,7 +48,7 @@ Local material indexing and Remotion preview do not require a new API key.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start plain Remotion Studio. |
-| `npm run dev:video` | Start Remotion Studio plus FuckVideo generation UI/proxy. |
+| `npm run dev:video` | Start Remotion Studio plus FuckVideo generation UI/proxy (what `FuckVideo.exe` runs hidden). Stop with the workbench "关闭" button or Ctrl+C. |
 | `npm run smoke:minimal` | Run minimal pipeline smoke test. |
 | `npm run validate-animation-contracts` | Validate visual provider contracts. |
 | `npm run index-assets` | Build local asset index from footage. |

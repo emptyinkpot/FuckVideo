@@ -36,6 +36,19 @@ support: SUPPORT.md
 | `SECURITY.md` | 密钥、素材和生成文件的安全边界。 |
 | `SUPPORT.md` | 排障信息入口和支持边界。 |
 
+## 快速启动（Windows）
+
+双击仓库根目录的 `FuckVideo.exe`：
+
+- 后台启动工作台（Remotion Studio :3000、文本生成视频 API :3037、插件代理 :3057），不弹终端窗口，启动时显示一个小进度窗口。
+- 就绪后自动用默认浏览器打开 http://127.0.0.1:3057 。已经在运行时再双击，只会重新打开页面。
+- 关闭：点工作台顶栏右侧的「关闭」按钮，所有服务一起停止（`POST /api/shutdown`，只接受本机工作台页面发起的请求）。
+- 日志：`out/launcher.log`。
+
+`FuckVideo.exe` 不进 git，源码在 `launcher/FuckVideo.cs`，运行 `launcher\build.cmd` 用 Windows 自带的 .NET Framework 编译器生成。需要本机装有 Node.js 18+，找不到 PATH 里的 node 时会退回 `platform/.runtime` 里的便携 Node 22。
+
+本地目录布局：`data/`（图片、视频素材）、`artifacts/`（导出任务、成片）、`_backup/` 都在仓库根目录下，全部被 gitignore，只存在本机。
+
 ## 0. 项目目的
 
 本项目的目标不是做一个传统“自动剪辑器”，也不是把 FFmpeg 自动切片包装成产品。
@@ -269,7 +282,7 @@ git lfs pull
 如果你已经在本机已有目录，例如：
 
 ```console
-cd /d "E:\My Project\remotion-project"
+cd /d "E:\My Project\FuckVideo"
 git lfs pull
 ```
 
@@ -353,7 +366,7 @@ http://127.0.0.1:3057
 关键目录如下：
 
 ```text
-remotion-project/
+FuckVideo/
   frontend/
     remotion-studio-plugin.js       Studio 内注入的“生成视频”扩展
     video-generator.html            独立文本生成视频页面

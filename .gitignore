@@ -30,3 +30,11 @@ screenshots/
 # Local-only config and private material (never commit; kept on this machine only).
 .env.example
 asset-source/remotionlab/
+
+# Local data stores folded into the repo root (never commit).
+/data/
+/artifacts/
+/_backup/
+
+# Launcher build output (source lives in launcher/).
+/FuckVideo.exe

@@ -18,6 +18,9 @@
     ".runtime",
     "out",
     "public/generated",
-    "platform"
+    "platform",
+    "_backup",
+    "data",
+    "artifacts"
   ]
 }

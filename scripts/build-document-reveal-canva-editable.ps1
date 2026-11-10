@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$outDir = "E:\My Project\remotion-project\out"
+$outDir = Join-Path (Split-Path -Parent $PSScriptRoot) "out"
 $pptxPath = Join-Path $outDir "document-reveal-canva-editable.pptx"
 $previewPath = Join-Path $outDir "document-reveal-canva-editable-preview.png"
 

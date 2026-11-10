@@ -39,6 +39,8 @@ function start(name, command, args) {
     cwd: projectRoot,
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
+    // Lets video-ui-server's /api/shutdown stop this launcher and every sibling it started.
+    env: { ...process.env, FUCKVIDEO_LAUNCHER_PID: String(process.pid) },
   });
   children.push(child);
   child.stdout.on("data", (chunk) => process.stdout.write(prefix(name, chunk)));
