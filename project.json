@@ -44,7 +44,7 @@
     "mergedRepositories": [
       {
         "githubIdentifier": "emptyinkpot/huasheng-clone",
-        "mergedInto": "platform/",
+        "mergedInto": "platform/ (removed again on 2026-11-11; code in git history, local-only files in data/platform-archive/)",
         "mergedOn": "2026-11-10",
         "historyPreserved": true
       }
@@ -260,17 +260,6 @@
     "candidateVectorStores": ["LanceDB", "Milvus", "Weaviate"],
     "candidateUnderstandingModels": ["Qwen2.5-VL", "GPT-4o", "Whisper", "OpenCLIP"],
     "rule": "Do not bypass visual-resolver or project-store. Material understanding must write searchable asset metadata and embeddings, then feed the existing Remotion timeline orchestration layer."
-  },
-  "platform": {
-    "path": "platform/",
-    "role": "productized web app (Next.js web + Hono api + Remotion render worker), huasheng.cn-style workflow",
-    "packageManager": "pnpm workspace, independent from root npm install",
-    "readme": "platform/README.md",
-    "roadmap": "platform/docs/ROADMAP.md (local-only, gitignored)",
-    "divergedPorts": {
-      "platform/packages/compositions": "rewrite of root src/templates with zod props contract",
-      "platform/packages/tts-dashscope": "TS rewrite of root pipeline/dashscope-tts.mjs, speech-timeline-tts.mjs, subtitle-aligner.mjs"
-    }
   },
   "videolab": {
     "path": "videolab/",

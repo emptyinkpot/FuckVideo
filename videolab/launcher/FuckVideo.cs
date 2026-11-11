@@ -170,7 +170,6 @@ static class FuckVideoLauncher
         }
         string[] fallbacks = {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs\\node.exe"),
-            Path.Combine(root, "platform\\.runtime\\node-v22.23.0-win-x64\\node.exe"),
         };
         foreach (string f in fallbacks)
         {
