@@ -269,16 +269,16 @@ npm i
 
 项目主要依赖：
 
-- `remotion@4.0.456`
-- `@remotion/cli@4.0.456`
-- `@remotion/three`
-- `@react-three/fiber`
-- `three`
-- `zod`
-- `typescript`
-- `eslint`
+- `remotion`、`@remotion/cli`、`@remotion/studio`、`@remotion/bundler`、`@remotion/renderer`、`@remotion/three`、`@remotion/zod-types`：全部锁定为同一个精确版本（当前 4.0.542）
+- `zod@4.6.7`：给 `<Composition>` 写可编辑参数 schema，和官方模板一样显式写进 `package.json`
+- `@react-three/fiber`、`three`：3D 模板
+- `typescript`、`eslint`、`prettier`
 
-`zod` 来自 Remotion 依赖树，用于给 `<Composition>` 添加可编辑参数 schema。
+和官方模板（template-helloworld）的差别：
+
+- 打包用 Remotion 默认的 webpack。官方模板开了 `Config.setRspack(true)`，但 Rspack 的严格导出检查会拦下 `@react-three/fiber`（它读取 `React.act`），所以不开。
+- 没有 Tailwind（模板里没有用到）。它附带的 CSS 重置样式保留成 `src/preflight.css`（Tailwind 4.0.0 preflight，MIT），去掉 Tailwind 前后 32 个模板渲染结果逐字节相同。
+- `tsconfig.json` 和官方一致，只多了一串 `exclude`，用来跳过素材和本地数据目录。
 
 ## 4. 常用启动方式
 
