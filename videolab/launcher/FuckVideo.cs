@@ -1,11 +1,13 @@
 // FuckVideo.exe — double-click launcher for the FuckVideo workbench.
 //
-// - If the workbench (http://127.0.0.1:3057) is already up, just opens it in the browser.
-// - Otherwise starts `node videolab/server/start.mjs` hidden (no console window),
-//   logs to out\launcher.log, shows a small "starting" window, and opens the browser
-//   once the workbench answers. The launcher itself then exits.
-// - Shutting down is done from the workbench: the "关闭" button in the top bar calls
-//   POST /api/shutdown, which kills the whole node process tree.
+// - If VideoLab (http://127.0.0.1:3037) is already up, just opens its window.
+// - Otherwise starts `node videolab/server/start.mjs` hidden (no console window; it runs
+//   the VideoLab server and the stock Remotion Studio), logs to out\launcher.log, shows a
+//   small "starting" window, and opens VideoLab once it answers. The launcher then exits.
+// - VideoLab opens as a standalone window (Edge app mode: no tabs, no address bar, own
+//   taskbar icon). Falls back to the default browser if Edge is missing.
+// - Shutting down is done from VideoLab: the "关闭" button calls POST /api/shutdown,
+//   which kills the whole node process tree.
 //
 // Build: launcher\build.cmd (uses the C# compiler bundled with .NET Framework 4.x).
 // The exe must sit in the FuckVideo repo root; it locates everything relative to itself.
@@ -20,7 +22,7 @@ using System.Windows.Forms;
 
 static class FuckVideoLauncher
 {
-    const string WorkbenchUrl = "http://127.0.0.1:3057";
+    const string WorkbenchUrl = "http://127.0.0.1:3037/";
     const int StartupTimeoutSeconds = 180;
 
     [STAThread]
@@ -35,7 +37,7 @@ static class FuckVideoLauncher
             return 0;
         }
 
-        string entry = Path.Combine(root, "scripts", "studio-with-video-ui.mjs");
+        string entry = Path.Combine(root, "videolab", "server", "start.mjs");
         if (!File.Exists(entry))
         {
             Fail("找不到 " + entry + "\n\nFuckVideo.exe 必须放在 FuckVideo 项目根目录里。");
@@ -176,7 +178,30 @@ static class FuckVideoLauncher
 
     static void Open(string url)
     {
+        string edge = FindEdge();
+        if (edge != null)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(edge, "--app=" + url + " --window-size=1600,940") { UseShellExecute = false });
+                return;
+            }
+            catch { }
+        }
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
+
+    static string FindEdge()
+    {
+        string[] candidates = {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Microsoft\Edge\Application\msedge.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Microsoft\Edge\Application\msedge.exe"),
+        };
+        foreach (string c in candidates)
+        {
+            if (File.Exists(c)) return c;
+        }
+        return null;
     }
 
     static void Fail(string message)

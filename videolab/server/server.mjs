@@ -29,9 +29,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..");
 const runtimeRoot = path.join(projectRoot, ".runtime", "text-to-video");
 const jobsRoot = path.join(runtimeRoot, "jobs");
-const pagePath = path.join(projectRoot, "videolab", "legacy-ui", "video-generator.html");
-const projectPagePath = path.join(projectRoot, "videolab", "legacy-ui", "video-project.html");
-const pluginScriptPath = path.join(projectRoot, "videolab", "legacy-ui", "remotion-studio-plugin.js");
+const uiDist = path.join(projectRoot, "videolab", "ui", "dist");
+const publicDir = path.join(projectRoot, "public");
 const currentStudioPropsPath = path.join(projectRoot, "src", "generated", "currentMultiSceneDefaultProps.ts");
 const port = Number(process.env.TEXT_TO_VIDEO_PORT || 3037);
 const DEFAULT_CAPTION_LAYOUT = {
@@ -82,16 +81,22 @@ const server = createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/video-generator")) {
-      return sendText(res, await readFile(pagePath, "utf8"), "text/html; charset=utf-8");
-    }
-
+    // Old page URLs from before VideoLab became a single page app.
     if (req.method === "GET" && url.pathname.startsWith("/video-project/")) {
-      return sendText(res, await readFile(projectPagePath, "utf8"), "text/html; charset=utf-8");
+      const id = url.pathname.slice("/video-project/".length);
+      res.writeHead(302, { Location: `/?project=${id}` });
+      return res.end();
+    }
+    if (req.method === "GET" && url.pathname === "/video-generator") {
+      res.writeHead(302, { Location: "/" });
+      return res.end();
     }
 
-    if (req.method === "GET" && url.pathname === "/studio-plugin.js") {
-      return sendText(res, await readFile(pluginScriptPath, "utf8"), "application/javascript; charset=utf-8");
+    // Remotion static files for the Player (staticFile() base is /public in the VideoLab UI).
+    if (req.method === "GET" && url.pathname.startsWith("/public/")) {
+      const file = safeJoin(publicDir, decodeURIComponent(url.pathname.slice("/public/".length)));
+      if (!file) return sendJson(res, { success: false, error: "路径不合法" }, 400);
+      return sendFile(req, res, file);
     }
 
     if (req.method === "POST" && url.pathname === "/api/jobs") {
@@ -130,7 +135,7 @@ const server = createServer(async (req, res) => {
       if (!job?.result?.videoFile) {
         return sendJson(res, { success: false, error: "视频还没有生成完成" }, 404);
       }
-      return sendFile(res, job.result.videoFile);
+      return sendFile(req, res, job.result.videoFile);
     }
 
     if (req.method === "GET" && url.pathname.startsWith("/project-files/")) {
@@ -139,7 +144,11 @@ const server = createServer(async (req, res) => {
       if (!project?.source?.videoFile) {
         return sendJson(res, { success: false, error: "项目视频还没有导出" }, 404);
       }
-      return sendFile(res, project.source.videoFile);
+      return sendFile(req, res, project.source.videoFile);
+    }
+
+    if (req.method === "GET" && !url.pathname.startsWith("/api/")) {
+      return sendUi(req, res, url.pathname);
     }
 
     return sendJson(res, { success: false, error: "路径不存在" }, 404);
@@ -149,7 +158,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, "127.0.0.1", () => {
-  console.log(`文本生成视频页面：http://127.0.0.1:${port}/video-generator`);
+  console.log(`VideoLab：http://127.0.0.1:${port}/`);
 });
 
 function createJob(body) {
@@ -454,7 +463,7 @@ async function completeJob(job) {
     job.result = {
       ...job.result,
       projectId: project.id,
-      projectUrl: `/video-project/${encodeURIComponent(project.id)}`,
+      projectUrl: `/?project=${encodeURIComponent(project.id)}`,
     };
     job.status = "succeeded";
     job.progress = "已完成";
@@ -612,7 +621,7 @@ async function readJson(req) {
 }
 
 const shutdownOrigins = new Set(
-  [3000, 3037, 3057].flatMap((p) => [`http://127.0.0.1:${p}`, `http://localhost:${p}`]),
+  [3000, 3037, 3038].flatMap((p) => [`http://127.0.0.1:${p}`, `http://localhost:${p}`]),
 );
 
 // Started by studio-with-video-ui.mjs (npm run dev:video / FuckVideo.exe): kill the
@@ -655,13 +664,78 @@ function sendText(res, value, contentType) {
   res.end(value);
 }
 
-async function sendFile(res, filePath) {
-  const info = await stat(filePath);
-  res.writeHead(200, {
-    "Content-Type": "video/mp4",
-    "Content-Length": info.size,
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".m4a": "audio/mp4",
+  ".ogg": "audio/ogg",
+  ".geojson": "application/geo+json",
+  ".woff2": "font/woff2",
+};
+
+function safeJoin(base, relative) {
+  const target = path.resolve(base, relative);
+  return target === base || target.startsWith(base + path.sep) ? target : null;
+}
+
+// Serves a file with Range support, so the Player can seek inside audio/video.
+async function sendFile(req, res, filePath) {
+  let info;
+  try {
+    info = await stat(filePath);
+  } catch {
+    return sendJson(res, { success: false, error: "文件不存在" }, 404);
+  }
+  if (!info.isFile()) return sendJson(res, { success: false, error: "文件不存在" }, 404);
+  const headers = {
+    "Content-Type": MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream",
+    "Accept-Ranges": "bytes",
     "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": "*",
-  });
+  };
+  const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+  if (range && (range[1] || range[2])) {
+    let start = range[1] ? Number(range[1]) : info.size - Number(range[2]);
+    let end = range[1] && range[2] ? Number(range[2]) : info.size - 1;
+    start = Math.max(0, start);
+    end = Math.min(end, info.size - 1);
+    if (start > end) {
+      res.writeHead(416, { "Content-Range": `bytes */${info.size}` });
+      return res.end();
+    }
+    res.writeHead(206, { ...headers, "Content-Range": `bytes ${start}-${end}/${info.size}`, "Content-Length": end - start + 1 });
+    return createReadStream(filePath, { start, end }).pipe(res);
+  }
+  res.writeHead(200, { ...headers, "Content-Length": info.size });
   createReadStream(filePath).pipe(res);
+}
+
+// VideoLab single page app (videolab/ui/dist). Unknown paths fall back to index.html.
+async function sendUi(req, res, pathname) {
+  const indexFile = path.join(uiDist, "index.html");
+  const file = pathname === "/" ? indexFile : safeJoin(uiDist, decodeURIComponent(pathname.slice(1)));
+  try {
+    if (file && (await stat(file)).isFile()) return sendFile(req, res, file);
+  } catch {
+    // fall through to index.html
+  }
+  try {
+    await stat(indexFile);
+  } catch {
+    return sendText(res, "VideoLab 界面还没有构建：在仓库根目录运行 npm run videolab:build", "text/plain; charset=utf-8");
+  }
+  return sendFile(req, res, indexFile);
 }
