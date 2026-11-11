@@ -54,7 +54,7 @@ support: SUPPORT.md
 
 `FuckVideo.exe` 不进 git，源码在 `videolab/launcher/FuckVideo.cs`，运行 `videolab\launcher\build.cmd` 用 Windows 自带的 .NET Framework 编译器生成。需要本机装有 Node.js 18+，找不到 PATH 里的 node 时会退回 `platform/.runtime` 里的便携 Node 22。
 
-本地目录布局：`data/`（图片、视频素材）、`artifacts/`（导出任务、成片）、`_backup/` 都在仓库根目录下，全部被 gitignore，只存在本机。
+本地目录布局：`data/`（图片、视频素材）、`artifacts/`（导出任务、成片）都在仓库根目录下，被 gitignore，只存在本机。
 
 ## 0. 项目目的
 

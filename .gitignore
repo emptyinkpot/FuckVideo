@@ -34,8 +34,10 @@ asset-source/remotionlab/
 # Local data stores folded into the repo root (never commit).
 /data/
 /artifacts/
-/_backup/
 
 # Launcher build output (source lives in launcher/).
 /FuckVideo.exe
 
+
+# Upstream reference clone (https://github.com/av/remotion-bits), local only; not imported by code.
+asset-source/programmatic-visual-assets/remotion-bits/
