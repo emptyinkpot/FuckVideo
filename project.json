@@ -52,7 +52,10 @@
     "frameworkUpstream": {
       "githubIdentifier": "remotion-dev/remotion",
       "url": "https://github.com/remotion-dev/remotion",
-      "role": "core Remotion framework upstream, not fork parent"
+      "role": "core Remotion framework upstream, not fork parent",
+      "usage": "npm dependency pinned to one exact version (currently 4.0.542); no Remotion source in this repo, public API only",
+      "upgrade": "npx remotion upgrade, then npm run verify:upstream (README section 15)",
+      "license": "Remotion License (free for individuals and companies up to 3 people)"
     },
     "referenceUpstreams": [
       {
@@ -162,7 +165,7 @@
         "each caption must be covered by one or more segments with matching startMs/endMs",
         "project export and studio-default-props must validate or rebuild timeline before writing props"
       ],
-      "validator": "scripts/project-store.mjs#repairProjectTimeline",
+      "validator": "pipeline/project-store.mjs#repairProjectTimeline",
       "forbidden": [
         "mixing old captions with newly planned scenes",
         "using ASR typo text as subtitle source",
@@ -173,11 +176,11 @@
   "animationOrchestration": {
     "contractVersion": "1.0",
     "canonicalManifest": "src/templates/visual-provider-manifest.json",
-    "contractValidator": "scripts/animation-contracts.mjs",
+    "contractValidator": "pipeline/animation-contracts.mjs",
     "validatorCommand": "npm run validate-animation-contracts",
     "runtimeRegistry": "src/templates/sceneRegistry.tsx",
     "compositionRegistry": "src/Root.tsx",
-    "resolver": "scripts/visual-resolver.mjs",
+    "resolver": "pipeline/visual-resolver.mjs",
     "pencilRole": "visual_blueprint_only",
     "pencilIntake": {
       "designRoot": "designs/animation-blueprints",
@@ -207,8 +210,8 @@
   "evidenceSystem": {
     "version": 1,
     "goal": "text -> evidence -> visual",
-    "extractor": "scripts/evidence-resolver.mjs#extractEvidenceNeedsForScene",
-    "resolver": "scripts/evidence-resolver.mjs#resolveEvidenceForProject",
+    "extractor": "pipeline/evidence-resolver.mjs#extractEvidenceNeedsForScene",
+    "resolver": "pipeline/evidence-resolver.mjs#resolveEvidenceForProject",
     "cacheRoot": "public/evidence-cache",
     "api": {
       "extract": "POST /api/projects/:id/evidence/extract",
@@ -237,10 +240,10 @@
     "status": "planned integration with current lightweight local index",
     "currentIndex": "public/generated/asset-index.json",
     "currentScripts": [
-      "scripts/asset-indexer.mjs",
-      "scripts/material-seed.mjs",
-      "scripts/asset-matcher.mjs",
-      "scripts/visual-resolver.mjs"
+      "pipeline/asset-indexer.mjs",
+      "pipeline/material-seed.mjs",
+      "pipeline/asset-matcher.mjs",
+      "pipeline/visual-resolver.mjs"
     ],
     "targetArchitecture": [
       "video ingestion",
@@ -266,7 +269,17 @@
     "roadmap": "platform/docs/ROADMAP.md (local-only, gitignored)",
     "divergedPorts": {
       "platform/packages/compositions": "rewrite of root src/templates with zod props contract",
-      "platform/packages/tts-dashscope": "TS rewrite of root scripts/dashscope-tts.mjs, speech-timeline-tts.mjs, subtitle-aligner.mjs"
+      "platform/packages/tts-dashscope": "TS rewrite of root pipeline/dashscope-tts.mjs, speech-timeline-tts.mjs, subtitle-aligner.mjs"
     }
+  },
+  "videolab": {
+    "path": "videolab/",
+    "role": "own plugin layer on top of Remotion: standalone VideoLab app (React + Vite + @remotion/player) on :3037, plus launcher; stock Remotion Studio stays untouched on :3000",
+    "ui": "videolab/ui",
+    "server": "videolab/server/server.mjs",
+    "start": "videolab/server/start.mjs",
+    "launcher": "videolab/launcher/FuckVideo.cs",
+    "remotionExtensionPoints": ["Composition + zod schema", "@remotion/player", "@remotion/bundler + @remotion/renderer", "staticFile with remotion_staticBase=/public", "file-based MultiSceneVideo defaultProps"],
+    "guard": "eslint no-restricted-imports: public Remotion entry points only"
   }
 }

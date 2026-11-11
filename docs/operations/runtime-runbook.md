@@ -48,7 +48,10 @@ Local material indexing and Remotion preview do not require a new API key.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start plain Remotion Studio. |
-| `npm run dev:video` | Start Remotion Studio plus FuckVideo generation UI/proxy (what `FuckVideo.exe` runs hidden). Stop with the workbench "关闭" button or Ctrl+C. |
+| `npm run dev:video` | Start VideoLab (:3037) plus stock Remotion Studio (:3000); this is what `FuckVideo.exe` runs hidden. Stop with the VideoLab "关闭" button or Ctrl+C. |
+| `npm run videolab` / `videolab:build` / `videolab:dev` | Run the VideoLab server only / build its UI / UI dev server on :3038. |
+| `npm run verify:upstream` | After a Remotion upgrade: lint + UI build + one still per composition + VideoLab browser smoke. |
+| `npm run test:videolab` | VideoLab browser smoke test (headless Chrome, no screenshots). |
 | `npm run smoke:minimal` | Run minimal pipeline smoke test. |
 | `npm run validate-animation-contracts` | Validate visual provider contracts. |
 | `npm run index-assets` | Build local asset index from footage. |
@@ -84,16 +87,16 @@ Do not move timeline truth or Remotion composition logic into Python. Do not for
 
 | Port | Role |
 | --- | --- |
-| `3057` | Studio proxy entry for `npm run dev:video`. |
-| `3037` | Local video generation API server. |
-| Remotion default | Used by plain Remotion Studio when not proxied. |
+| `3000` | Stock Remotion Studio (nothing injected). |
+| `3037` | VideoLab: UI, job/project API, `public/` under `/public`. |
+| `3038` | VideoLab UI dev server (`npm run videolab:dev` only). |
 
 ## Primary Workflow
 
 ```text
 npm run dev:video
-  -> open http://127.0.0.1:3057
-  -> click Generate Video
+  -> open http://127.0.0.1:3037 (VideoLab)
+  -> click 生成视频
   -> input script
   -> TTS
   -> scene planning
@@ -133,11 +136,11 @@ Audio duration is wrong:
 - Check `ffprobe` is on PATH.
 - Rebuild or regenerate the standardized MP3.
 
-Studio does not show generation UI:
+VideoLab does not open or shows "界面还没有构建":
 
-- Use `npm run dev:video`, not plain `npm run dev`.
-- Open `http://127.0.0.1:3057`.
-- Check `remotion-studio.out.log` and `remotion-services.out.log`.
+- Run `npm run videolab:build` (start.mjs does this automatically when the UI is stale).
+- Check `out/launcher.log` when started from `FuckVideo.exe`.
+- Run `npm run test:videolab` to see page errors.
 
 Generated project opens but timeline is wrong:
 
