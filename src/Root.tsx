@@ -1,4 +1,4 @@
-import "./index.css";
+import "./preflight.css";
 import { Composition } from "remotion";
 import { z } from "zod";
 import { HistoricalGlobeTexture1938 } from "./historical-globe/compositions/HistoricalGlobeTexture1938";

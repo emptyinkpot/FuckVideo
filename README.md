@@ -52,7 +52,7 @@ support: SUPPORT.md
 
 不用 exe 时：`npm run dev:video` 效果相同（终端里运行，Ctrl+C 停止）；`npm run dev` 只开 Studio，悬浮按钮照样出现，但项目和生成功能需要 :3037 服务。
 
-`FuckVideo.exe` 不进 git，源码在 `videolab/launcher/FuckVideo.cs`，运行 `videolab\launcher\build.cmd` 用 Windows 自带的 .NET Framework 编译器生成。需要本机装有 Node.js 18+，找不到 PATH 里的 node 时会退回 `platform/.runtime` 里的便携 Node 22。
+`FuckVideo.exe` 不进 git，源码在 `videolab/launcher/FuckVideo.cs`，运行 `videolab\launcher\build.cmd` 用 Windows 自带的 .NET Framework 编译器生成。需要本机装有 Node.js 18+。
 
 本地目录布局：`data/`（图片、视频素材）、`artifacts/`（导出任务、成片）都在仓库根目录下，被 gitignore，只存在本机。
 
@@ -92,20 +92,9 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 - 本仓库的设计、模板、素材和数据参考来源列在下方“研究与素材来源说明”；这些是研究/素材/实现参考来源，不等同于 GitHub fork parent。
 - 本仓库早期的本地目录名和 npm 包名是 `remotion-project`，2026-11-10 统一改为 FuckVideo；其他仓库或文档里提到的 `remotion-project` 指的就是本仓库根目录。
 
-## platform/：产品化子系统（原 huasheng-clone）
+## 曾经合并进来的 huasheng-clone（已移出）
 
-`platform/` 原本是独立仓库 `emptyinkpot/huasheng-clone`，2026-11-10 连同全部 10 个提交合并进本仓库。它把根目录这条“文案 → 配音 → 分镜 → 素材匹配 → Remotion 渲染”的流程做成在线产品形态，仿照 B 站「花生」的使用流程：
-
-- `platform/apps/web`：Next.js 14 前端（:3000）
-- `platform/apps/api`：Hono 后端（:3001）
-- `platform/apps/worker`：Remotion 服务端渲染 worker（:3002）
-- `platform/packages/*`：schemas、tts-dashscope、llm、material-search、db、compositions
-
-与根目录的关系和边界：
-
-- 根目录是 npm 工程（React 19、Remotion 4.0.456），`platform/` 是独立的 pnpm workspace（Next 14 所以 React 18、Remotion 4.0.481），两边各自安装依赖，互不引用。根 `tsconfig.json` 已排除 `platform/`。
-- `platform/packages/compositions` 和 `platform/packages/tts-dashscope` 是从根目录 `src/templates/` 和 `pipeline/*tts*.mjs`、`subtitle-aligner.mjs` 改写来的 TypeScript 版本，已经和原版分开演化（props 合同改成 zod schema，模板裁剪重写）。合成一份需要先定下统一的 props 合同，并把 web 升到 Next 15 / React 19，属于后续重构。
-- 运行方式见 `platform/README.md`，路线图 `platform/docs/ROADMAP.md` 只保存在本机（gitignore）。`platform/.runtime/` 里放着本地便携 Node 22（被 gitignore），pnpm 命令用它跑。
+`emptyinkpot/huasheng-clone`（仿 B 站「花生」的 Next.js + Hono + 渲染 worker 产品形态）曾在 2026-11-10 连同 10 个提交合并到本仓库的 `platform/`，2026-11-11 移出：它用另一套技术栈把同一条「文案 → 配音 → 分镜 → 素材 → 渲染」流程又实现了一遍，并带有模板和 TTS 的复制版，和「打开就是原版 Remotion、扩展只做扩展」的方向重复。代码仍在本仓库提交历史里（`git log -- platform`），GitHub 上的 huasheng-clone 已归档保留；它在本机独有的配置、路线图、逆向报告和数据存放在 `data/platform-archive/`（不进 git）。
 
 ## 研究与素材来源说明
 
@@ -280,16 +269,16 @@ npm i
 
 项目主要依赖：
 
-- `remotion@4.0.456`
-- `@remotion/cli@4.0.456`
-- `@remotion/three`
-- `@react-three/fiber`
-- `three`
-- `zod`
-- `typescript`
-- `eslint`
+- `remotion`、`@remotion/cli`、`@remotion/studio`、`@remotion/bundler`、`@remotion/renderer`、`@remotion/three`、`@remotion/zod-types`：全部锁定为同一个精确版本（当前 4.0.542）
+- `zod@4.6.7`：给 `<Composition>` 写可编辑参数 schema，和官方模板一样显式写进 `package.json`
+- `@react-three/fiber`、`three`：3D 模板
+- `typescript`、`eslint`、`prettier`
 
-`zod` 来自 Remotion 依赖树，用于给 `<Composition>` 添加可编辑参数 schema。
+和官方模板（template-helloworld）的差别：
+
+- 打包用 Remotion 默认的 webpack。官方模板开了 `Config.setRspack(true)`，但 Rspack 的严格导出检查会拦下 `@react-three/fiber`（它读取 `React.act`），所以不开。
+- 没有 Tailwind（模板里没有用到）。它附带的 CSS 重置样式保留成 `src/preflight.css`（Tailwind 4.0.0 preflight，MIT），去掉 Tailwind 前后 32 个模板渲染结果逐字节相同。
+- `tsconfig.json` 和官方一致，只多了一串 `exclude`，用来跳过素材和本地数据目录。
 
 ## 4. 常用启动方式
 
@@ -344,7 +333,6 @@ FuckVideo/
     verify-upstream.mjs             每个合成渲染一帧，升级 Remotion 后的检查
     videolab-smoke.mjs              无头浏览器打开 Studio，检查悬浮工作台、载入项目、界面中文开关
 
-  platform/                         仿花生的在线产品（独立 pnpm workspace）
 
   src/
     Root.tsx                        所有 Composition 注册、schema、defaultProps
@@ -1577,14 +1565,12 @@ project.json -> projectToMultiSceneProps -> Remotion render MultiSceneVideo -> o
 | 新动画模板 | `src/templates/`，在 `src/Root.tsx` 登记并写 zod schema |
 | 新的生成步骤（配音、分镜、素材匹配等） | `pipeline/` |
 | 新的工作台功能 | `videolab/overlay/`，需要的接口加在 `videolab/server/server.mjs` |
-| 仿花生产品 | `platform/` |
 
 ## 15. 升级 Remotion
 
 1. 根目录：`npx remotion upgrade`。它把所有 `@remotion/*` 包统一升到同一版本（Remotion 要求版本完全一致）。Windows 上它可能报 `spawn npm ENOENT`，这时直接运行它打印出来的那条 `npm i --save-exact ...` 命令即可；`@remotion/studio`、`@remotion/bundler`、`@remotion/renderer` 也一起写进去。
-2. `platform/`：把 `apps/worker/package.json`、`packages/compositions/package.json` 里的 Remotion 版本改成同一个，再 `pnpm install`。
-3. `npm run verify:upstream`：依次跑 lint 和类型检查、每个合成渲染一帧（对照 `tests/fixtures/compositions.json`，少了合成就报错）、无头浏览器打开 Studio 检查悬浮工作台（载入项目、跳帧、界面中文开关）。
-4. 全部通过就提交。新增或删除合成后用 `node tests/verify-upstream.mjs --update` 更新期望列表。
+2. `npm run verify:upstream`：依次跑 lint 和类型检查、每个合成渲染一帧（对照 `tests/fixtures/compositions.json`，少了合成就报错）、无头浏览器打开 Studio 检查悬浮工作台（载入项目、跳帧、界面中文开关）。
+3. 全部通过就提交。新增或删除合成后用 `node tests/verify-upstream.mjs --update` 更新期望列表。
 
 4.x 之内的升级就是以上几步。大版本（如 5.0）先看官方迁移指南。
 
