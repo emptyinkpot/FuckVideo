@@ -52,7 +52,10 @@
     "frameworkUpstream": {
       "githubIdentifier": "remotion-dev/remotion",
       "url": "https://github.com/remotion-dev/remotion",
-      "role": "core Remotion framework upstream, not fork parent"
+      "role": "core Remotion framework upstream, not fork parent",
+      "usage": "npm dependency pinned to one exact version (currently 4.0.542); no Remotion source in this repo, public API only",
+      "upgrade": "npx remotion upgrade, then npm run verify:upstream (README section 15)",
+      "license": "Remotion License (free for individuals and companies up to 3 people)"
     },
     "referenceUpstreams": [
       {
@@ -268,5 +271,15 @@
       "platform/packages/compositions": "rewrite of root src/templates with zod props contract",
       "platform/packages/tts-dashscope": "TS rewrite of root pipeline/dashscope-tts.mjs, speech-timeline-tts.mjs, subtitle-aligner.mjs"
     }
+  },
+  "videolab": {
+    "path": "videolab/",
+    "role": "own plugin layer on top of Remotion: standalone VideoLab app (React + Vite + @remotion/player) on :3037, plus launcher; stock Remotion Studio stays untouched on :3000",
+    "ui": "videolab/ui",
+    "server": "videolab/server/server.mjs",
+    "start": "videolab/server/start.mjs",
+    "launcher": "videolab/launcher/FuckVideo.cs",
+    "remotionExtensionPoints": ["Composition + zod schema", "@remotion/player", "@remotion/bundler + @remotion/renderer", "staticFile with remotion_staticBase=/public", "file-based MultiSceneVideo defaultProps"],
+    "guard": "eslint no-restricted-imports: public Remotion entry points only"
   }
 }
