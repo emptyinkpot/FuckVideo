@@ -274,12 +274,13 @@
   },
   "videolab": {
     "path": "videolab/",
-    "role": "own plugin layer on top of Remotion: standalone VideoLab app (React + Vite + @remotion/player) on :3037, plus launcher; stock Remotion Studio stays untouched on :3000",
-    "ui": "videolab/ui",
+    "role": "own plugin layer on top of Remotion: floating FV workbench inside the stock Remotion Studio (:3000) plus the VideoLab API (:3037) and launcher; only features Remotion lacks",
+    "workbench": "videolab/overlay",
     "server": "videolab/server/server.mjs",
     "start": "videolab/server/start.mjs",
     "launcher": "videolab/launcher/FuckVideo.cs",
-    "remotionExtensionPoints": ["Composition + zod schema", "@remotion/player", "@remotion/bundler + @remotion/renderer", "staticFile with remotion_staticBase=/public", "file-based MultiSceneVideo defaultProps"],
-    "guard": "eslint no-restricted-imports: public Remotion entry points only"
+    "remotionExtensionPoints": ["getRemotionEnvironment().isStudio lazy mount", "@remotion/studio goToComposition + seek", "Composition + zod schema", "@remotion/bundler + @remotion/renderer", "file-based MultiSceneVideo defaultProps"],
+    "guard": "eslint no-restricted-imports: public Remotion entry points only",
+    "studioTranslation": "optional, toggled in the workbench; whole-string dictionary, never touches input values or the preview"
   }
 }

@@ -30,7 +30,7 @@ export const TEMPLATES: Array<[id: string, label: string]> = [
   ["PromptAnimatedShapes", "提示词动态图形"],
 ];
 
-export const STUDIO_URL = "http://localhost:3000";
+export const PROJECT_COMPOSITION = "MultiSceneVideo";
 export const FPS = 30;
 
 export function msLabel(value: number) {

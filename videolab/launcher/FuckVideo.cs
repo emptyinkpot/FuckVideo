@@ -1,15 +1,16 @@
-// FuckVideo.exe — double-click launcher for the FuckVideo workbench.
+// FuckVideo.exe — double-click launcher for FuckVideo.
 //
-// - If VideoLab (http://127.0.0.1:3037) is already up, just opens its window.
+// - If Remotion Studio (http://localhost:3000) is already up, just opens its window.
 // - Otherwise starts `node videolab/server/start.mjs` hidden (no console window; it runs
-//   the VideoLab server and the stock Remotion Studio), logs to out\launcher.log, shows a
-//   small "starting" window, and opens VideoLab once it answers. The launcher then exits.
-// - VideoLab opens as a standalone window (Edge app mode: no tabs, no address bar, own
-//   taskbar icon). Falls back to the default browser if Edge is missing.
-// - Shutting down is done from VideoLab: the "关闭" button calls POST /api/shutdown,
-//   which kills the whole node process tree.
+//   Remotion Studio and the VideoLab API on :3037), logs to out\launcher.log, shows a small
+//   "starting" window, and opens Studio once both answer. The launcher then exits.
+// - Studio opens as a standalone window (Edge app mode: no tabs, no address bar, own taskbar
+//   icon); falls back to the default browser if Edge is missing. The FuckVideo workbench is the
+//   floating "FV" button inside Studio.
+// - Shutting down is done from the workbench (设置 -> 关闭), which calls POST /api/shutdown and
+//   kills the whole node process tree.
 //
-// Build: launcher\build.cmd (uses the C# compiler bundled with .NET Framework 4.x).
+// Build: videolab\launcheruild.cmd (uses the C# compiler bundled with .NET Framework 4.x).
 // The exe must sit in the FuckVideo repo root; it locates everything relative to itself.
 
 using System;
@@ -22,7 +23,9 @@ using System.Windows.Forms;
 
 static class FuckVideoLauncher
 {
-    const string WorkbenchUrl = "http://127.0.0.1:3037/";
+    const string StudioUrl = "http://localhost:3000";
+    const string StudioProbe = "http://127.0.0.1:3000";
+    const string ApiProbe = "http://127.0.0.1:3037/api/projects";
     const int StartupTimeoutSeconds = 180;
 
     [STAThread]
@@ -31,9 +34,9 @@ static class FuckVideoLauncher
         bool openBrowser = Array.IndexOf(args, "--no-browser") < 0;
         string root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\');
 
-        if (IsUp(WorkbenchUrl))
+        if (IsUp(StudioProbe))
         {
-            if (openBrowser) Open(WorkbenchUrl);
+            if (openBrowser) Open(StudioUrl);
             return 0;
         }
 
@@ -78,7 +81,7 @@ static class FuckVideoLauncher
             Fail("工作台在 " + StartupTimeoutSeconds + " 秒内没有启动成功。\n\n日志：" + log);
             return 1;
         }
-        if (openBrowser) Open(WorkbenchUrl);
+        if (openBrowser) Open(StudioUrl);
         return 0;
     }
 
@@ -117,7 +120,7 @@ static class FuckVideoLauncher
             }
             ThreadPool.QueueUserWorkItem(delegate
             {
-                if (IsUp(WorkbenchUrl))
+                if (IsUp(StudioProbe) && IsUp(ApiProbe))
                 {
                     ready = true;
                     form.BeginInvoke((MethodInvoker)delegate { timer.Stop(); form.Close(); });

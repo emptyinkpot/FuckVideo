@@ -1,4 +1,7 @@
-// Thin client for the VideoLab server (videolab/server/server.mjs). Same origin, so relative URLs.
+// Client for the VideoLab server (videolab/server/server.mjs, :3037). The workbench runs inside the
+// Remotion Studio page (:3000), so calls are cross-origin; the server allows any origin.
+
+export const API_BASE = "http://127.0.0.1:3037";
 
 export type Scene = {
   id: string;
@@ -49,12 +52,8 @@ export type Job = {
 };
 
 // MultiSceneVideo props as produced by projectToMultiSceneProps (pipeline/project-store.mjs).
-export type MultiSceneProps = Record<string, unknown> & {
-  scenes?: Array<{ fromFrame: number; durationInFrames: number }>;
-};
-
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(API_BASE + path, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init.headers || {}) },
   });
@@ -71,7 +70,6 @@ export const api = {
   listProjects: () => call<ProjectSummary[]>("/api/projects"),
   createProject: (title: string) => call<Project>("/api/projects", post({ title })),
   getProject: (id: string) => call<Project>(p(id)),
-  getProps: (id: string) => call<MultiSceneProps>(`${p(id)}/props`),
   patchScene: (id: string, sceneId: string, body: Partial<Scene> & { props?: unknown }) =>
     call<Project>(`${p(id)}/scenes/${encodeURIComponent(sceneId)}`, patch({ patch: body })),
   patchInfrastructure: (id: string, body: unknown) => call<Project>(`${p(id)}/infrastructure`, patch({ patch: body })),
@@ -83,8 +81,16 @@ export const api = {
     call<Project>(`${p(id)}/scenes/${encodeURIComponent(sceneId)}/replace-material`, post({ candidate })),
   reorder: (id: string, sceneIds: string[]) => call<Project>(`${p(id)}/reorder`, post({ sceneIds })),
   resolveEvidence: (id: string) => call<Project>(`${p(id)}/evidence/resolve`, post({ fetchRemote: true })),
-  exportProject: (id: string) => call<Project>(`${p(id)}/export`, post()),
+  // Writes the project as MultiSceneVideo defaultProps (src/generated/...); Studio hot-reloads it.
   writeStudioProps: (id: string) => call<unknown>(`${p(id)}/studio-default-props`, post()),
+  ping: async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/projects`, { signal: AbortSignal.timeout(1500) });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
   createJob: (body: unknown) => call<Job>("/api/jobs", post(body)),
   getJob: (id: string) => call<Job>(`/api/jobs/${encodeURIComponent(id)}`),
   shutdown: () => call<unknown>("/api/shutdown", post()),
