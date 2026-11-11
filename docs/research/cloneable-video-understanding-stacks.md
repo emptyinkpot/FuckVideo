@@ -28,7 +28,7 @@ Use TypeScript for FuckVideo's core and Python for ML sidecars.
 Why TypeScript:
 
 - Remotion is React/TypeScript-native.
-- VideoLab (`videolab/ui`, React + `@remotion/player`) and editor state are TypeScript/JavaScript concerns.
+- The FuckVideo workbench (`videolab/overlay`, React inside Remotion Studio) and editor state are TypeScript/JavaScript concerns.
 - timeline project JSON, `project-store`, `scene-planner` and `visual-resolver` already live in Node.
 - keeping orchestration in one runtime reduces drift.
 

@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// Starts the whole FuckVideo workbench (npm run dev:video, or hidden by FuckVideo.exe):
-//   - VideoLab server + UI on :3037 (videolab/server/server.mjs)
-//   - stock Remotion Studio on :3000, nothing injected into it
-// The VideoLab "关闭" button kills this process tree via POST /api/shutdown.
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
+// Starts FuckVideo (npm run dev:video, or hidden by FuckVideo.exe):
+//   - Remotion Studio on :3000; the FuckVideo workbench mounts itself inside it (src/index.ts)
+//   - VideoLab API on :3037 (videolab/server/server.mjs) for generation and projects
+// The workbench's "关闭" button kills this process tree via POST /api/shutdown.
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadLocalEnv } from "../../pipeline/local-env.mjs";
@@ -12,11 +11,8 @@ import { loadLocalEnv } from "../../pipeline/local-env.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..", "..");
 const remotionCli = path.join(projectRoot, "node_modules", "@remotion", "cli", "remotion-cli.js");
-const viteCli = path.join(projectRoot, "node_modules", "vite", "bin", "vite.js");
-const uiDir = path.join(projectRoot, "videolab", "ui");
 
 loadLocalEnv(projectRoot);
-buildUiIfStale();
 
 const children = [];
 
@@ -31,33 +27,8 @@ if (await isReady("http://127.0.0.1:3000")) {
   start("studio", process.execPath, [remotionCli, "studio", "src/index.ts", "--port=3000", "--no-open"]);
 }
 setTimeout(() => {
-  process.stdout.write("\nVideoLab：http://127.0.0.1:3037\nRemotion Studio（原版）：http://localhost:3000\n\n");
+  process.stdout.write("\nRemotion Studio：http://localhost:3000（右下角 FV 按钮打开 FuckVideo 工作台）\n\n");
 }, 1800);
-
-// Rebuild videolab/ui/dist when it is missing or older than any UI source file / the compositions.
-function buildUiIfStale() {
-  const distIndex = path.join(uiDir, "dist", "index.html");
-  const builtAt = existsSync(distIndex) ? statSync(distIndex).mtimeMs : 0;
-  const newest = Math.max(
-    newestMtime(path.join(uiDir, "src")),
-    newestMtime(path.join(projectRoot, "src")),
-    statSync(path.join(projectRoot, "package-lock.json")).mtimeMs,
-  );
-  if (builtAt >= newest) return;
-  process.stdout.write("[videolab] 构建界面中…\n");
-  const result = spawnSync(process.execPath, [viteCli, "build", "--logLevel", "warn"], { cwd: uiDir, stdio: "inherit", windowsHide: true });
-  if (result.status !== 0) process.stderr.write("[videolab] 界面构建失败，继续使用旧版本。\n");
-}
-
-function newestMtime(dir) {
-  let newest = 0;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "generated") continue;
-    const full = path.join(dir, entry.name);
-    newest = Math.max(newest, entry.isDirectory() ? newestMtime(full) : statSync(full).mtimeMs);
-  }
-  return newest;
-}
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

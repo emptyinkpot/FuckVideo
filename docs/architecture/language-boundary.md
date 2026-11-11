@@ -38,7 +38,7 @@ The product core is Remotion and the editable video project workflow. That makes
 - `scene-planner.mjs`.
 - `visual-resolver.mjs`.
 - `asset-matcher.mjs` handoff.
-- VideoLab UI (`videolab/ui`, React + `@remotion/player`) and editor state.
+- FuckVideo workbench inside Studio (`videolab/overlay`, React) and editor state.
 
 Keeping this core in TypeScript avoids splitting timeline behavior across two runtimes and keeps preview, editing and rendering close to Remotion's native ecosystem.
 

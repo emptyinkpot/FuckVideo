@@ -39,5 +39,3 @@ asset-source/remotionlab/
 # Launcher build output (source lives in launcher/).
 /FuckVideo.exe
 
-# VideoLab UI build output.
-videolab/ui/dist/

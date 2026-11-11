@@ -48,10 +48,10 @@ Local material indexing and Remotion preview do not require a new API key.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start plain Remotion Studio. |
-| `npm run dev:video` | Start VideoLab (:3037) plus stock Remotion Studio (:3000); this is what `FuckVideo.exe` runs hidden. Stop with the VideoLab "关闭" button or Ctrl+C. |
-| `npm run videolab` / `videolab:build` / `videolab:dev` | Run the VideoLab server only / build its UI / UI dev server on :3038. |
-| `npm run verify:upstream` | After a Remotion upgrade: lint + UI build + one still per composition + VideoLab browser smoke. |
-| `npm run test:videolab` | VideoLab browser smoke test (headless Chrome, no screenshots). |
+| `npm run dev:video` | Start Remotion Studio (:3000) plus the VideoLab API (:3037); this is what `FuckVideo.exe` runs hidden. The FuckVideo workbench is the floating FV button inside Studio. Stop with 设置 -> 关闭 FuckVideo, or Ctrl+C. |
+| `npm run videolab` | Run the VideoLab API only (:3037). |
+| `npm run verify:upstream` | After a Remotion upgrade: lint + typecheck + one still per composition + workbench smoke inside Studio. |
+| `npm run test:videolab` | Workbench smoke test inside Remotion Studio (headless Chrome, no screenshots). |
 | `npm run smoke:minimal` | Run minimal pipeline smoke test. |
 | `npm run validate-animation-contracts` | Validate visual provider contracts. |
 | `npm run index-assets` | Build local asset index from footage. |
@@ -88,15 +88,14 @@ Do not move timeline truth or Remotion composition logic into Python. Do not for
 | Port | Role |
 | --- | --- |
 | `3000` | Stock Remotion Studio (nothing injected). |
-| `3037` | VideoLab: UI, job/project API, `public/` under `/public`. |
-| `3038` | VideoLab UI dev server (`npm run videolab:dev` only). |
+| `3037` | VideoLab API: generation jobs, projects, shutdown. |
 
 ## Primary Workflow
 
 ```text
 npm run dev:video
-  -> open http://127.0.0.1:3037 (VideoLab)
-  -> click 生成视频
+  -> open http://localhost:3000 (Remotion Studio)
+  -> FV button -> 生成视频
   -> input script
   -> TTS
   -> scene planning
@@ -136,10 +135,10 @@ Audio duration is wrong:
 - Check `ffprobe` is on PATH.
 - Rebuild or regenerate the standardized MP3.
 
-VideoLab does not open or shows "界面还没有构建":
+The FV workbench button does not appear in Studio:
 
-- Run `npm run videolab:build` (start.mjs does this automatically when the UI is stale).
-- Check `out/launcher.log` when started from `FuckVideo.exe`.
+- It mounts from `src/index.ts` only when `getRemotionEnvironment().isStudio`; check the Studio console for errors.
+- Project / generation tabs need the API on :3037 (`npm run dev:video` or `FuckVideo.exe`); `npm run dev` alone starts only Studio.
 - Run `npm run test:videolab` to see page errors.
 
 Generated project opens but timeline is wrong:

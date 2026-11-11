@@ -12,8 +12,8 @@
     "@react-three/fiber": "^9.1.0",
     "@remotion/bundler": "4.0.542",
     "@remotion/cli": "4.0.542",
-    "@remotion/player": "4.0.542",
     "@remotion/renderer": "4.0.542",
+    "@remotion/studio": "4.0.542",
     "@remotion/tailwind-v4": "4.0.542",
     "@remotion/three": "4.0.542",
     "d3-geo": "^3.1.1",
@@ -34,8 +34,7 @@
     "@types/web": "0.0.166",
     "eslint": "9.19.0",
     "prettier": "3.8.1",
-    "typescript": "5.9.3",
-    "vite": "8.3.7"
+    "typescript": "5.9.3"
   },
   "scripts": {
     "dev": "remotion studio",
@@ -57,12 +56,9 @@
     "export-project": "node pipeline/export-video-project.mjs",
     "text-to-video": "node pipeline/text-to-video.mjs",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src videolab/ui/src && tsc && tsc -p videolab/ui",
-    "verify:upstream": "npm run lint && npm run videolab:build && node tests/verify-upstream.mjs && node tests/videolab-smoke.mjs",
+    "lint": "eslint src videolab/overlay && tsc",
+    "verify:upstream": "npm run lint && node tests/verify-upstream.mjs && node tests/videolab-smoke.mjs",
     "videolab": "node videolab/server/server.mjs",
-    "videolab:build": "vite build videolab/ui",
-    "videolab:dev": "vite videolab/ui",
-    "videolab:typecheck": "tsc -p videolab/ui",
     "test:videolab": "node tests/videolab-smoke.mjs"
   },
   "sideEffects": [

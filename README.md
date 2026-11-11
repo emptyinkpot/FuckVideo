@@ -1,6 +1,6 @@
 # FuckVideo：基于 Remotion 构建的 AI 文本生成视频工具
 
-> **基于 [Remotion](https://github.com/remotion-dev/remotion) 构建。** 本仓库是一个使用 Remotion 的视频项目，Remotion 作为 npm 依赖安装（`remotion`、`@remotion/*`，版本锁定为同一个精确版本），仓库里没有 Remotion 源码，也不修改它。自己的功能以“插件”方式放在 `videolab/`，只通过 Remotion 的公开 API（Player、renderer、bundler、Composition + zod schema）接入，所以接上游更新就是升级版本号，见「15. 升级 Remotion」。
+> **基于 [Remotion](https://github.com/remotion-dev/remotion) 构建。** 本仓库是一个使用 Remotion 的视频项目，Remotion 作为 npm 依赖安装（`remotion`、`@remotion/*`，版本锁定为同一个精确版本），仓库里没有 Remotion 源码，也不修改它。自己的功能以“插件”方式放在 `videolab/`：打开就是原版 Remotion Studio，扩展功能集中在右下角的悬浮按钮和卡片工作台里，只通过 Remotion 的公开 API（`getRemotionEnvironment`、`@remotion/studio` 的 `goToComposition` / `seek`、Composition + zod schema、renderer、bundler）接入，所以接上游更新就是升级版本号，见「15. 升级 Remotion」。
 >
 > **许可**：Remotion 使用 [Remotion License](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md)，个人和不超过 3 人的公司可免费使用，更大的公司需要购买 Company License。使用本仓库即需遵守该许可。
 
@@ -44,12 +44,13 @@ support: SUPPORT.md
 
 双击仓库根目录的 `FuckVideo.exe`：
 
-- 后台启动 VideoLab（:3037）和原版 Remotion Studio（:3000），不弹终端窗口，启动时显示一个小进度窗口。
-- 就绪后用 Edge 应用模式打开 VideoLab，显示为没有地址栏和标签页的独立窗口（没装 Edge 时用默认浏览器）。已经在运行时再双击，只会重新打开窗口。
-- 关闭：点 VideoLab 顶栏右侧的「关闭」，所有服务一起停止（`POST /api/shutdown`，只接受本机页面发起的请求）。
+- 后台启动原版 Remotion Studio（:3000）和 VideoLab 接口服务（:3037），不弹终端窗口，启动时显示一个小进度窗口。
+- 就绪后用 Edge 应用模式打开 Studio，显示为没有地址栏和标签页的独立窗口（没装 Edge 时用默认浏览器）。已经在运行时再双击，只会重新打开窗口。
+- 右下角的 **FV** 悬浮按钮打开 FuckVideo 工作台卡片：项目 / 分镜、生成视频、设置（界面中文开关、关闭）。
+- 关闭：工作台「设置」里的「关闭 FuckVideo」，所有服务一起停止（`POST /api/shutdown`，只接受本机 Studio 页面发起的请求）。
 - 日志：`out/launcher.log`。
 
-不用 exe 时：`npm run dev:video` 效果相同（终端里运行，Ctrl+C 停止）；`npm run dev` 只开原版 Studio。
+不用 exe 时：`npm run dev:video` 效果相同（终端里运行，Ctrl+C 停止）；`npm run dev` 只开 Studio，悬浮按钮照样出现，但项目和生成功能需要 :3037 服务。
 
 `FuckVideo.exe` 不进 git，源码在 `videolab/launcher/FuckVideo.cs`，运行 `videolab\launcher\build.cmd` 用 Windows 自带的 .NET Framework 编译器生成。需要本机装有 Node.js 18+，找不到 PATH 里的 node 时会退回 `platform/.runtime` 里的便携 Node 22。
 
@@ -79,7 +80,7 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 
 真正的难点不是“剪”，而是“从素材库里找对东西”。FFmpeg/Remotion 渲染只是下游执行层；上游必须先把素材库理解成可检索的镜头记忆。
 
-语言边界：本仓库主体采用 TypeScript / Node，因为 Remotion、React composition、VideoLab 界面（@remotion/player）、项目时间轴和渲染编排都在这个生态内；素材理解、embedding、ASR、OCR、Qwen-VL/CLIP/SigLIP 等模型重活采用 Python sidecar，因为成熟模型库、GPU/批处理和向量入库生态主要在 Python。完整规则见 `docs/architecture/language-boundary.md`。
+语言边界：本仓库主体采用 TypeScript / Node，因为 Remotion、React composition、FuckVideo 悬浮工作台、项目时间轴和渲染编排都在这个生态内；素材理解、embedding、ASR、OCR、Qwen-VL/CLIP/SigLIP 等模型重活采用 Python sidecar，因为成熟模型库、GPU/批处理和向量入库生态主要在 Python。完整规则见 `docs/architecture/language-boundary.md`。
 
 ## 仓库来源与上游标识
 
@@ -178,18 +179,15 @@ AI 素材理解 + 语义检索 + 自动编排 + Remotion 可编辑生成工程
 这是一个本地 Remotion 工程，核心能力是：
 
 ```text
-VideoLab（独立窗口，:3037）
-  + 文案生成视频：千问 TTS、自动片段规划、素材检索、现有模板复用
-  + 分镜列表 / Player 预览 / 分段时间线
-  + 分镜微调：文案、时间、模板、锁定、重配并替换素材、字幕/进度条布局
-  + 一键导出 MP4
-
 Remotion Studio（原版，:3000）
-  + 32 个模板的预览与 schema 参数编辑
-  + 从 VideoLab「在 Studio 中打开」当前项目
+  + 32 个模板的预览、时间线、schema 参数编辑、渲染
+  + 右下角 FV 悬浮按钮 -> FuckVideo 工作台卡片：
+      项目 / 分镜：切换、新建、载入到 Studio、点分镜跳到对应帧、改文案、锁定、调整顺序、重配并替换素材、解析证据
+      生成视频：千问 TTS、自动片段规划、素材检索、现有模板复用，生成新项目
+      设置：Studio 界面中文开关、关闭全部服务
 ```
 
-VideoLab 是用 Remotion 公开 API 搭的独立应用：中央预览用 `@remotion/player` 播放 `src/` 里的同一个 `MultiSceneVideo` 合成，所以和 Studio 里看到的一致。原版 Studio 不注入任何脚本、不改界面，升级 Remotion 时不受影响。
+扩展只做 Remotion 没有的事。预览、时间线、调参数、渲染出片都用 Studio 自己的功能，不在工作台里重复。
 
 本文档按“给一个不了解项目的人复现出近似工程”的标准编写，包含运行环境、目录结构、端口、数据流、模板系统、参数系统、API 合约、排障和验证方式。
 
@@ -218,13 +216,13 @@ VideoLab 是用 Remotion 公开 API 搭的独立应用：中央预览用 `@remot
 - 或使用 `MultiSceneVideo` 自动拼接多个镜头模板。
 - 调用 Remotion CLI 渲染 MP4。
 
-第三层是 VideoLab（`videolab/`）：
+第三层是 FuckVideo 工作台（`videolab/`）：
 
-- `npm run dev:video` 或双击 `FuckVideo.exe` 启动 VideoLab（:3037）和原版 Studio（:3000）。
-- 生成视频对话框默认“自动分镜”：文本 -> 千问 TTS -> 自动片段规划 -> `MultiSceneVideo` -> MP4；也可选“单模板”：文本 -> 千问 TTS -> 选定模板 -> MP4。
-- 任务提交到 `POST /api/jobs`，完成后保存 `.runtime/video-projects/<id>.json` 并在 VideoLab 中打开。
-- 分镜编辑：保存字幕/旁白、修改视觉意图、模板、时间，锁定片段，重配并替换画面，调整顺序，总导出。
-- 「在 Studio 中打开」把项目写成 `MultiSceneVideo` 的 defaultProps，在原版 Studio 里继续调参数。
+- `npm run dev:video` 或双击 `FuckVideo.exe` 启动 Studio（:3000）和 VideoLab 接口服务（:3037）。
+- 工作台由 `src/index.ts` 在 `getRemotionEnvironment().isStudio` 时懒加载，渲染时不会加载。
+- 生成视频默认“自动分镜”：文本 -> 千问 TTS -> 自动片段规划 -> `MultiSceneVideo` -> MP4；也可选“单模板”。
+- 任务提交到 `POST /api/jobs`，完成后保存 `.runtime/video-projects/<id>.json`，并自动载入到 Studio。
+- 载入项目：服务端把项目写成 `MultiSceneVideo` 的 defaultProps（`src/generated/currentMultiSceneDefaultProps.ts`），Studio 热更新，工作台调用 `goToComposition("MultiSceneVideo")`。
 
 ## 2. 运行环境
 
@@ -297,18 +295,16 @@ npm i
 
 | 命令 | 作用 |
 | --- | --- |
-| 双击 `FuckVideo.exe` | VideoLab + 原版 Studio，后台运行，独立窗口打开 VideoLab |
+| 双击 `FuckVideo.exe` | Studio + VideoLab 接口服务，后台运行，独立窗口打开 Studio |
 | `npm run dev:video` | 同上，在终端里运行 |
-| `npm run dev` | 只开原版 Remotion Studio（:3000），用来调模板、用 schema 面板改参数 |
-| `npm run videolab` | 只开 VideoLab 服务（:3037），需要先 `npm run videolab:build` |
-| `npm run videolab:dev` | VideoLab 界面开发模式（Vite，:3038，接口代理到 :3037） |
+| `npm run dev` | 只开 Remotion Studio（:3000） |
+| `npm run videolab` | 只开 VideoLab 接口服务（:3037） |
 
 端口：
 
 ```text
-3000  Remotion Studio（原版，不注入任何东西）
-3037  VideoLab：界面 + 任务/项目 API + public/ 静态文件
-3038  VideoLab 界面开发服务器（只在 videolab:dev 时）
+3000  Remotion Studio（FuckVideo 工作台在页面里的悬浮按钮上）
+3037  VideoLab 接口：生成任务、项目数据、关闭
 ```
 
 ## 5. 目录结构
@@ -319,14 +315,14 @@ npm i
 FuckVideo/
   src/  public/  remotion.config.ts   Remotion 官方模板结构，只放视频模板（见下）
 
-  videolab/                         自己的插件，删掉它剩下的就是标准 Remotion 项目
-    ui/                             VideoLab 界面：React + Vite + @remotion/player
-      src/App.tsx                   项目切换、分镜列表、Player 预览、时间线
-      src/SceneEditor.tsx           分镜编辑、字幕/进度条布局、素材重配
-      src/GeneratorDialog.tsx       文案生成视频
+  videolab/                         自己的插件；删掉它和 src/index.ts 里那段挂载代码，剩下的就是标准 Remotion 项目
+    overlay/                        Studio 里的悬浮工作台（Shadow DOM 隔离样式）
+      mount.tsx                     挂载入口，由 src/index.ts 在 Studio 环境下懒加载
+      Workbench.tsx                 悬浮按钮 + 卡片：项目/分镜、生成视频、设置
+      i18n/dict.ts  translate.ts    Studio 界面中文（可开关，可增补词典）
     server/
-      server.mjs                    任务/项目 API、界面和 public/ 静态服务（:3037）
-      start.mjs                     一键启动 VideoLab + 原版 Studio
+      server.mjs                    生成任务 / 项目 API（:3037）
+      start.mjs                     一键启动 Studio + API
     launcher/
       FuckVideo.cs  build.cmd       FuckVideo.exe 源码与编译脚本
 
@@ -346,7 +342,7 @@ FuckVideo/
 
   tests/
     verify-upstream.mjs             每个合成渲染一帧，升级 Remotion 后的检查
-    videolab-smoke.mjs              无头浏览器打开 VideoLab，检查界面和 Player
+    videolab-smoke.mjs              无头浏览器打开 Studio，检查悬浮工作台、载入项目、界面中文开关
 
   platform/                         仿花生的在线产品（独立 pnpm workspace）
 
@@ -421,7 +417,7 @@ FuckVideo/
 整体架构：
 
 ```text
-VideoLab 界面 videolab/ui（http://127.0.0.1:3037，@remotion/player 预览）
+Remotion Studio（http://localhost:3000）里的 FuckVideo 悬浮工作台
   |
   | 点击“生成视频”
   v
@@ -827,7 +823,7 @@ src/Root.tsx
    - `pipeline/scene-planner.mjs` 生成的 `semanticCard / visualContract`
    - `templates` 映射
    - `templateOptions`
-   - `videolab/ui/src/templates.ts` 的模板下拉（单模板模式）
+   - `videolab/overlay/templates.ts` 的模板下拉（单模板模式）
 
 最小示意：
 
@@ -1058,7 +1054,7 @@ node pipeline/text-to-scenes-tts-video.mjs --caption-bottom=34 --caption-backgro
 
 默认视频基础设施采用紧凑底部布局：字幕没有黑色底板，默认 `captionBackgroundColor=transparent`；分段进度条贴底且横向全长，默认 `progressLeft=0`、`progressRight=0`、`progressPaddingX=0`；字幕默认放在进度条上方约 4px 的位置。画面字幕只允许单行，渲染层强制 `whiteSpace: nowrap`，并按字幕字数和可用宽度自动压缩字号，不能通过换成两行来撑开。
 
-这些不是一次性生成参数。`MultiSceneVideo`、`GeneratedTemplateVideo`、`NarratedVideo` 都把这些字段作为 composition schema/defaultProps 暴露，生成后可以直接在 Remotion 参数面板实时调整。字幕正文 `captions` 是生成数据，不在参数面板里逐句展开；参数面板只调字幕整体抽象样式和整体布局。项目侧仍可继续在 VideoLab 里修改并保存：
+这些不是一次性生成参数。`MultiSceneVideo`、`GeneratedTemplateVideo`、`NarratedVideo` 都把这些字段作为 composition schema/defaultProps 暴露，生成后可以直接在 Remotion 参数面板实时调整。字幕正文 `captions` 是生成数据，不在参数面板里逐句展开；参数面板只调字幕整体抽象样式和整体布局。项目侧仍可继续在 FuckVideo 工作台里修改并保存：
 
 ```text
 PATCH /api/projects/:id/infrastructure
@@ -1537,43 +1533,57 @@ POST /api/projects/:id/export
 project.json -> projectToMultiSceneProps -> Remotion render MultiSceneVideo -> out/video-project-*.mp4
 ```
 
-## 14. VideoLab：以插件方式扩展 Remotion
+## 14. FuckVideo 工作台：以插件方式扩展 Remotion
 
-Remotion Studio 没有往界面里加按钮或面板的插件机制，所以自己的功能做成独立应用 VideoLab，只用 Remotion 官方支持的扩展点：
+打开就是原版 Remotion Studio。扩展集中在右下角的 **FV** 悬浮按钮，点开是一张卡片工作台，再点收起。卡片只放 Remotion 没有的功能：
+
+| 页签 | 功能 |
+| --- | --- |
+| 项目 / 分镜 | 切换、新建项目，载入到 Studio；分镜列表，点击后 Studio 跳到该分镜开头；改旁白、字幕、视觉意图；锁定、上移下移；重配并替换素材；解析证据 |
+| 生成视频 | 文案、标题、模式（自动分镜 / 单模板）、字幕和进度条样式、语音指令；显示任务日志，完成后自动载入新项目 |
+| 设置 | Studio 界面中文开关；关闭 FuckVideo（停止全部服务） |
+
+预览、时间线、字幕/进度条布局等参数（`MultiSceneVideo` 的 schema 面板）、渲染出片，都用 Studio 自带的功能。
+
+用到的 Remotion 扩展点（全部公开 API）：
 
 | 扩展点 | 用在哪里 |
 | --- | --- |
-| `<Composition>` + zod `schema` | 32 个模板全部带 schema，原版 Studio 右侧自动出现参数编辑面板 |
-| `@remotion/player` | VideoLab 中央预览，直接引用 `src/templates/MultiSceneVideo.tsx`，画面与 Studio 一致 |
-| `@remotion/bundler` + `@remotion/renderer` / CLI | 渲染出片（pipeline、导出、`tests/verify-upstream.mjs`） |
-| `staticFile()` | VideoLab 里把 `window.remotion_staticBase` 设为 `/public`，server 在该路径提供 `public/`（支持 Range） |
-| 文件形式的 defaultProps | 「在 Studio 中打开」把当前项目写进 `src/generated/currentMultiSceneDefaultProps.ts`，Studio 热更新后打开 `/MultiSceneVideo` |
+| `getRemotionEnvironment().isStudio` | `src/index.ts` 只在 Studio 里懒加载工作台，渲染时不加载 |
+| `@remotion/studio` 的 `goToComposition`、`seek` | 载入项目后切到 `MultiSceneVideo`，点分镜跳帧 |
+| `<Composition>` + zod `schema` | 32 个模板全部带 schema，Studio 右侧参数面板直接可用 |
+| 文件形式的 defaultProps | 载入项目 = 服务端写 `src/generated/currentMultiSceneDefaultProps.ts`，Studio 热更新 |
+| `@remotion/bundler` + `@remotion/renderer` / CLI | 生成任务渲染出片、`tests/verify-upstream.mjs` |
 
-VideoLab 功能：
+（`@remotion/studio` 的 `updateDefaultProps` 在 4.0.542 是 `saveDefaultProps` 的别名，会把参数写回 `Root.tsx` 源码，所以载入项目不用它。）
 
-- 顶栏：项目切换、新建、生成视频、解析证据、在 Studio 中打开、导出、关闭。
-- 左侧分镜列表，点击后 Player 跳到该分镜开头。
-- 中央 Player 预览（播放、拖动、全屏）。
-- 右侧：分镜编辑（旁白、字幕、起止时间、模板、视觉意图、锁定、上移下移、重配并替换素材），以及字幕/进度条布局。
-- 底部分段时间线，红线是播放头，点空白处跳转。
-- 生成视频对话框：文案、标题、模式、模板、字幕和进度条样式、语音指令，显示任务日志，完成后自动打开新项目。
+隔离方式：
 
-边界规则（`eslint.config.mjs` 强制）：`src/` 和 `videolab/ui/src/` 只能从 `remotion`、`@remotion/<包名>` 这些公开入口导入，禁止 `Internals`、`StudioInternals` 和 `@remotion/*/内部路径`。也不再读写 Studio 的 DOM。
+- 工作台挂在一个 Shadow DOM 里，样式和 Studio 互不影响，也不读取 Studio 的页面元素。
+- `eslint.config.mjs` 规定 `src/` 和 `videolab/overlay/` 只能从 `remotion`、`@remotion/<包名>` 这些公开入口导入，禁止 `Internals`、`StudioInternals` 和 `@remotion/*/内部路径`。
+
+**界面中文**（设置里的开关，默认关闭）：Remotion Studio 没有多语言接口，这是扩展里唯一会改 Studio 页面的部分，所以做成可开关、可完全恢复：
+
+- 只替换整段完全匹配词典的文字，以及 `title`、`aria-label`、`placeholder` 提示；
+- 不碰输入框、下拉框的值和可编辑区域，Studio 参数面板里填的值不会被改；
+- 跳过预览画面（`#remotion-canvas`、`.remotion-studio-composition-container`）和工作台自己；
+- 关闭后所有文字恢复英文原样；渲染不加载工作台，成片不受影响。
+- 词典 `videolab/overlay/i18n/dict.ts`，按 @remotion/studio 4.0.542 的实际文案整理，两百多条，可自己增补。升级后如有改名的按钮，只是暂时显示英文。
 
 新功能放哪：
 
 | 要加的东西 | 位置 |
 | --- | --- |
-| 新动画模板 | `src/templates/`，在 `src/Root.tsx` 登记并写 zod schema；Studio 和 VideoLab 同时可用 |
+| 新动画模板 | `src/templates/`，在 `src/Root.tsx` 登记并写 zod schema |
 | 新的生成步骤（配音、分镜、素材匹配等） | `pipeline/` |
-| 新的界面功能 | `videolab/ui/src/`，需要的接口加在 `videolab/server/server.mjs` |
+| 新的工作台功能 | `videolab/overlay/`，需要的接口加在 `videolab/server/server.mjs` |
 | 仿花生产品 | `platform/` |
 
 ## 15. 升级 Remotion
 
-1. 根目录：`npx remotion upgrade`。它把所有 `@remotion/*` 包统一升到同一版本（Remotion 要求版本完全一致）。Windows 上它可能报 `spawn npm ENOENT`，这时直接运行它打印出来的那条 `npm i --save-exact ...` 命令即可；`@remotion/player`、`@remotion/bundler`、`@remotion/renderer` 也一起写进去。
+1. 根目录：`npx remotion upgrade`。它把所有 `@remotion/*` 包统一升到同一版本（Remotion 要求版本完全一致）。Windows 上它可能报 `spawn npm ENOENT`，这时直接运行它打印出来的那条 `npm i --save-exact ...` 命令即可；`@remotion/studio`、`@remotion/bundler`、`@remotion/renderer` 也一起写进去。
 2. `platform/`：把 `apps/worker/package.json`、`packages/compositions/package.json` 里的 Remotion 版本改成同一个，再 `pnpm install`。
-3. `npm run verify:upstream`：依次跑 lint 和类型检查、构建 VideoLab、每个合成渲染一帧（对照 `tests/fixtures/compositions.json`，少了合成就报错）、无头浏览器打开 VideoLab 检查界面和 Player。
+3. `npm run verify:upstream`：依次跑 lint 和类型检查、每个合成渲染一帧（对照 `tests/fixtures/compositions.json`，少了合成就报错）、无头浏览器打开 Studio 检查悬浮工作台（载入项目、跳帧、界面中文开关）。
 4. 全部通过就提交。新增或删除合成后用 `node tests/verify-upstream.mjs --update` 更新期望列表。
 
 4.x 之内的升级就是以上几步。大版本（如 5.0）先看官方迁移指南。
@@ -1592,7 +1602,7 @@ npm run dev:video
 http://127.0.0.1:3037
 ```
 
-确认 VideoLab「生成视频」对话框里有：
+确认 FuckVideo 工作台「生成视频」页签里有：
 
 ```text
 生成模式
@@ -1770,8 +1780,7 @@ resolver 对 Programmatic / Template / Footage 三类 provider 做硬过滤、�
 12. 写 `videolab/server/server.mjs`：
 
 ```text
-GET /                    VideoLab 界面（videolab/ui/dist）
-GET /public/*            Remotion public/ 静态文件，支持 Range
+GET /                    跳转到 Remotion Studio
 POST /api/shutdown       停止全部服务
 POST /api/jobs
 GET /api/jobs/:id
@@ -1783,25 +1792,23 @@ POST /api/projects/:id/export
 GET /files/:id
 ```
 
-13. 写 `videolab/ui/`（React + Vite + `@remotion/player`）：
+13. 写 `videolab/overlay/`（Studio 里的悬浮工作台）：
 
 ```text
-项目切换 / 新建
-分镜列表，点击后 Player 跳到分镜开头
-中央 Player 播放 src/templates/MultiSceneVideo，props 来自 GET /api/projects/:id/props
-window.remotion_staticBase = "/public"，让 staticFile() 指向 server 的 /public
-右侧分镜编辑、字幕/进度条布局、素材重配
-底部分段时间线 + 播放头
-生成视频对话框：POST /api/jobs，每 2 秒轮询 GET /api/jobs/:id
-导出、在 Studio 中打开、关闭
+src/index.ts：getRemotionEnvironment().isStudio 时 import("../videolab/overlay/mount")
+mount.tsx：在 document.body 上建一个 Shadow DOM 宿主，渲染 Workbench
+Workbench.tsx：FV 悬浮按钮 + 卡片（项目/分镜、生成视频、设置）
+载入项目：POST /api/projects/:id/studio-default-props，然后 goToComposition("MultiSceneVideo")
+点分镜：seek(帧号)
+生成视频：POST /api/jobs，每 2 秒轮询 GET /api/jobs/:id
+i18n/：可开关的 Studio 界面中文
 ```
 
 14. 写 `videolab/server/start.mjs`：
 
 ```text
-界面过期时先 vite build
 启动 videolab/server/server.mjs（:3037）
-启动原版 remotion studio（:3000）
+启动 remotion studio（:3000）
 ```
 
 15. 在 `package.json` 增加：
@@ -1819,9 +1826,8 @@ window.remotion_staticBase = "/public"，让 staticFile() 指向 server 的 /pub
     "export-project": "node pipeline/export-video-project.mjs",
     "text-to-video": "node pipeline/text-to-video.mjs",
     "videolab": "node videolab/server/server.mjs",
-    "videolab:build": "vite build videolab/ui",
-    "lint": "eslint src videolab/ui/src && tsc && tsc -p videolab/ui",
-    "verify:upstream": "npm run lint && npm run videolab:build && node tests/verify-upstream.mjs && node tests/videolab-smoke.mjs"
+    "lint": "eslint src videolab/overlay && tsc",
+    "verify:upstream": "npm run lint && node tests/verify-upstream.mjs && node tests/videolab-smoke.mjs"
   }
 }
 ```
@@ -1891,14 +1897,13 @@ npm run dev:video
 打开：
 
 ```text
-http://127.0.0.1:3037   VideoLab
-http://localhost:3000   原版 Remotion Studio
+http://localhost:3000   Remotion Studio（右下角 FV 按钮是 FuckVideo 工作台）
 ```
 
 确认：
 
-- `npm run test:videolab` 通过：VideoLab 载入最近项目，分镜列表、时间线、Player 都渲染出来，点击分镜能跳转，页面无报错。
-- 原版 Studio 能打开，选择任意合成，右侧能看到 props 编辑区，页面里没有任何注入脚本。
+- `npm run test:videolab` 通过：悬浮按钮出现，卡片能展开，载入项目后 Studio 切到 `MultiSceneVideo`，点分镜不报错，界面中文能打开并恢复英文，页面无报错。
+- 选择任意合成，右侧能看到 props 编辑区。
 - 生成视频任务能进入运行状态。
 
 升级 Remotion 后一条命令跑完全部检查：`npm run verify:upstream`。
@@ -1955,15 +1960,14 @@ ffprobe public\generated\tts-xxxx.mp3
 默认端口：
 
 ```text
-3000 Remotion Studio（原版）
-3037 VideoLab（界面 + API）
-3038 VideoLab 界面开发服务器（仅 videolab:dev）
+3000 Remotion Studio
+3037 VideoLab 接口服务
 ```
 
 Windows 查看端口：
 
 ```powershell
-Get-NetTCPConnection -LocalPort 3000,3037,3038
+Get-NetTCPConnection -LocalPort 3000,3037
 ```
 
 结束进程：
@@ -2488,25 +2492,17 @@ type DecisionTrace = {
 };
 ```
 
-项目编辑入口是 VideoLab：
+项目编辑入口是 Studio 里的 FuckVideo 工作台（FV 悬浮按钮 ->「项目 / 分镜」）：
 
-```text
-http://127.0.0.1:3037/?project=<id>
-```
-
-旧地址 `/video-project/:id` 会自动跳转到这里。编辑闭环：
-
-- 顶栏：项目切换、生成视频、解析证据、在 Studio 中打开、导出、关闭。
-- 左侧分镜列表；右侧当前分镜属性、字幕/进度条布局、画面候选。
-- 中央 `@remotion/player` 播放 `MultiSceneVideo`；每次保存后重新取 `GET /api/projects/:id/props`，预览立即更新。
-- 底部分段时间线和播放头。
-- 支持：修改旁白/字幕、修改起止时间、修改模板 ID、锁定片段、重配画面、替换画面、调整顺序、总导出。
+- 选项目即载入：服务端写出 `MultiSceneVideo` 的 defaultProps，Studio 热更新并切到 `MultiSceneVideo`。旧地址 `http://127.0.0.1:3037/video-project/:id` 会跳转到 Studio。
+- 分镜列表，点击后 Studio 预览跳到该分镜开头。
+- 支持：修改旁白/字幕/视觉意图、锁定片段、调整顺序、重配画面、替换画面、解析证据；每次保存后自动重新载入到 Studio。
+- 预览、时间线、字幕/进度条布局（schema 面板）、渲染导出都在 Studio 里做。
 
 核心文件：
 
 ```text
-videolab/ui/src/App.tsx
-videolab/ui/src/SceneEditor.tsx
+videolab/overlay/Workbench.tsx
 pipeline/project-store.mjs
 pipeline/export-video-project.mjs
 ```
@@ -3043,9 +3039,9 @@ npm run text-to-scenes-video -- --text-file input.txt --title "南满铁路的�
 npm run text-to-scenes-tts-video -- --text-file input.txt --title "南满铁路的开端" --output out/auto-scenes-tts-video.mp4
 ```
 
-VideoLab 入口：双击 `FuckVideo.exe`，或 `npm run dev:video` 后打开 `http://127.0.0.1:3037`。
+入口：双击 `FuckVideo.exe`，或 `npm run dev:video` 后打开 `http://localhost:3000`，点右下角 FV 按钮。
 
-顶栏点 `生成视频` 打开生成对话框。默认模式是 `自动分镜`，流程是文本 -> 语音 -> 片段 -> 成片；如果只想套一个固定模板，切到 `单模板`。生成完成后 VideoLab 自动打开新项目，用来继续改分镜画面。
+工作台里切到 `生成视频` 页签。默认模式是 `自动分镜`，流程是文本 -> 语音 -> 片段 -> 成片；如果只想套一个固定模板，切到 `单模板`。生成完成后自动载入到 Studio，在「项目 / 分镜」页签继续改分镜画面。
 
 如果已有旁白音频和字幕，可以把它们传给多镜头视频：
 
