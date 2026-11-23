@@ -5,6 +5,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { FONT_SANS } from "../fonts";
 
 export type PromptTextRotationProps = {
   words?: string;
@@ -39,7 +40,7 @@ export const PromptTextRotation = ({
         background: backgroundColor,
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "Inter, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div
@@ -84,7 +85,7 @@ export const PromptProgressBar = ({
         background: backgroundColor,
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "Inter, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div style={{ width: 760 }}>
@@ -160,7 +161,7 @@ export const PromptHistogram = ({
         background: backgroundColor,
         padding: 70,
         justifyContent: "flex-end",
-        fontFamily: "Inter, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div style={{ color: "white", fontSize: 46, fontWeight: 900, marginBottom: 46 }}>
@@ -233,7 +234,7 @@ export const PromptAnimatedShapes = ({
         background: backgroundColor,
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "Inter, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div style={{ display: "flex", gap, alignItems: "center" }}>

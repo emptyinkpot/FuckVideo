@@ -1,21 +1,32 @@
 // src/earth3d 的唯一对外出口。模块外的代码只从这里引用。
-export { EarthGlobe } from "./legacy/EarthGlobeTemplate";
-export type { EarthGlobeProps } from "./legacy/EarthGlobeTemplate";
-export { EditableHistoricalWorldGlobe } from "./legacy/EditableHistoricalWorldGlobe";
-export type { EditableHistoricalGlobeProps } from "./legacy/EditableHistoricalWorldGlobe";
-export { HistoricalGlobeTexture1938 } from "./legacy/HistoricalGlobeTexture1938";
-export type { HistoricalGlobeTexture1938Props } from "./legacy/HistoricalGlobeTexture1938";
+
+// 坐标与镜头
+export { cameraAtFrame, cameraPose, interpolateCamera, sunDirection } from "./core/camera";
+export type { CameraKeyframe, GeoCamera } from "./core/camera";
+
+// 基础地球与画面
+export { GlobeScene } from "./globe/GlobeScene";
+export type { GlobeSceneProps, SunSetting } from "./globe/GlobeScene";
+export { EarthView } from "./view/EarthView";
+export type { EarthViewProps } from "./view/EarthView";
+
+// 图层
+export type { DecalSource, EarthLayer, LayerContext, Projector, RenderPass } from "./layers/types";
+export { bordersLayer } from "./layers/borders";
+export { territoryLayer } from "./layers/territory";
+export { arrowsLayer, frontlinesLayer } from "./layers/warLayers";
+export { placeLabelsLayer } from "./layers/placeLabels";
+
+// 成片与模板
 export {
   SinoJapaneseWarDemo,
   SINO_JAPANESE_WAR_DURATION,
   SINO_JAPANESE_WAR_SCENE_FRAMES,
-} from "./compositions/SinoJapaneseWarDemo";
-export type { SinoJapaneseWarDemoProps } from "./compositions/SinoJapaneseWarDemo";
-
-// 新的数据驱动三维地球
-export { EarthScene } from "./EarthScene";
-export type { EarthSceneProps, SunSetting } from "./EarthScene";
-export { Earth3DPreview, defaultEarth3DView } from "./compositions/Earth3DPreview";
-export type { Earth3DPreviewProps } from "./compositions/Earth3DPreview";
-export { cameraAtFrame, cameraPose, interpolateCamera, sunDirection } from "./camera/geoCamera";
-export type { CameraKeyframe, GeoCamera } from "./camera/geoCamera";
+} from "./scenes/SinoJapaneseWarDemo";
+export type { SinoJapaneseWarDemoProps, WarLayerToggles } from "./scenes/SinoJapaneseWarDemo";
+export { EarthFlyover } from "./scenes/EarthFlyover";
+export type { EarthFlyoverProps } from "./scenes/EarthFlyover";
+export { EarthBackdrop } from "./scenes/EarthBackdrop";
+export type { EarthBackdropProps } from "./scenes/EarthBackdrop";
+export { Earth3DPreview, defaultEarth3DView } from "./scenes/Earth3DPreview";
+export type { Earth3DPreviewProps } from "./scenes/Earth3DPreview";

@@ -1,5 +1,6 @@
 import {useVideoConfig} from "remotion";
 import type {ProgressLayout, ProgressSegment, ProgressStyle} from "./types";
+import { FONT_SANS } from "../fonts";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -45,7 +46,7 @@ export const VideoProgressBar = ({
           padding: isThin ? 0 : `0 ${box.paddingX}px`,
           background: "rgba(255,255,255,0.13)",
           overflow: "hidden",
-          fontFamily: "Inter, Microsoft YaHei, Arial, sans-serif",
+          fontFamily: FONT_SANS,
         }}
       >
         {visibleSegments.map((segment, index) => {

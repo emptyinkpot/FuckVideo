@@ -1,4 +1,5 @@
-import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { FONT_SANS } from "../fonts";
 
 const roads = [
   "M60 420 C180 360 210 240 360 220 C520 198 590 120 760 150 C910 178 970 310 1210 280",
@@ -65,7 +66,7 @@ export const MapRouteFlyover = ({
       style={{
         background: backgroundColor,
         overflow: "hidden",
-        fontFamily: "Inter, Arial, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div
@@ -189,158 +190,6 @@ export const MapRouteFlyover = ({
       >
         <div style={{ fontSize: 58, fontWeight: 900, lineHeight: 1 }}>{title}</div>
         <div style={{ marginTop: 14, fontSize: 24, color: "#bae6fd", fontWeight: 700 }}>
-          {subtitle}
-        </div>
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-export type AtlasMapFlyoverProps = {
-  title?: string;
-  subtitle?: string;
-  textureSrc?: string;
-  routeColor?: string;
-  overlayOpacity?: number;
-};
-
-export const AtlasMapFlyover = ({
-  title = "世界地图飞越",
-  subtitle = "Natural Earth 真实地图纹理",
-  textureSrc = "maps/natural-earth-world-4096.jpg",
-  routeColor = "#f97316",
-  overlayOpacity = 0.86,
-}: AtlasMapFlyoverProps) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const intro = spring({ frame, fps, config: { damping: 90, stiffness: 120 } });
-  const zoom = interpolate(frame, [0, 240], [1.38, 1.02], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const panX = interpolate(frame, [0, 240], [-170, 80], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const panY = interpolate(frame, [0, 240], [52, -24], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const routeProgress = interpolate(frame, [42, 190], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  return (
-    <AbsoluteFill
-      style={{
-        background: "#07111f",
-        overflow: "hidden",
-        fontFamily: "Inter, Arial, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: -150,
-          transform: `perspective(1000px) rotateX(38deg) rotateZ(-5deg) translate(${panX}px, ${panY}px) scale(${zoom})`,
-          transformOrigin: "50% 55%",
-          opacity: intro,
-        }}
-      >
-        <Img
-          src={staticFile(textureSrc)}
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            filter: "saturate(1.18) contrast(1.05)",
-          }}
-        />
-        <svg viewBox="0 0 1280 720" style={{ position: "absolute", inset: 0 }}>
-          <defs>
-            <filter id="atlasGlow">
-              <feGaussianBlur stdDeviation="5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-          <path
-            d="M278 330 C400 300 530 284 640 312 C770 344 855 288 982 260"
-            fill="none"
-            stroke="#ffffff"
-            strokeWidth="34"
-            strokeLinecap="round"
-            opacity="0.25"
-            pathLength={1}
-            strokeDasharray={1}
-            strokeDashoffset={1 - routeProgress}
-          />
-          <path
-            d="M278 330 C400 300 530 284 640 312 C770 344 855 288 982 260"
-            fill="none"
-            stroke={routeColor}
-            strokeWidth="12"
-            strokeLinecap="round"
-            filter="url(#atlasGlow)"
-            pathLength={1}
-            strokeDasharray={1}
-            strokeDashoffset={1 - routeProgress}
-          />
-          {[
-            { x: 278, y: 330, label: "北美", delay: 34 },
-            { x: 640, y: 312, label: "大西洋", delay: 92 },
-            { x: 982, y: 260, label: "欧洲", delay: 150 },
-          ].map((pin) => {
-            const pop = spring({ frame: frame - pin.delay, fps, config: { damping: 12, stiffness: 160 } });
-
-            return (
-              <g key={pin.label} transform={`translate(${pin.x} ${pin.y}) scale(${pop})`}>
-                <circle r="28" fill={routeColor} opacity="0.22" />
-                <circle r="11" fill={routeColor} stroke="#fff7ed" strokeWidth="4" />
-                <text
-                  x="0"
-                  y="-30"
-                  textAnchor="middle"
-                  fontSize="20"
-                  fontWeight="900"
-                  fill="#ffffff"
-                  stroke="#0f172a"
-                  strokeWidth="4"
-                  paintOrder="stroke"
-                >
-                  {pin.label}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            `linear-gradient(90deg, rgba(7,17,31,${overlayOpacity}), transparent 35%, transparent 70%, rgba(7,17,31,0.62))`,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: 70,
-          top: 58,
-          color: "white",
-          opacity: intro,
-          textShadow: "0 0 26px rgba(0,0,0,0.55)",
-        }}
-      >
-        <div style={{ fontSize: 58, fontWeight: 900, lineHeight: 1 }}>{title}</div>
-        <div style={{ marginTop: 14, fontSize: 24, color: "#fed7aa", fontWeight: 800 }}>
           {subtitle}
         </div>
       </div>

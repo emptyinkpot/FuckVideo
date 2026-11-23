@@ -1,10 +1,12 @@
+import { FONT_SANS, FONT_SERIF } from "../fonts";
 import type { CSSProperties } from "react";
 
 export type SceneTone = "historical" | "dark" | "clean" | "dramatic";
 
 export const fontStack = {
-  sans: "Inter, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', Arial, sans-serif",
-  serif: "'Noto Serif SC', 'Songti SC', Georgia, 'Times New Roman', serif",
+  // 只用项目自带的字体（src/fonts.ts），各台电脑渲染结果一致
+  sans: FONT_SANS,
+  serif: FONT_SERIF,
   mono: "'JetBrains Mono', 'SFMono-Regular', Consolas, monospace",
 };
 

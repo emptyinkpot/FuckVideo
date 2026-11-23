@@ -6,6 +6,7 @@ import {
   type MixkitRevealEffectKind,
   type MixkitRevealPresetId,
 } from "./mixkitRevealPresets";
+import { FONT_SANS } from "../fonts";
 
 export type MixkitRevealProps = {
   presetId?: MixkitRevealPresetId;
@@ -48,7 +49,7 @@ export const MixkitReveal = ({
   const drift = Math.sin(frame / 26) * 6 * intensity;
 
   return (
-    <AbsoluteFill style={{ background: bg, color: "white", overflow: "hidden", fontFamily: "Inter, Arial, sans-serif" }}>
+    <AbsoluteFill style={{ background: bg, color: "white", overflow: "hidden", fontFamily: FONT_SANS }}>
       <Atmosphere frame={frame} accent={accent} secondary={secondary} effectKind={preset.effectKind} />
       <div
         style={{

@@ -6,11 +6,11 @@
 
 ```txt
 datasets/*.ts
-  -> resolveHistoricalWorldState(date)
-  -> adapters/toWarTimeline.ts
-  -> data/*.timeline.ts
-  -> timeline/getWorldState.ts
-  -> engine
+  -> validateHistoricalDataset()          渲染前校验，有错直接报错
+  -> resolveHistoricalWorldState(date)    某一天每个区域的控制方、状态、颜色
+  -> layers/territory.ts                  画成控制区着色的贴地图层
+  -> wars/sinoJapaneseWar.ts              成片配置：事件顺序、镜头规则、阵营颜色、地名
+  -> scenes/SinoJapaneseWarDemo.tsx       组装镜头、图层（着色、战线、箭头、地名）和字幕
 ```
 
 ## 推荐建模
@@ -40,29 +40,18 @@ Event Process
 
 ## 静态底图补丁
 
-当前 `public/geojson/historical-world-1938.geojson` 是单一时间点底图，不适合直接表达 1931 到 1945 的连续变化。比如其中 `Empire of Japan` 的 multipolygon 第 `57` 个 part 把朝鲜/满洲相关大块静态合进日本范围，会导致满洲事变前和日本投降后仍残留固定白色块。
+当前 `src/earth3d/data/historical-world-1938.geojson` 是单一时间点底图，不适合直接表达 1931 到 1945 的连续变化。比如其中 `Empire of Japan` 的 multipolygon 第 `57` 个 part 是满洲，1932 年前属中国控制，1945 年后又回到中国。
 
-在精确历史 polygon 接入前，数据集可以用 `worldFeaturePartOverrides` 把该 part 当成一个可控地块重写颜色归属：
+数据集用 `geojson-feature-part` 类型的 geometry 把这个 part 单独定义成一个区域（`base-map-empire-of-japan-part-57`），再由 `ownership` 给出各时段的控制方。控制区着色时，底图里的日本帝国先整体着色，被史料库单独管理的 part 跳过，再按 `ownership` 逐区覆盖。
 
-```ts
-worldFeaturePartOverrides: [
-  {
-    featureName: "Empire of Japan",
-    partIndexes: [57],
-    controller: "manchukuo",
-    reason: "..."
-  }
-]
-```
-
-这不是最终史实边界，只是保留陆地几何并把错误静态底图纳入可复现时间线控制。最终应拆成朝鲜、关东州、满洲国、租借地等独立几何。
+这不是最终史实边界，只是把错误的静态底图纳入可复现的时间线控制。最终应拆成朝鲜、关东州、满洲国、租借地等独立几何。
 
 ## 粒度规则
 
 当前可直接渲染的中国区域只有：
 
 ```txt
-public/geojson/china-provinces-full.json
+src/earth3d/data/china-provinces.geojson
 ```
 
 所以数据库里不能把“局部历史区域”强行映射到一个现代省级整块。例如满洲国相关的西部边缘区域不能直接渲染成整个现代 `内蒙古自治区`。这类条目应当：

@@ -15,7 +15,7 @@ const modernProvinceRegion = (id: string, zh: string, en: string): HistoricalReg
       to: "1945-12-31",
       geometry: {
         type: "custom-geojson",
-        source: "public/geojson/china-provinces-full.json",
+        source: "src/earth3d/data/china-provinces.geojson",
         featureId: zh,
         level: "province",
         confidence: "medium",
@@ -94,7 +94,7 @@ export const sinoJapaneseWarDataset: HistoricalDataset = {
   },
   geometryPolicy: {
     currentRenderableLevels: ["province", "symbolic"],
-    defaultDataset: "public/geojson/china-provinces-full.json",
+    defaultDataset: "src/earth3d/data/china-provinces.geojson",
     note:
       "当前渲染层只有现代中国省级 overlay，不能把跨省、局部边疆或历史行政区直接等同于现代省级整块。满洲国、蒙疆、战役控制线后续应接入历史省界/市县级/自定义 polygon 数据。",
   },
@@ -147,7 +147,7 @@ export const sinoJapaneseWarDataset: HistoricalDataset = {
           to: "1945-12-31",
           geometry: {
             type: "geojson-feature-part",
-            source: "public/geojson/historical-world-1938.geojson",
+            source: "src/earth3d/data/historical-world-1938.geojson",
             featureName: "Empire of Japan",
             partIndexes: [57],
             level: "symbolic",

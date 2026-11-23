@@ -1,7 +1,6 @@
 import {
   AbsoluteFill,
   Audio,
-  Img,
   interpolate,
   Sequence,
   staticFile,
@@ -19,6 +18,8 @@ import {
   resolveProgressLayout,
   type VideoInfrastructureLayoutProps,
 } from "./MultiSceneVideo";
+import { FONT_SANS } from "../fonts";
+import { EarthBackdrop } from "../earth3d";
 
 export type NarratedCaption = {
   index: number;
@@ -81,7 +82,7 @@ export const NarratedVideo = ({
       style={{
         background: isHistorical ? "#090b0d" : "#f5f2eb",
         color: isHistorical ? "#f8fafc" : "#171717",
-        fontFamily: "Inter, Microsoft YaHei, Arial, sans-serif",
+        fontFamily: FONT_SANS,
         overflow: "hidden",
       }}
     >
@@ -93,19 +94,15 @@ export const NarratedVideo = ({
           opacity: isHistorical ? 0.55 : 0.35,
         }}
       >
-        <Img
-          src={staticFile("maps/natural-earth-world-4096.jpg")}
+        <AbsoluteFill
           style={{
-            position: "absolute",
-            inset: -80,
-            width: "calc(100% + 160px)",
-            height: "calc(100% + 160px)",
-            objectFit: "cover",
             filter: isHistorical
               ? "saturate(0.65) contrast(1.1) brightness(0.58)"
               : "saturate(0.7) contrast(0.95) brightness(1.04)",
           }}
-        />
+        >
+          <EarthBackdrop />
+        </AbsoluteFill>
       </AbsoluteFill>
 
       <AbsoluteFill

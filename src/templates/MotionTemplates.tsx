@@ -1,11 +1,14 @@
 import {
   AbsoluteFill,
   Img,
+  staticFile,
   interpolate,
   spring,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { FONT_SANS } from "../fonts";
+import { normalizeStaticMediaPath } from "./mediaSource";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -34,7 +37,7 @@ export const ClaudeTyperTemplate = ({
         background: backgroundColor,
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "Inter, Arial, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div
@@ -93,7 +96,7 @@ export const SpotlightRevealTemplate = ({
         justifyContent: "center",
         alignItems: "center",
         overflow: "hidden",
-        fontFamily: "Inter, Arial, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div
@@ -227,7 +230,7 @@ export const RulerProgressTemplate = ({
         background: backgroundColor,
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "Inter, Arial, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div style={{ width }}>
@@ -398,7 +401,7 @@ export const Wechat2DTemplate = ({
           background: "#ededed",
           overflow: "hidden",
           boxShadow: "0 28px 80px rgba(0,0,0,0.32)",
-          fontFamily: "Inter, Arial, sans-serif",
+          fontFamily: FONT_SANS,
         }}
       >
         <div
@@ -538,7 +541,8 @@ export type VinylPlayerTemplateProps = {
 export const VinylPlayerTemplate = ({
   title = "午夜模板系统",
   subtitle = "动态图形模板库",
-  coverImage = "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=400&auto=format&fit=crop",
+  // 封面图（Unsplash 照片，已下载到 public/images/，不依赖网络）
+  coverImage = "images/vinyl-cover.jpg",
   backgroundColor = "#080b0c",
 }: VinylPlayerTemplateProps) => {
   const frame = useCurrentFrame();
@@ -556,7 +560,7 @@ export const VinylPlayerTemplate = ({
         background: `radial-gradient(circle at 50% 38%, #243233, ${backgroundColor} 72%)`,
         justifyContent: "center",
         alignItems: "center",
-        fontFamily: "Inter, Arial, sans-serif",
+        fontFamily: FONT_SANS,
       }}
     >
       <div
@@ -584,7 +588,7 @@ export const VinylPlayerTemplate = ({
           }}
         >
           <Img
-            src={coverImage}
+            src={/^(https?:|blob:|data:)/i.test(coverImage) ? coverImage : staticFile(normalizeStaticMediaPath(coverImage))}
             style={{ width: 126, height: 126, borderRadius: "50%", objectFit: "cover" }}
           />
         </div>

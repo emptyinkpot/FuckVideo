@@ -20,9 +20,9 @@
     "compositionRegistry": "src/Root.tsx"
   },
   "runtimeAssets": [
-    "public/maps/",
-    "public/geojson/",
-    "public/historical-maps/"
+    "public/fonts/",
+    "public/images/",
+    "src/earth3d/assets/"
   ],
   "commands": {
     "studio": "npm run dev",

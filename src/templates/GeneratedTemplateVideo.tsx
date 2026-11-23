@@ -3,8 +3,8 @@ import {
   Audio,
   staticFile,
 } from "remotion";
-import { HistoricalGlobeTexture1938, SinoJapaneseWarDemo } from "../earth3d";
-import { AtlasMapFlyover, MapRouteFlyover } from "./MapTemplates";
+import { EarthFlyover, SinoJapaneseWarDemo } from "../earth3d";
+import { MapRouteFlyover } from "./MapTemplates";
 import {
   ClaudeTyperTemplate,
   ProceduralFishTemplate,
@@ -56,8 +56,7 @@ export type ExistingTemplateId =
   | "MetaphorVisual"
   | "MixkitReveal"
   | "SinoJapaneseWarDemo"
-  | "HistoricalGlobeTexture1938"
-  | "AtlasMapFlyover"
+  | "EarthFlyover"
   | "MapRouteFlyover"
   | "ClaudeTyper"
   | "SpotlightReveal"
@@ -102,8 +101,7 @@ const templates: Record<ExistingTemplateId, React.FC> = {
   MetaphorVisual: asTemplate(MetaphorVisual),
   MixkitReveal: asTemplate(MixkitReveal),
   SinoJapaneseWarDemo: asTemplate(SinoJapaneseWarDemo),
-  HistoricalGlobeTexture1938: asTemplate(HistoricalGlobeTexture1938),
-  AtlasMapFlyover: asTemplate(AtlasMapFlyover),
+  EarthFlyover: asTemplate(EarthFlyover),
   MapRouteFlyover: asTemplate(MapRouteFlyover),
   ClaudeTyper: asTemplate(ClaudeTyperTemplate),
   SpotlightReveal: asTemplate(SpotlightRevealTemplate),
@@ -131,9 +129,8 @@ export const templateOptions: Array<{ id: ExistingTemplateId; label: string }> =
     { id: "ConceptDiagram", label: "概念关系图" },
     { id: "MetaphorVisual", label: "隐喻可视化" },
     { id: "MixkitReveal", label: "Mixkit 揭示预设" },
-    { id: "SinoJapaneseWarDemo", label: "中日战争历史地球" },
-    { id: "HistoricalGlobeTexture1938", label: "1938 历史地球纹理" },
-    { id: "AtlasMapFlyover", label: "世界地图飞越" },
+    { id: "SinoJapaneseWarDemo", label: "中日战争三维地球" },
+    { id: "EarthFlyover", label: "三维地球路线飞越" },
     { id: "MapRouteFlyover", label: "路线地图飞越" },
     { id: "ThreeProductStage", label: "三维产品舞台" },
     { id: "ThreeParticleNebula", label: "三维粒子星云" },

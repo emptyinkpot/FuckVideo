@@ -1,3 +1,8 @@
+:root {
+  /* 项目自带字体，见 src/fonts.ts */
+  --default-font-family: Inter, 'Noto Sans SC', sans-serif;
+}
+
 /*
   Base CSS reset, previously supplied by Tailwind CSS (removed: no template used its utility
   classes). This is Tailwind CSS v4.0.0 preflight.css, kept so every composition renders exactly

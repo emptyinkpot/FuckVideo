@@ -1,6 +1,7 @@
 import {interpolate, useVideoConfig} from "remotion";
 import type {NarratedCaption} from "../templates/NarratedVideo";
 import type {CaptionLayout, CaptionStyle} from "./types";
+import { FONT_SANS } from "../fonts";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -136,7 +137,7 @@ const CaptionShell = ({
         border: hasPlate ? "1px solid rgba(255,255,255,0.16)" : "none",
         boxShadow: hasPlate ? "0 18px 52px rgba(0,0,0,0.36)" : "none",
         color: box.textColor,
-        fontFamily: "Inter, Microsoft YaHei, Arial, sans-serif",
+        fontFamily: FONT_SANS,
         fontSize: singleLineFontSize,
         lineHeight: box.lineHeight,
         fontWeight: box.fontWeight,

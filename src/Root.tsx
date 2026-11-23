@@ -1,10 +1,10 @@
 import "./preflight.css";
+import "./fonts";
 import { Composition } from "remotion";
 import { z } from "zod";
 import {
   Earth3DPreview,
-  EarthGlobe,
-  HistoricalGlobeTexture1938,
+  EarthFlyover,
   SINO_JAPANESE_WAR_DURATION,
   SinoJapaneseWarDemo,
 } from "./earth3d";
@@ -14,7 +14,7 @@ import {
   PromptProgressBar,
   PromptTextRotation,
 } from "./templates/PromptMotionExamples";
-import { AtlasMapFlyover, MapRouteFlyover } from "./templates/MapTemplates";
+import { MapRouteFlyover } from "./templates/MapTemplates";
 import {
   ClaudeTyperTemplate,
   ProceduralFishTemplate,
@@ -62,8 +62,7 @@ const templateIdSchema = z.enum([
   "MetaphorVisual",
   "MixkitReveal",
   "SinoJapaneseWarDemo",
-  "HistoricalGlobeTexture1938",
-  "AtlasMapFlyover",
+  "EarthFlyover",
   "MapRouteFlyover",
   "ClaudeTyper",
   "SpotlightReveal",
@@ -223,26 +222,6 @@ const narratedVideoSchema = z.object({
   ...videoInfrastructureLayoutSchema,
 }).passthrough();
 
-const earthGlobeSchema = z.object({
-  title: z.string(),
-  subtitle: z.string(),
-  rotationSpeed: z.number().min(-0.05).max(0.05),
-  startRotation: z.number().min(-10).max(10),
-  axialTiltDegrees: z.number().min(-90).max(90),
-  globeRadius: z.number().min(0.5).max(5),
-  cameraDistance: z.number().min(2).max(12),
-  cameraFov: z.number().min(10).max(90),
-  ambientIntensity: z.number().min(0).max(5),
-  sunIntensity: z.number().min(0).max(8),
-  sunColor: z.string(),
-  atmosphereColor: z.string(),
-  atmosphereOpacity: z.number().min(0).max(1),
-  routeAltitude: z.number().min(0).max(2),
-  routeThickness: z.number().min(0.001).max(0.08),
-  showStars: z.boolean(),
-  showOverlayText: z.boolean(),
-});
-
 const color = () => z.string();
 const text = () => z.string();
 
@@ -373,23 +352,25 @@ const mapRouteFlyoverSchema = z.object({
   glowColor: color(),
 });
 
-const atlasMapFlyoverSchema = z.object({
+// 地球画面的分层导出：full 完整；globe 只有基础地球；overlay 只有图层（透明背景）；labels 只有文字（透明背景）
+const renderPassSchema = z.enum(["full", "globe", "overlay", "labels"]);
+
+const earthFlyoverSchema = z.object({
   title: text(),
   subtitle: text(),
-  textureSrc: text(),
+  from: z.tuple([z.number().min(-180).max(180), z.number().min(-85).max(85)]),
+  to: z.tuple([z.number().min(-180).max(180), z.number().min(-85).max(85)]),
+  fromLabel: text(),
+  toLabel: text(),
   routeColor: color(),
   overlayOpacity: z.number().min(0).max(1),
-});
-
-const historicalGlobeTexture1938Schema = z.object({
-  title: text(),
-  subtitle: text(),
-  startLongitude: z.number().min(-360).max(360),
-  rotationDegreesPerFrame: z.number().min(-5).max(5),
-  projectionScale: z.number().min(120).max(520),
-  projectionTranslateX: z.number().min(-300).max(300),
-  projectionTranslateY: z.number().min(-300).max(300),
-  showLabels: z.boolean(),
+  layers: z.object({
+    rivers: z.boolean(),
+    borders: z.boolean(),
+    route: z.boolean(),
+    pins: z.boolean(),
+  }),
+  pass: renderPassSchema,
 });
 
 const sinoJapaneseWarDemoSchema = z.object({
@@ -399,6 +380,34 @@ const sinoJapaneseWarDemoSchema = z.object({
   cardBottom: z.number().min(0).max(500),
   progressTop: z.number().min(0).max(160),
   showProgressBar: z.boolean(),
+  layers: z.object({
+    rivers: z.boolean(),
+    borders: z.boolean(),
+    territory: z.boolean(),
+    frontlines: z.boolean(),
+    arrows: z.boolean(),
+    cities: z.boolean(),
+    regions: z.boolean(),
+  }),
+  pass: renderPassSchema,
+});
+
+const geoCameraSchema = z.object({
+  lon: z.number().min(-180).max(180),
+  lat: z.number().min(-90).max(90),
+  rangeKm: z.number().min(0.5).max(40000),
+  pitchDeg: z.number().min(0).max(89),
+  headingDeg: z.number().min(-360).max(360),
+});
+
+const earth3DPreviewSchema = z.object({
+  view: geoCameraSchema,
+  keyframes: z.array(z.object({ frame: z.number().min(0), camera: geoCameraSchema })),
+  exaggeration: z.number().min(0.5).max(5),
+  layers: z.object({ rivers: z.boolean(), buildings: z.boolean(), borders: z.boolean() }),
+  pixelError: z.number().min(0.5).max(8),
+  hazeDensity: z.number().min(0).max(0.1),
+  pass: renderPassSchema,
 });
 
 const defaultNarratedVideoProps = {
@@ -544,8 +553,7 @@ const threeDTickerDefaultProps: z.input<typeof threeDTickerSchema> = {
 const vinylPlayerDefaultProps: z.input<typeof vinylPlayerSchema> = {
   title: "午夜模板系统",
   subtitle: "动态图形模板库",
-  coverImage:
-    "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=400&auto=format&fit=crop",
+  coverImage: "images/vinyl-cover.jpg",
   backgroundColor: "#080b0c",
 };
 
@@ -624,36 +632,38 @@ const mapRouteFlyoverDefaultProps: z.input<typeof mapRouteFlyoverSchema> = {
   glowColor: "#0891b2",
 };
 
-const atlasMapFlyoverDefaultProps: z.input<typeof atlasMapFlyoverSchema> = {
-  title: "世界地图飞越",
-  subtitle: "Natural Earth 真实地图纹理",
-  textureSrc: "maps/natural-earth-world-4096.jpg",
+const earthFlyoverDefaultProps: z.input<typeof earthFlyoverSchema> = {
+  title: "关东州与南满铁路",
+  subtitle: "从大连到长春",
+  from: [121.6, 38.92],
+  to: [125.32, 43.88],
+  fromLabel: "大连",
+  toLabel: "长春",
   routeColor: "#f97316",
   overlayOpacity: 0.86,
-};
-
-const historicalGlobeTexture1938DefaultProps: z.input<
-  typeof historicalGlobeTexture1938Schema
-> = {
-  title: "1938 世界历史矢量地球",
-  subtitle: "国家区块可编辑填色，争议区斜线被地块边界裁切",
-  startLongitude: -104,
-  rotationDegreesPerFrame: 360 / 300,
-  projectionScale: 292,
-  projectionTranslateX: 0,
-  projectionTranslateY: 12,
-  showLabels: true,
+  layers: { rivers: true, borders: true, route: true, pins: true },
+  pass: "full",
 };
 
 const sinoJapaneseWarDemoDefaultProps: z.input<
   typeof sinoJapaneseWarDemoSchema
 > = {
   title: "1931-1945 中日战争演化",
-  subtitle: "时间线、镜头聚焦、战线与地图填色联动",
+  subtitle: "真实三维地球上的时间线、战线与占领区",
   cardLeft: 48,
   cardBottom: 42,
   progressTop: 34,
   showProgressBar: true,
+  layers: {
+    rivers: true,
+    borders: true,
+    territory: true,
+    frontlines: true,
+    arrows: true,
+    cities: true,
+    regions: true,
+  },
+  pass: "full",
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -952,56 +962,19 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={mapRouteFlyoverDefaultProps}
       />
       <Composition
-        id="AtlasMapFlyover"
-        component={AtlasMapFlyover}
-        schema={atlasMapFlyoverSchema}
+        id="EarthFlyover"
+        component={EarthFlyover}
+        schema={earthFlyoverSchema}
         durationInFrames={240}
         fps={30}
         width={1280}
         height={720}
-        defaultProps={atlasMapFlyoverDefaultProps}
-      />
-      <Composition
-        id="EarthGlobe"
-        component={EarthGlobe}
-        schema={earthGlobeSchema}
-        durationInFrames={300}
-        fps={30}
-        width={1280}
-        height={720}
-        defaultProps={{
-          title: "全球航线网络",
-          subtitle: "8192px Natural Earth 球面纹理",
-          rotationSpeed: 0.006,
-          startRotation: -0.7,
-          axialTiltDegrees: 23.5,
-          globeRadius: 2.25,
-          cameraDistance: 6.2,
-          cameraFov: 36,
-          ambientIntensity: 0.6,
-          sunIntensity: 2.2,
-          sunColor: "#ffffff",
-          atmosphereColor: "#60a5fa",
-          atmosphereOpacity: 0.18,
-          routeAltitude: 0.72,
-          routeThickness: 0.018,
-          showStars: true,
-          showOverlayText: true,
-        }}
-      />
-      <Composition
-        id="HistoricalGlobeTexture1938"
-        component={HistoricalGlobeTexture1938}
-        schema={historicalGlobeTexture1938Schema}
-        durationInFrames={300}
-        fps={30}
-        width={1280}
-        height={720}
-        defaultProps={historicalGlobeTexture1938DefaultProps}
+        defaultProps={earthFlyoverDefaultProps}
       />
       <Composition
         id="Earth3DPreview"
         component={Earth3DPreview}
+        schema={earth3DPreviewSchema}
         durationInFrames={300}
         fps={30}
         width={1280}
@@ -1012,6 +985,12 @@ export const RemotionRoot: React.FC = () => {
             { frame: 150, camera: { lon: 118.4, lat: 32.4, rangeKm: 900, pitchDeg: 35, headingDeg: 0 } },
             { frame: 299, camera: { lon: 118.78, lat: 32.04, rangeKm: 40, pitchDeg: 62, headingDeg: 20 } },
           ],
+          view: { lon: 116, lat: 33, rangeKm: 14000, pitchDeg: 0, headingDeg: 0 },
+          exaggeration: 1,
+          layers: { rivers: true, buildings: true, borders: true },
+          pixelError: 1.5,
+          hazeDensity: 1 / 140,
+          pass: "full",
         }}
       />
       <Composition

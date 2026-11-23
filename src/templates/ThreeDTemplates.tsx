@@ -1,5 +1,6 @@
 import { ThreeCanvas } from "@remotion/three";
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { FONT_SANS } from "../fonts";
 
 const orbit = (frame: number, radius: number, speed: number, offset = 0) => {
   const angle = frame * speed + offset;
@@ -49,7 +50,7 @@ export const ThreeProductStage = ({
           bottom: 72,
           textAlign: "center",
           color: "white",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: FONT_SANS,
           fontSize: 42,
           fontWeight: 900,
           textShadow: `0 0 24px ${accentColor}aa`,
@@ -207,7 +208,7 @@ export const ThreeCardCascade = ({
           left: 90,
           top: 86,
           color: "white",
-          fontFamily: "Inter, sans-serif",
+          fontFamily: FONT_SANS,
           fontSize: 58,
           fontWeight: 900,
           lineHeight: 1,

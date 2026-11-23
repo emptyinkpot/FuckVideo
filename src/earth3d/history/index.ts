@@ -1,5 +1,4 @@
 export * from "./schema";
-export * from "./adapters/toWarTimeline";
 export * from "./getRegionColor";
 export * from "./resolveHistoricalWorldState";
 export * from "./validateHistoricalDataset";

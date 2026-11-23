@@ -31,6 +31,9 @@ asset-source/remotionlab/
 # Upstream reference clone (https://github.com/av/remotion-bits), local only; not imported by code.
 asset-source/programmatic-visual-assets/remotion-bits/
 
-# earth3d: generated render data and raw download cache (rebuild with src/earth3d/scripts/build_all.py).
-src/earth3d/assets/
+# earth3d: terrain tiles (~775 MB) and the raw download cache are rebuilt by
+# src/earth3d/pipeline/build_all.py and checked against src/earth3d/assets.sha256.
+# The small data files in src/earth3d/assets/ (cities, rivers, borders) are committed.
+src/earth3d/assets/tiles/*
+!src/earth3d/assets/tiles/.gitkeep
 src/earth3d/.cache/

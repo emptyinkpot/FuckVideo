@@ -156,8 +156,8 @@
     "sceneRole": ["metaphor", "transition", "explain"]
   },
   {
-    "id": "AtlasMapFlyover",
-    "displayName": "世界地图飞越",
+    "id": "EarthFlyover",
+    "displayName": "三维地球路线飞越",
     "category": "map",
     "accepts": {
       "visualKinds": ["map"],
@@ -177,7 +177,7 @@
     },
     "bestFor": ["港", "铁路", "路线", "大陆", "关东州", "南满", "旅顺", "大连", "黄海", "东京", "霞关", "俄国", "日本", "满洲", "地图"],
     "avoidFor": ["条约原文", "人物身份", "单句引用"],
-    "visualMetaphor": "真实世界地图纹理上出现路线和地理标签，表现地点关系和权益流向",
+    "visualMetaphor": "真实比例三维地球上，镜头从俯瞰推向终点，路线箭头沿地表从起点长到终点，表现地点关系和权益流向",
     "requiredProps": {
       "title": "地理主题",
       "subtitle": "地理关系说明",
@@ -217,34 +217,6 @@
     },
     "durationRangeSec": [5, 8],
     "sceneRole": ["route", "map", "process"]
-  },
-  {
-    "id": "HistoricalGlobeTexture1938",
-    "displayName": "1938 历史地球",
-    "category": "map",
-    "accepts": {
-      "visualKinds": ["map", "atmosphere"],
-      "requiredEntities": [],
-      "requiredFields": ["title", "subtitle"],
-      "optionalFields": ["showLabels"]
-    },
-    "rejectIf": {
-      "containsVisualKind": ["document_only", "quote_only"],
-      "textTooAbstract": false
-    },
-    "propMapping": {
-      "title": "visualNeed.mustShow[0] || props.title",
-      "subtitle": "summary"
-    },
-    "bestFor": ["战争", "战役", "硝烟", "军", "参谋", "作战", "焦土", "铁锈", "占领", "东亚", "世界局势"],
-    "avoidFor": ["单句引用", "条约正文", "人物卡片"],
-    "visualMetaphor": "可旋转历史地球表现大范围地缘格局",
-    "requiredProps": {
-      "title": "历史局势标题",
-      "subtitle": "时间或空间说明"
-    },
-    "durationRangeSec": [5, 9],
-    "sceneRole": ["establishing", "war", "geopolitics"]
   },
   {
     "id": "PromptTextRotation",

@@ -13,6 +13,7 @@ import { getCompositions, renderStill } from "@remotion/renderer";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { earth3dWebpackOverride } from "../src/earth3d/webpackOverride.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const expectedPath = path.join(root, "tests", "fixtures", "compositions.json");
@@ -24,6 +25,8 @@ const only = args.filter((a) => !a.startsWith("--"));
 const serveUrl = await bundle({
   entryPoint: path.join(root, "src", "index.ts"),
   publicDir: path.join(root, "public"),
+  // The Node bundler does not read remotion.config.ts, so pass the earth3d asset rules here too.
+  webpackOverride: earth3dWebpackOverride,
 });
 const compositions = await getCompositions(serveUrl);
 const ids = compositions.map((c) => c.id);
@@ -49,7 +52,17 @@ for (const comp of compositions) {
   const output = path.join(outDir, `${comp.id}.jpeg`);
   const started = Date.now();
   try {
-    await renderStill({ composition: comp, serveUrl, output, frame, imageFormat: "jpeg", inputProps: comp.props });
+    await renderStill({
+      composition: comp,
+      serveUrl,
+      output,
+      frame,
+      imageFormat: "jpeg",
+      inputProps: comp.props,
+      // The 3D Earth compositions need a GPU-backed WebGL context.
+      chromiumOptions: { gl: "angle" },
+      timeoutInMilliseconds: 180000,
+    });
     console.log(`ok   ${comp.id} (frame ${frame}, ${Date.now() - started}ms)`);
   } catch (error) {
     failed++;

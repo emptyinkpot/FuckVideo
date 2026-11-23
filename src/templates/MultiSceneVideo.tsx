@@ -15,6 +15,7 @@ import {
 } from "../video-infrastructure/VideoInfrastructure";
 import { isLikelyMediaFile, normalizeStaticMediaPath } from "./mediaSource";
 import { type AutoScene, renderSceneTemplate } from "./sceneRegistry";
+import { FONT_SANS } from "../fonts";
 
 export const defaultCaptionLayout = {
   left: 78,
@@ -157,7 +158,7 @@ export const defaultMultiSceneVideoProps = {
         action: "route",
         locations: ["关东州", "南满铁路"],
       },
-      templateId: "AtlasMapFlyover",
+      templateId: "EarthFlyover",
       durationSec: 7,
       fromFrame: 180,
       durationInFrames: 210,
@@ -165,7 +166,10 @@ export const defaultMultiSceneVideoProps = {
       props: {
         title: "关东州与南满铁路",
         subtitle: "地理利益被重新组织",
-        textureSrc: "maps/natural-earth-world-4096.jpg",
+        from: [121.6, 38.92],
+        to: [125.32, 43.88],
+        fromLabel: "大连",
+        toLabel: "长春",
         routeColor: "#f4d35e",
         overlayOpacity: 0.78,
       },
@@ -209,7 +213,7 @@ export const MultiSceneVideo = ({
                 bottom: 22,
                 color: "rgba(255,255,255,0.76)",
                 fontSize: 16,
-                fontFamily: "Inter, Arial, sans-serif",
+                fontFamily: FONT_SANS,
                 padding: "7px 10px",
                 borderRadius: 8,
                 background: "rgba(0,0,0,0.42)",

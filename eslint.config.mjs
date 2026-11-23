@@ -24,6 +24,8 @@ const publicRemotionApiOnly = {
 };
 
 export default [
+  // earth3d 的下载缓存（含 Python 虚拟环境）和生成数据不是项目源码
+  { ignores: ["src/earth3d/.cache/**", "src/earth3d/assets/**"] },
   ...(Array.isArray(config) ? config : [config]),
   publicRemotionApiOnly,
 ];

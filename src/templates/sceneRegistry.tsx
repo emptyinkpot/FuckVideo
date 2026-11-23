@@ -1,6 +1,6 @@
 import { AbsoluteFill } from "remotion";
-import { HistoricalGlobeTexture1938 } from "../earth3d";
-import { AtlasMapFlyover, MapRouteFlyover } from "./MapTemplates";
+import { EarthFlyover } from "../earth3d";
+import { MapRouteFlyover } from "./MapTemplates";
 import { RulerProgressTemplate, SvgAssemblyTemplate } from "./MotionTemplates";
 import { PromptHistogram, PromptTextRotation } from "./PromptMotionExamples";
 import { DocumentReveal, type DocumentRevealProps } from "./DocumentReveal";
@@ -16,6 +16,7 @@ import {
   type PortraitFocusProps,
   type QuoteRevealProps,
 } from "./AutoSceneTemplates";
+import { FONT_SANS } from "../fonts";
 
 export type AutoSceneTemplateId =
   | "DocumentReveal"
@@ -23,9 +24,8 @@ export type AutoSceneTemplateId =
   | "PortraitFocus"
   | "ConceptDiagram"
   | "MetaphorVisual"
-  | "AtlasMapFlyover"
+  | "EarthFlyover"
   | "MapRouteFlyover"
-  | "HistoricalGlobeTexture1938"
   | "SvgAssembly"
   | "PromptHistogram"
   | "RulerProgress"
@@ -99,7 +99,7 @@ const FallbackScene = ({
       color: "#f8fafc",
       justifyContent: "center",
       padding: 82,
-      fontFamily: "Inter, Arial, sans-serif",
+      fontFamily: FONT_SANS,
     }}
     hidden
   >
@@ -167,13 +167,12 @@ export const renderSceneTemplate = (scene: AutoScene) => {
           })}
         />
       );
-    case "AtlasMapFlyover":
+    case "EarthFlyover":
       return (
-        <AtlasMapFlyover
-          {...asProps<React.ComponentProps<typeof AtlasMapFlyover>>({
+        <EarthFlyover
+          {...asProps<React.ComponentProps<typeof EarthFlyover>>({
             title: commonProps(scene).title,
             subtitle: commonProps(scene).subtitle,
-            textureSrc: "maps/natural-earth-world-4096.jpg",
             routeColor: "#f4d35e",
             overlayOpacity: 0.76,
             ...scene.props,
@@ -189,22 +188,6 @@ export const renderSceneTemplate = (scene: AutoScene) => {
             backgroundColor: "#09111f",
             routeColor: "#06b6d4",
             glowColor: "#0891b2",
-            ...scene.props,
-          })}
-        />
-      );
-    case "HistoricalGlobeTexture1938":
-      return (
-        <HistoricalGlobeTexture1938
-          {...asProps<React.ComponentProps<typeof HistoricalGlobeTexture1938>>({
-            title: commonProps(scene).title,
-            subtitle: commonProps(scene).subtitle,
-            startLongitude: -104,
-            rotationDegreesPerFrame: 1.2,
-            projectionScale: 292,
-            projectionTranslateX: 0,
-            projectionTranslateY: 12,
-            showLabels: true,
             ...scene.props,
           })}
         />

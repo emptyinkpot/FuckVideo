@@ -1,0 +1,37 @@
+{
+  "hydrorivers_as": {
+    "url": "https://data.hydrosheds.org/file/HydroRIVERS/HydroRIVERS_v10_as_shp.zip",
+    "files": {
+      "HydroRIVERS_v10_as_shp/HydroRIVERS_v10_as.dbf": "676f21c0ffa68f4655d21263067e57a99f05608a03db20cbdd5a3d1904d325ff",
+      "HydroRIVERS_v10_as_shp/HydroRIVERS_v10_as.shp": "827e03a8e419b9578d5f246bcce1c93de1a0bd561a9f572fe84606c5d36d31fa"
+    }
+  },
+  "hydrorivers_si": {
+    "url": "https://data.hydrosheds.org/file/HydroRIVERS/HydroRIVERS_v10_si_shp.zip",
+    "files": {
+      "HydroRIVERS_v10_si_shp/HydroRIVERS_v10_si.dbf": "ea3d633fa29988d89a38b0ef7763d902064f53eb7b0218613580ce9aec83573e",
+      "HydroRIVERS_v10_si_shp/HydroRIVERS_v10_si.shp": "c32da0874c254b87a94117db88579005ed67d6d88752e45259280575ddf140e7"
+    }
+  },
+  "ne_lakes": {
+    "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip",
+    "files": {
+      "ne_10m_lakes.dbf": "0edaa87f76c2221c986f0796ce0b54b1c418e9032afba46f8e302edc41193495",
+      "ne_10m_lakes.shp": "11064fa55ed91b56a0d86733643c1a5bfcc137fdf044e83f471978a5b86617e1"
+    }
+  },
+  "ne_ocean": {
+    "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_ocean.zip",
+    "files": {
+      "ne_10m_ocean.dbf": "4b2f302a84bcbb0fe5d744a9b40df173f562e07eb57532935fb6bc664d21fa33",
+      "ne_10m_ocean.shp": "bb5ae1e0922b02e61e14f6d562fc2299db4bef5ca36c1008b1a8e7ddf9da6410"
+    }
+  },
+  "ne_places": {
+    "url": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_populated_places.zip",
+    "files": {
+      "ne_10m_populated_places.dbf": "eff834a8727e06f28fc52b04393c462d074aecf9a7acd1b870e766240a995b6c",
+      "ne_10m_populated_places.shp": "f4073365d248dfe35a44cca6715bf5b4812fa723294ed6a37043d7a3e09cc998"
+    }
+  }
+}
