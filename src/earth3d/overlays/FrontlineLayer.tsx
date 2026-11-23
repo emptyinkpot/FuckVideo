@@ -1,6 +1,6 @@
 import type { GeoProjection } from "d3-geo";
 import { interpolate, useCurrentFrame } from "remotion";
-import type { AttackArrow, Frontline } from "../data/sino-japanese-war.timeline";
+import type { AttackArrow, Frontline } from "../history/sino-japanese-war.timeline";
 
 type FrontlineLayerProps = {
   projection: GeoProjection;

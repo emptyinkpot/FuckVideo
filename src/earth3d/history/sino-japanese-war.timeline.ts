@@ -2,8 +2,8 @@ import {
   datasetActorsToTerritoryColors,
   datasetSubjectAliasesToActorIds,
   datasetToWarTimeline,
-} from "../history-db/adapters/toWarTimeline";
-import { sinoJapaneseWarDataset } from "../history-db/datasets/sino-japanese-war";
+} from "./adapters/toWarTimeline";
+import { sinoJapaneseWarDataset } from "./datasets/sino-japanese-war";
 export type {
   AttackArrow,
   Frontline,

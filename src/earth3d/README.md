@@ -1,267 +1,183 @@
-# Historical Globe Engine
+# earth3d：地球模块
 
-`src/historical-globe` 是当前项目里的历史地球视频引擎目录。它基于 Remotion、React 和 `d3-geo`，用 GeoJSON 国家/地区区块生成可编程的历史地球动画。
+项目里所有和地球有关的源码、预处理脚本、数据和说明都集中在 `src/earth3d/`。模块外的代码只从 `src/earth3d/index.ts` 引用。
 
-## 当前能力
+## 新地球的表现形式
 
-- 使用 `geoOrthographic` 把 GeoJSON 区块投影成球形地球。
-- 按 Remotion 帧数驱动地球旋转，当前 300 帧旋转 360 度，可无缝循环。
-- 使用 `SUBJECTO` 字段给殖民地、傀儡区和特殊地区继承主导国颜色。
-- 支持国家/地区级颜色覆盖，例如中国主体、日本、苏联、德国、英国、法国等。
-- 支持额外 GeoJSON overlay，当前叠加中国省级边界数据。
-- 支持争议区/特殊区底纹：底纹绘制在填色之上，并被真实地块边界裁切。
-- 支持城市点、城市中文标签、国家标签、地形线和基础光影。
-- 支持结构化历史数据库：史实、控制区、战线、来源和可信度独立维护，demo timeline 从数据库派生。
-- 支持历史 actor 颜色别名：`Empire of Japan`、`japan`、`manchukuo` 等通过数据库统一映射，避免世界底图和省级占领 overlay 颜色不一致。
-- 支持世界底图几何补丁：可按 `featureName + MultiPolygon part index` 保留地块并重写颜色归属，避免 1938 静态底图污染 1931/1945 等时间点。
-- 当前历史贴图 JPG 版本已删除，`HistoricalGlobeTexture1938` 名称保留但实际是矢量地球。
+新地球是按真实比例建模的三维地球，1 个单位等于 1 公里，地球半径 6371。地表不用照片或画好的贴图。
+
+- **地形**：真实三维网格。顶点按真实高程抬高或压低，比例 1:1，默认不夸张（`exaggeration` 参数可调）。
+- **地表颜色**：由 GPU 着色器逐像素计算。依据是地表类型（林地、耕地、草地、裸地、冰雪、湿地等）、海拔、坡度和纬度。地表分类以数据纹理的形式传给 GPU，里面存的是分类编号，不会作为图片显示。近处由程序生成的细节接替：
+  - 农田：成片的长条形田块
+  - 村庄：农田里大约每 1.3 公里一个
+  - 城区：旧城的胡同、街道和瓦顶
+- **水**：海洋、湖泊、河流都是独立的三维水面网格。
+  - 海洋颜色按真实海底深度渐变，近岸偏浑浊。
+  - 湖泊有各自的水位。
+  - 河流沿真实河道铺设，宽度按流量计算。
+  - WorldCover 标为水体的河道和池塘也按水面着色。
+- **建筑**：按城市位置和 1930 年代人口程序生成。
+  - 中国城市：东西向胡同、四合院式地块（北正房、东西厢房、临街倒座房）。
+  - 大城市中心：联排房屋和零星的多层楼。
+  - 相机高度低于约 6.5 公里时开始出现，从地面逐渐升起。
+- **天空和大气**：低空是蓝天和空气透视，升到太空后变为星空，地球边缘有受光一侧的大气辉光。
+- **国界**：1938 年陆上国界，贴着地面起伏，按像素宽度绘制。
+- **精度分级**：整个地球切成四叉树分块，镜头近处细、远处粗。所有分块用同一套数据、同一套生成方法、同一个材质，接缝处用裙边遮挡，边缘法线用分块外多存的一圈采样点计算。不存在局部贴片，镜头对准哪里都不会改变地图本身。
+
+全球统一细分到第 5 级。战区范围（东经 97–146°，北纬 18–54°）细分到第 9 级，最细一级的网格点间距约 240 米，与高程数据本身的分辨率一致。
+
+## 当前状态
+
+| 部分 | 状态 |
+|---|---|
+| 源码集中到本目录，旧的局部贴片方案已删除 | 完成 |
+| 数据预处理（高程、地表分类、水域、湖泊水位、河流、城市、国界、分块） | 完成 |
+| 地形分块、精度分级、地表着色、水面、河流、天空大气 | 完成 |
+| 1930 年代城市建筑、村庄、农田 | 完成，见下方已知问题 |
+| 1938 年国界 | 完成 |
+| 预览组合 `Earth3DPreview`（Root 中注册，默认镜头从太空降到南京上空） | 完成 |
+| 战线、进攻箭头、占领区着色、城市和地名标签 | 未开始 |
+| `compositions/SinoJapaneseWarDemo.tsx` 接入新地球 | 未开始，目前仍使用 `legacy/` 里的矢量地球 |
+
+### 已知问题
+
+- 真实比例下，几十公里外看一两千米的山起伏不大。地形数据本身没有问题，开 2.5 倍高度夸张时山体很清楚。
+- 没有投射阴影，山体立体感只靠坡面明暗。
+- 城市街网过于规整，没有城墙、河道穿城和成片绿地；城区外缘是按城市规模生成的不规则圆形。
+- 地表分类在 300 米尺度上能看出成块的轮廓。
+- 里海在 Natural Earth 海洋数据里算作海洋，水面按海平面 0 米画（实际约 -28 米），沿岸低地会被淹没一圈。
 
 ## 目录结构
 
 ```txt
-src/historical-globe/
-  README.md
-  project.json
-  compositions/
-    HistoricalGlobeTexture1938.tsx
-    SinoJapaneseWarDemo.tsx
+src/earth3d/
+  README.md                 本文件
+  index.ts                  对外唯一出口
+  EarthScene.tsx            场景组装：按镜头摆相机、选块加载、画地形水面河流建筑天空国界
+  core/
+    geo.ts                  比例尺、经纬度与场景坐标换算、瓦片范围
+    webpack-context.d.ts    require.context 与 .bin 资源的类型声明
+  terrain/
+    tileStore.ts            分块加载（gzip 解压）、截图等待与放行、按经纬度取高度和水面
+    selectTiles.ts          四叉树选块：按屏幕误差细分，视锥外和地平线后剔除
+    chunkMesh.ts            单个分块的地形网格（含裙边）、水面网格、地表分类纹理
+  materials/
+    earthUniforms.ts        所有材质共享的相机、太阳、雾、时间参数
+    shaderChunks.ts         噪声、空气透视、光照的 GLSL 片段
+    terrainMaterial.ts      地表着色器（分类着色、农田、村庄、城区、岩石、积雪）
+    waterMaterial.ts        海洋湖泊水面
+    riverMaterial.ts        河流
+    skyMaterials.ts         天空、太空大气辉光、星空
+  water/
+    rivers.ts               河网加载与带状网格
+  buildings/
+    cityBuildings.ts        城市建筑生成（街网、院落、联排房）
+    buildingMaterial.ts     房屋网格与材质
+  overlays/
+    geoLines.ts             贴地带状线（按像素宽度），国界和后续的战线共用
+    borders.ts              1938 年国界
+    FrontlineLayer.tsx      旧矢量地球用的战线、箭头
   camera/
-    cameraPresets.ts
-  data/
-    sino-japanese-war.timeline.ts
-    warTimelineTypes.ts
-  engine/
-    EditableHistoricalWorldGlobe.tsx
-  history-db/
-    schema.ts
-    index.ts
-    README.md
-    resolveHistoricalWorldState.ts
-    validateHistoricalDataset.ts
-    adapters/
-      toWarTimeline.ts
-    datasets/
-      sino-japanese-war.ts
-  layers/
-    FrontlineLayer.tsx
-  timeline/
-    getWorldState.ts
+    geoCamera.ts            地理相机（目标点、距离、俯仰、朝向）、镜头过渡、太阳方位
+    cameraPresets.ts        旧矢量地球用的按事件计算镜头
+  compositions/
+    Earth3DPreview.tsx      新地球预览
+    SinoJapaneseWarDemo.tsx 1931–1945 中日战争成片
+  history/                  史料库与战争时间线（字段说明见 history/README.md）
+  legacy/                   旧的地球实现，现有模板仍在使用
+    EditableHistoricalWorldGlobe.tsx   d3-geo 正交投影的 SVG 矢量地球
+    HistoricalGlobeTexture1938.tsx     1938 世界格局（基于上面的矢量地球）
+    EarthGlobeTemplate.tsx             照片贴图的光球模板（Root 中的 EarthGlobe）
+  scripts/                  数据预处理（Python）
+    config.py               路径、数据源、战区范围、各级网格大小
+    dem.py                  高程瓦片双线性取样、SRTM 空洞去坑
+    fetch_dem.py            下载高程瓦片
+    fetch_vectors.py        下载河流、湖泊、海洋、城市矢量数据
+    fetch_landcover.py      读取 ESA WorldCover 地表分类（只读云端 COG 的缩略层级）
+    build_cities.py         1930 年代城市表（位置、人口、城区轮廓）
+    build_masks.py          海洋、湖泊掩码和湖泊水位；1937 年后修建的水库按陆地处理
+    build_rivers.py         河流（平滑、按流量定宽、水面不往下游爬升）
+    build_borders.py        1938 年陆上国界
+    build_tiles.py          渲染分块
+    build_all.py            按顺序跑完以上全部步骤
+  assets/                   生成的渲染数据，约 415MB（不提交）
+  .cache/                   原始下载缓存和 Python 虚拟环境，约 2.8GB（不提交）
 ```
 
-## 关键文件
+## 数据来源
 
-- `compositions/HistoricalGlobeTexture1938.tsx`
-  - 当前 1938 历史地球 Composition 的参数入口。
-  - 常用调整优先改这里，包括数据源、颜色、底纹区域、城市、标签、旋转速度和视角。
+| 数据 | 来源 | 用途 | 署名要求 |
+|---|---|---|---|
+| 高程 | Mapzen Terrain Tiles（AWS Open Data，Terrarium 编码；包含 SRTM、ETOPO1、GMTED2010 等） | 地形、海底 | 需按 <https://github.com/tilezen/joerd/blob/master/docs/attribution.md> 署名 |
+| 地表分类 | ESA WorldCover 2021 v200 | 地表上色 | © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021)，CC BY 4.0 |
+| 河流 | HydroRIVERS v1.0（亚洲、西伯利亚） | 河道、宽度 | Lehner & Grill 2013，需署名 |
+| 湖泊、海洋、城市 | Natural Earth 10m | 水面范围、城市位置 | 公有领域 |
+| 1938 国界 | `public/geojson/historical-world-1938.geojson`（源自 historical-basemaps，GPL-3.0） | 国界 | 见 `asset-source/historical-basemaps/` |
 
-- `engine/EditableHistoricalWorldGlobe.tsx`
-  - 当前 Globe Engine。
-  - 负责加载 GeoJSON、建立正交投影、生成 SVG path、渲染国家、省级 overlay、底纹、城市、标签和光影。
-  - 暴露 `extraOverlay` 扩展口，可把战线、箭头、事件层插入到地图之上、光影之下。
+使用新地球的视频需要在片尾附上述署名。
 
-- `compositions/SinoJapaneseWarDemo.tsx`
-  - 1931-1945 中日战争演化 demo。
-  - 使用时间线事件驱动镜头焦点、缩放、底纹省份、进攻箭头、战线和事件标签。
+WorldCover 是 2021 年的地表数据。现代建成区按耕地处理，1937 年时的城区按 `build_cities.py` 里的城市轮廓重新标记；1937 年后修建的水库（如三峡、丹江口、新安江）按陆地处理。
 
-- `layers/FrontlineLayer.tsx`
-  - 战线和进攻箭头图层。
-  - 使用当前地球投影把经纬度点投影到屏幕，支持流动虚线和动态箭头。
+## 重建数据
 
-- `data/sino-japanese-war.timeline.ts`
-  - 中日战争 demo 的渲染时间线适配层。
-  - 不直接维护史实；它从 `history-db/datasets/sino-japanese-war.ts` 派生 `WarEvent[]`，保留给现有渲染层使用。
-
-- `history-db/schema.ts`
-  - 结构化历史数据 Schema。
-  - 包含 actor、region、geometry ref、territorial control、event process、render policy、source、confidence 和 note。
-
-- `history-db/resolveHistoricalWorldState.ts`
-  - 通用历史归属解析器。
-  - 输入 `dataset + date`，输出 `HistoricalWorldState`：每个 region 的 geometry、controller、sovereign、status、color、confidence。
-
-- `history-db/getRegionColor.ts`
-  - 历史数据链路的唯一颜色入口。
-  - 根据 `actors + renderPolicy + ownership` 解析颜色；adapter 和 Composition 只消费 resolved color，不再二次根据 actor 名称查色。
-
-- `history-db/validateHistoricalDataset.ts`
-  - 数据集一致性校验器。
-  - 检查 ownership 是否引用存在的 region/actor，event 是否引用存在的 actor/region。
-
-- `history-db/datasets/sino-japanese-war.ts`
-  - 中日战争第一版事实数据集。
-  - 这里是当前 demo 的事实源；新增/校正历史控制区、战线、来源和可信度优先改这里。
-
-- `history-db/adapters/toWarTimeline.ts`
-  - 把 `HistoricalDataset` 转换成现有 Remotion demo 使用的 `WarEvent[]`。
-
-- `timeline/getWorldState.ts`
-  - 把离散事件转成连续渲染状态。
-  - 统一输出 camera、领土颜色覆盖、战线淡入淡出、箭头淡入淡出、底纹省份和标签名单。
-
-## 数据源
-
-当前使用的静态数据在 `public` 目录：
-
-```txt
-public/geojson/historical-world-1938.geojson
-public/geojson/china-provinces-full.json
-```
-
-`historical-world-1938.geojson` 使用 `NAME` 表示具体地块名，使用 `SUBJECTO` 表示主导国/宗主国。配置里通过 `governingAliases` 把 `Tibet` 和 `Xinjiang` 归并到 `Chinese warlords`，使其颜色跟中国主体一致。
-
-## 历史数据原则
-
-这个工程现在按“历史数据驱动”组织：
-
-```txt
-history-db/datasets/*.ts
-  -> resolveHistoricalWorldState(date)
-  -> adapter
-  -> WarEvent[]
-  -> WorldState(frame)
-  -> Globe Engine
-```
-
-AI 可以生成镜头、节奏、文案和视觉样式，但不应该直接决定“谁占领哪里、战线在哪里”。史实判断必须写入 `history-db/datasets`，并保留 `sources`、`confidence`、`note`。第一版战线仍有示意性质，低可信度条目不应当被当作精确 GIS 边界。
-
-颜色也由历史数据层统一管理。傀儡国、殖民地、租借地和占领地如果应遵从主导国颜色，必须通过 `actors` / `subjectAliases` / `controller` / `sovereignId` / `renderPolicy` 表达，并统一经过 `getRegionColor()` 解析。Composition 只接收 resolved color，不应再为历史地块单独写另一套颜色。
-
-建议长期数据模型拆成两组：
-
-```txt
-Control Snapshot:
-  每个时间点谁控制哪些地块、使用什么显示名称、继承什么颜色、可信度和来源。
-
-Event Process:
-  每个事件的日期、发起方、发起地、目标地、路径、过程、结果、来源和可信度。
-```
-
-渲染时由 `Control Snapshot` / `ownership` 决定地图填色，由 `Event Process` / `events` 决定箭头、战线、标签和解说。这样同一事件可以复现，颜色和归属也不会散落在多个 Composition 文件里。
-
-当前状态：`SinoJapaneseWarDemo` 的地图归属只从 `regions + ownership + resolveHistoricalWorldState(date)` 派生；`events` 提供镜头、字幕、箭头和战线。不存在 `moments` 兼容路径。
-
-## 行政区粒度
-
-当前可渲染地块粒度：
-
-```txt
-世界层：1938 历史国家/殖民地/特殊地区 GeoJSON
-中国层：现代中国省级 GeoJSON overlay
-```
-
-这意味着当前不能精确表达“只占某个省的一部分”或“历史行政区跨越现代省界”的情况。满洲国就是典型例子：不能用现代 `内蒙古自治区` 整块表示满洲国西部边缘或热河/兴安等历史区域。没有精确 geometry 的区域应先保留在资料层或事件说明里，不进入 `ownership` 渲染链路，避免误上色。
-
-当前 1938 世界底图中 `Empire of Japan` 是一个 multipolygon，包含日本本土和日本控制的离散地块；中国省级 overlay 又是另一套现代省界数据。两套几何叠加时，东北/辽东附近可能出现边界不完全一致的白色地块。若该地块代表日本租借/控制区，需要用更精细历史 polygon 显式建模；若不是，则需要替换或校正底图数据。
-
-当前中日战争 demo 已把 `Empire of Japan` 的第 `57` 个 multipolygon part 改成时间线控制的地块，因为它把朝鲜/满洲相关大块静态合在日本底图中，会导致满洲事变前和日本战败后仍出现固定白色块。这个补丁会保留陆地几何，只按时间点重写颜色归属；后续应替换为明确的朝鲜、关东州、满洲国、租借地等历史 polygon。
-
-后续正确路线：
-
-- 省级可用于粗略纪录片视效，但必须在 `confidence` 和 `note` 中说明。
-- 市级/县级或历史行政区数据用于需要更高精度的战争推进、占领区变化。
-- 对历史边界不等同于现代行政区的区域，使用 `custom-polygon` 或专门历史 GIS 数据。
-- `geometry.level` 记录当前数据粒度：`country`、`province`、`prefecture`、`county`、`custom-polygon`、`symbolic`。
-
-## 如何打开
-
-先在项目根目录启动 Remotion Studio：
+脚本使用 `.cache/venv` 里的独立 Python 环境，需要 `rasterio`、`pyshp`、`numpy`、`pillow`、`shapely`、`requests`。默认 PyPI 源安装 `rasterio` 时可能卡住，可以改用镜像源：
 
 ```bash
-npm run dev
+uv venv -p 3.13 src/earth3d/.cache/venv
+uv pip install -p src/earth3d/.cache/venv/Scripts/python.exe --index-url https://pypi.tuna.tsinghua.edu.cn/simple rasterio pyshp numpy pillow shapely requests
 ```
 
-当前 Studio 端口通常是：
-
-```txt
-http://localhost:3001/HistoricalGlobeTexture1938
-```
-
-如果端口被占用，Remotion 可能会换端口，以终端输出为准。
-
-## 如何调参数
-
-编辑：
-
-```txt
-src/historical-globe/compositions/HistoricalGlobeTexture1938.tsx
-```
-
-常用字段：
-
-- `rotationDegreesPerFrame`：每帧旋转角度。
-- `startLongitude`：起始经度视角。
-- `tiltLatitude`：地球倾斜角。
-- `projectionScale`：地球大小。
-- `subjectColorOverrides`：主导国颜色覆盖。
-- `governingAliases`：地区归属归并。
-- `hatchRegionNames`：世界层底纹地块。
-- `overlayHatchRegionNames`：省级 overlay 底纹地块。
-- `cities`：城市点和中文标签。
-- `labelNames`：显示国家/地区标签的名单。
-
-中日战争 demo 的史实数据编辑入口：
-
-```txt
-src/historical-globe/history-db/datasets/sino-japanese-war.ts
-```
-
-新增一个历史事实时，优先补：
-
-- `regions`：地块 ID、名称、别名、geometry refs。
-- `ownership`：某段时间内的 controller、sovereign、status、confidence、sources。
-- `events`：事件日期、参与方、镜头、箭头、战线、标签、结果。
-- `sources` / `confidence` / `note`。
-
-不要再把归属写进 Composition；地块颜色只能由 `ownership + renderPolicy` 决定。
-
-## 当前 Composition
-
-`Root.tsx` 中注册的历史地球 Composition：
-
-```txt
-HistoricalGlobeTexture1938
-SinoJapaneseWarDemo
-```
-
-参数：
-
-```txt
-durationInFrames: 300
-fps: 30
-width: 1280
-height: 720
-```
-
-## 验证命令
+全部重建（下载约 3GB，耗时约一小时，每一步都能断点续跑）：
 
 ```bash
-npm run lint
+cd src/earth3d/scripts
+../.cache/venv/Scripts/python.exe build_all.py
+```
+
+`assets/` 和 `.cache/` 可以随时整个删掉后重建。
+
+## 预览与调参
+
+`Earth3DPreview` 的参数：
+
+- `view`：单个镜头 `{ lon, lat, rangeKm, pitchDeg, headingDeg }`。`pitchDeg` 为 0 时垂直俯视，越大越倾斜。
+- `keyframes`：`[{ frame, camera }]`，镜头在关键帧之间沿大圆过渡，远距离时中途拉高。给了 `keyframes` 就忽略 `view`。
+- `sun`：`{ azimuthDeg, elevationDeg }`。不填时按镜头距离自动设置：近处 28°，远处 60°。
+- `exaggeration`：地形高度倍数，默认 1（真实比例）。
+- `hazeDensity`：雾的浓度，默认 1/140。
+- `showRivers`、`showBuildings`、`showBorders`、`pixelError`。
+
+渲染单帧（`--gl=angle` 使用显卡）：
+
+```bash
+npx remotion still src/index.ts Earth3DPreview screenshots/earth3d/f0.png --frame=0 --gl=angle
+npx remotion still src/index.ts Earth3DPreview screenshots/earth3d/nanjing.png --gl=angle \
+  --props='{"keyframes":[],"view":{"lon":118.79,"lat":32.045,"rangeKm":3.2,"pitchDeg":62,"headingDeg":15}}'
+```
+
+## 史料编辑
+
+中日战争数据集在 `history/datasets/sino-japanese-war.ts`。新增史实时补齐：
+
+- `regions`：地块 ID、名称、别名、几何引用
+- `ownership`：时段内的控制方、主权方、状态、可信度、来源
+- `events`：日期、参与方、镜头、箭头、战线、标签
+- `sources`、`confidence`、`note`
+
+地块颜色只由 `ownership` 和渲染规则决定，不要写进 Composition。字段细节见 `history/README.md`。
+
+## 旧矢量地球（legacy）
+
+`legacy/EditableHistoricalWorldGlobe.tsx` 是 d3-geo 正交投影的 SVG 矢量地球，`HistoricalGlobeTexture1938` 和 `SinoJapaneseWarDemo` 目前都基于它。主要参数在 `legacy/HistoricalGlobeTexture1938.tsx`：
+
+- `rotationDegreesPerFrame`、`startLongitude`、`tiltLatitude`、`projectionScale`：旋转与视角
+- `subjectColorOverrides`、`governingAliases`：归属与颜色
+- `hatchRegionNames`、`overlayHatchRegionNames`：底纹区域
+- `cities`、`labelNames`：城市和标签
+
+## 验证
+
+```bash
+npx tsc --noEmit
 npx remotion compositions src/index.ts
 ```
-
-导出单帧示例：
-
-```bash
-npx remotion still src/index.ts HistoricalGlobeTexture1938 --frame=250 --output=screenshots/historical-globe-frame.png
-npx remotion still src/index.ts SinoJapaneseWarDemo --frame=180 --output=screenshots/sino-japanese-war-frame.png
-```
-
-## 当前限制
-
-- 已有轻量镜头插值 helper 和 `WorldState(frame)`，但还没有完整 Camera Keyframe DSL。
-- 还没有 Scene/Timeline DSL，动画逻辑仍然直接来自 Remotion frame。
-- 图层还没有完全拆成 `CountriesLayer`、`ProvincesLayer`、`DisputedLayer`。
-- 配置还没有外置到 JSON，当前仍在 TypeScript Composition 文件中。
-- 中日战争数据集是第一版结构化数据，包含来源和可信度，但战线/部分省级控制仍是示意，需要继续用历史 GIS 或战役地图校正。
-- 中国区域目前只有省级 overlay，还没有市级/县级/历史行政区 GeoJSON；因此不能精确渲染局部占领区和跨现代省界历史区域。
-- 1938 世界底图和中国现代省级 overlay 是两套几何来源，局部边界可能不完全吻合；日本租借地/控制地等白色小块需要后续历史 polygon 校准。
-- Schema 不再提供 `moments` 兼容类型；新数据集必须使用 `regions + ownership + events`。
-
-## 推荐下一步
-
-1. 拆 `engine/EditableHistoricalWorldGlobe.tsx` 为 projection、layers、labels、hatch、lighting。
-2. 增加 Camera System：`rotation + zoom + focus target`。
-3. 接入市级/县级/历史行政区 GeoJSON，并增加 geometry registry。
-4. 把 event adapter 进一步泛化为可复用 Scene/Timeline 输入。
-5. 把 1938 配置外置为 JSON，保留 TypeScript 类型校验。
-6. 增加 Scene/Timeline DSL，用于 AI 生成镜头脚本。

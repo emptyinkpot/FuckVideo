@@ -1,5 +1,5 @@
 import { Easing, interpolate } from "remotion";
-import type { WarEvent } from "../data/sino-japanese-war.timeline";
+import type { WarEvent } from "../history/sino-japanese-war.timeline";
 
 export type CameraState = {
   lon: number;

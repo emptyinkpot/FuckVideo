@@ -9,7 +9,7 @@ import type {
   AttackArrow,
   Frontline,
   WarEvent,
-} from "../../data/warTimelineTypes";
+} from "../warTimelineTypes";
 import { resolveHistoricalWorldState } from "../resolveHistoricalWorldState";
 
 const yearFromDate = (date: string) => {

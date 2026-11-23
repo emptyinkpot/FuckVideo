@@ -3,8 +3,7 @@ import {
   Audio,
   staticFile,
 } from "remotion";
-import { HistoricalGlobeTexture1938 } from "../historical-globe/compositions/HistoricalGlobeTexture1938";
-import { SinoJapaneseWarDemo } from "../historical-globe/compositions/SinoJapaneseWarDemo";
+import { HistoricalGlobeTexture1938, SinoJapaneseWarDemo } from "../earth3d";
 import { AtlasMapFlyover, MapRouteFlyover } from "./MapTemplates";
 import {
   ClaudeTyperTemplate,
@@ -159,7 +158,7 @@ export const defaultGeneratedTemplateProps = {
   title: "文本生成视频",
   audioSrc: "",
   captions: [],
-  durationSeconds: 12,
+  durationSeconds: 30,
   showCaptions: true,
   captionStyle: "typewriter" as const,
   progressStyle: "gradient" as const,

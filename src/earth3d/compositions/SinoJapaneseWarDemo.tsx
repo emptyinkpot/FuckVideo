@@ -4,10 +4,10 @@ import {
   sinoJapaneseWarTimeline,
   subjectAliases,
   territoryColors,
-} from "../data/sino-japanese-war.timeline";
-import { EditableHistoricalWorldGlobe } from "../engine/EditableHistoricalWorldGlobe";
-import { FrontlineLayer } from "../layers/FrontlineLayer";
-import { getWorldState } from "../timeline/getWorldState";
+} from "../history/sino-japanese-war.timeline";
+import { EditableHistoricalWorldGlobe } from "../legacy/EditableHistoricalWorldGlobe";
+import { FrontlineLayer } from "../overlays/FrontlineLayer";
+import { getWorldState } from "../history/getWorldState";
 
 const FPS = 30;
 export const SINO_JAPANESE_WAR_SCENE_FRAMES = FPS * 5;

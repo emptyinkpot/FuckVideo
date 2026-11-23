@@ -10,3 +10,16 @@ import { Config } from "@remotion/cli/config";
 // Remotion's default bundler (webpack) only warns about that.
 Config.setVideoImageFormat("jpeg");
 Config.setOverwriteOutput(true);
+
+// earth3d: terrain tiles (.e3d) and river data (.bin) live in src/earth3d/assets/ and are
+// loaded through require.context, so webpack must emit them as plain files.
+Config.overrideWebpackConfig((config) => ({
+  ...config,
+  module: {
+    ...config.module,
+    rules: [
+      ...(config.module?.rules ?? []),
+      { test: /\.(e3d|bin)$/, type: "asset/resource" },
+    ],
+  },
+}));

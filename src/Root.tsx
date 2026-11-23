@@ -1,12 +1,13 @@
 import "./preflight.css";
 import { Composition } from "remotion";
 import { z } from "zod";
-import { HistoricalGlobeTexture1938 } from "./historical-globe/compositions/HistoricalGlobeTexture1938";
 import {
+  Earth3DPreview,
+  EarthGlobe,
+  HistoricalGlobeTexture1938,
   SINO_JAPANESE_WAR_DURATION,
   SinoJapaneseWarDemo,
-} from "./historical-globe/compositions/SinoJapaneseWarDemo";
-import { EarthGlobe } from "./templates/EarthGlobeTemplate";
+} from "./earth3d";
 import {
   PromptAnimatedShapes,
   PromptHistogram,
@@ -120,6 +121,7 @@ const generatedTemplateVideoSchema = z.object({
 }).passthrough();
 
 const documentRevealSchema = z.object({
+  imageSrc: z.string().optional().describe("原图路径（public 内）或图片网址；填写后只展示原图翻起效果"),
   title: z.string().optional(),
   subtitle: z.string().optional(),
   body: z.string().optional(),
@@ -433,6 +435,7 @@ const defaultNarratedVideoProps = {
 } satisfies NarratedVideoProps;
 
 const documentRevealDefaultProps: z.input<typeof documentRevealSchema> = {
+  imageSrc: "images/e482890f4ab4a35e7ea701ce43c81147.jpg",
   title: "《朴茨茅斯和约》",
   subtitle: "历史文件",
   body: "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。关东州租借地与南满铁路，成为战后日本经营大陆的新支点。",
@@ -664,6 +667,12 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1280}
         height={720}
+        calculateMetadata={() => ({
+          defaultCodec: "prores",
+          defaultProResProfile: "4444",
+          defaultPixelFormat: "yuva444p10le",
+          defaultVideoImageFormat: "png",
+        })}
         defaultProps={documentRevealDefaultProps}
       />
       <Composition
@@ -989,6 +998,21 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={historicalGlobeTexture1938DefaultProps}
+      />
+      <Composition
+        id="Earth3DPreview"
+        component={Earth3DPreview}
+        durationInFrames={300}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{
+          keyframes: [
+            { frame: 0, camera: { lon: 116, lat: 33, rangeKm: 14000, pitchDeg: 0, headingDeg: 0 } },
+            { frame: 150, camera: { lon: 118.4, lat: 32.4, rangeKm: 900, pitchDeg: 35, headingDeg: 0 } },
+            { frame: 299, camera: { lon: 118.78, lat: 32.04, rangeKm: 40, pitchDeg: 62, headingDeg: 20 } },
+          ],
+        }}
       />
       <Composition
         id="SinoJapaneseWarDemo"

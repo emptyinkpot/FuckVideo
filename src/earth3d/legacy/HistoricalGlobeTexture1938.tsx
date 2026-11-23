@@ -1,5 +1,5 @@
-import { EditableHistoricalWorldGlobe } from "../engine/EditableHistoricalWorldGlobe";
-import type { EditableHistoricalGlobeProps } from "../engine/EditableHistoricalWorldGlobe";
+import { EditableHistoricalWorldGlobe } from "./EditableHistoricalWorldGlobe";
+import type { EditableHistoricalGlobeProps } from "./EditableHistoricalWorldGlobe";
 
 export type HistoricalGlobeTexture1938Props = {
   title?: string;

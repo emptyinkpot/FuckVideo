@@ -30,3 +30,7 @@ asset-source/remotionlab/
 
 # Upstream reference clone (https://github.com/av/remotion-bits), local only; not imported by code.
 asset-source/programmatic-visual-assets/remotion-bits/
+
+# earth3d: generated render data and raw download cache (rebuild with src/earth3d/scripts/build_all.py).
+src/earth3d/assets/
+src/earth3d/.cache/

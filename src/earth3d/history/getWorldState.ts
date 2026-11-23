@@ -5,7 +5,7 @@ import type {
   Frontline,
   WarEvent,
   WorldFeaturePartOverride,
-} from "../data/sino-japanese-war.timeline";
+} from "./sino-japanese-war.timeline";
 
 export type RenderedTerritoryOverride = Record<string, string>;
 export type FadedFrontline = Frontline & { opacity: number };

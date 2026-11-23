@@ -1,5 +1,5 @@
 import { AbsoluteFill } from "remotion";
-import { HistoricalGlobeTexture1938 } from "../historical-globe/compositions/HistoricalGlobeTexture1938";
+import { HistoricalGlobeTexture1938 } from "../earth3d";
 import { AtlasMapFlyover, MapRouteFlyover } from "./MapTemplates";
 import { RulerProgressTemplate, SvgAssemblyTemplate } from "./MotionTemplates";
 import { PromptHistogram, PromptTextRotation } from "./PromptMotionExamples";
