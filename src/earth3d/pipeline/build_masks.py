@@ -16,6 +16,7 @@ import shapefile
 from rasterio.features import rasterize
 from rasterio.transform import from_origin
 
+from fsutil import save_npy, write_text
 from config import CACHE, LANDCOVER_CACHE, VECTOR_CACHE
 from dem import Dem
 
@@ -39,9 +40,9 @@ def build_grid(label: str, west: float, north: float, res: float, cols: int, row
     shapes += [(geometry, 2) for geometry in reservoirs]
     shapes += [(geometry, 3 + index) for index, geometry in enumerate(lakes)]
     mask = rasterize(shapes, out_shape=(rows, cols), transform=transform, fill=0, dtype="uint16")
-    np.save(MASKS / f"{label}.npy", mask)
+    save_npy(MASKS / f"{label}.npy", mask)
     meta = {"west": west, "north": north, "res": res, "cols": cols, "rows": rows}
-    (MASKS / f"{label}.json").write_text(json.dumps(meta), encoding="utf-8")
+    write_text(MASKS / f"{label}.json", json.dumps(meta))
     print(f"{label}: {cols}x{rows}, ocean {np.mean(mask == 1):.3f}, lakes {np.mean(mask >= 3):.4f}")
     return mask
 
@@ -119,7 +120,7 @@ def main() -> None:
         if shore is not None and level < shore - 10:
             level = shore
         result.append({"name": name, "level": round(level, 1)})
-    (MASKS / "lakes.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+    write_text(MASKS / "lakes.json", json.dumps(result, ensure_ascii=False))
     print("masks done")
 
 

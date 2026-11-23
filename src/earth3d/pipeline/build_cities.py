@@ -16,6 +16,7 @@ import zlib
 
 import shapefile
 
+from fsutil import write_text
 from config import ASSETS, THEATER_BOUNDS, VECTOR_CACHE
 
 # 1930 年代近似人口（人），取各城市通史中的常见估计，只用于决定城区规模。
@@ -103,7 +104,7 @@ def main() -> None:
         })
     cities.sort(key=lambda city: -city["pop"])
     ASSETS.mkdir(parents=True, exist_ok=True)
-    (ASSETS / "cities.json").write_text(json.dumps(cities, ensure_ascii=False), encoding="utf-8")
+    write_text(ASSETS / "cities.json", json.dumps(cities, ensure_ascii=False))
     print(f"cities: {len(cities)}")
     for city in cities[:12]:
         print(f"  {city['nameZh']} {city['pop']:,} r={city['radiusKm']}km")

@@ -21,6 +21,7 @@ import json
 import numpy as np
 import shapefile
 
+from fsutil import write_bytes
 from config import ASSETS, CACHE, THEATER_BOUNDS, VECTOR_CACHE
 from dem import Dem
 
@@ -100,7 +101,7 @@ def main() -> None:
     payload = (header.tobytes() + np.array(offsets, dtype="<u4").tobytes()
                + np.array(widths, dtype="<f4").tobytes()
                + lon_all.tobytes() + lat_all.tobytes() + height_all.tobytes())
-    (ASSETS / "rivers.bin").write_bytes(gzip.compress(payload, 6, mtime=0))
+    write_bytes(ASSETS / "rivers.bin", gzip.compress(payload, 6, mtime=0))
     print(f"rivers: {len(widths)} reaches, {len(lon_all)} vertices")
 
 

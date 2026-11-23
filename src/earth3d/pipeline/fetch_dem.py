@@ -62,7 +62,7 @@ def main() -> None:
         for index, result in enumerate(pool.map(fetch, tiles), 1):
             if result.startswith("fail"):
                 failures.append(result)
-            if index % 500 == 0:
+            if index % 100 == 0 or index == len(tiles):
                 print(f"  {index}/{len(tiles)}", flush=True)
     if failures:
         print("\n".join(failures))

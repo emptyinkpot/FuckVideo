@@ -65,15 +65,7 @@ const surfaceTexture = (tile: TileData) => {
   texture.generateMipmaps = false;
   texture.flipY = false;
   texture.needsUpdate = true;
-  dropAfterUpload(texture);
   return texture;
-};
-
-/** 上传显卡后丢掉内存里的数据，分块被淘汰时内存能真正释放。 */
-const dropAfterUpload = (texture: THREE.DataTexture) => {
-  texture.onUpdate = () => {
-    (texture.image as { data: ArrayBufferView | null }).data = null;
-  };
 };
 
 /** 坡度图（逐像素细法线，带 mipmap）和 8 个方向地平线图（拆成两张 RGBA）。 */
@@ -84,7 +76,6 @@ const reliefTextures = (tile: TileData): TerrainRelief => {
   slope.generateMipmaps = true;
   slope.flipY = false;
   slope.needsUpdate = true;
-  dropAfterUpload(slope);
   const count = tile.horizonRes * tile.horizonRes;
   const first = new Uint8Array(count * 4);
   const second = new Uint8Array(count * 4);
@@ -101,7 +92,6 @@ const reliefTextures = (tile: TileData): TerrainRelief => {
     texture.generateMipmaps = false;
     texture.flipY = false;
     texture.needsUpdate = true;
-    dropAfterUpload(texture);
     return texture;
   });
   return { slope, horizonA: horizon[0], horizonB: horizon[1] };
@@ -208,14 +198,14 @@ export const buildChunk = (tile: TileData, exaggeration = 1): Chunk => {
 
   const water = tile.hasWater ? buildWater(tile, exaggeration, center) : null;
   const relief = reliefTextures(tile);
-  const bytes =
-    geometryBytes(terrain) +
-    geometryBytes(water) +
+  // 内存里的原始数据要一直留着：Studio 切换动画、热更新时会新建 WebGL 画布，
+  // 缓存里的网格和纹理要重新上传到新画布。所以占用按“内存一份 + 显存一份”估算：
+  // 网格两份；纹理直接引用分块的原始数据（整块解压数据随之保留），再加显存里的一份。
+  const textureBytes =
     tile.surfaceRes * tile.surfaceRes +
     Math.round(tile.normalRes * tile.normalRes * 2 * 1.34) +
-    tile.horizonRes * tile.horizonRes * 8;
-  releaseAfterUpload(terrain);
-  releaseAfterUpload(water);
+    tile.horizonRes * tile.horizonRes * 8 * 2;
+  const bytes = (geometryBytes(terrain) + geometryBytes(water)) * 2 + tile.bytes + textureBytes;
   return {
     key: `${tile.z}/${tile.x}/${tile.y}`,
     center,
@@ -271,11 +261,10 @@ const buildWater = (tile: TileData, exaggeration: number, center: THREE.Vector3)
 };
 
 /**
- * 地形网格的显存上限。最细一级一个分块约 2-4MB，原来按个数（1600 个）限制，
- * 最坏情况会到 6GB；现在按总字节数限制，当前帧用到的分块不淘汰。
- * 一帧通常用 150-250 个分块，实测 512MB 足够连续镜头复用。
+ * 地形分块（网格、纹理，内存和显存合计）的上限，按总字节数限制，当前帧用到的分块不淘汰。
+ * 原来按个数（1600 个）限制，最坏情况会到 6GB。一帧通常用 150-250 个分块，1GB 足够连续镜头复用。
  */
-const CHUNK_BUDGET_BYTES = 512 * 1024 * 1024;
+const CHUNK_BUDGET_BYTES = 1024 * 1024 * 1024;
 const chunkCache = new Map<string, Chunk>();
 let chunkBytes = 0;
 let frameStamp = 0;
@@ -292,16 +281,6 @@ const geometryBytes = (geometry: THREE.BufferGeometry | null) => {
   let bytes = geometry.index ? geometry.index.array.byteLength : 0;
   for (const attribute of Object.values(geometry.attributes)) bytes += (attribute as THREE.BufferAttribute).array.byteLength;
   return bytes;
-};
-
-/** 上传到显卡后丢掉内存里的那份顶点数据，只留显存里的。 */
-function releaseArray(this: THREE.BufferAttribute) {
-  (this as unknown as { array: null }).array = null;
-}
-const releaseAfterUpload = (geometry: THREE.BufferGeometry | null) => {
-  if (!geometry) return;
-  geometry.index?.onUpload(releaseArray);
-  for (const attribute of Object.values(geometry.attributes)) (attribute as THREE.BufferAttribute).onUpload(releaseArray);
 };
 
 const disposeChunk = (chunk: Chunk) => {

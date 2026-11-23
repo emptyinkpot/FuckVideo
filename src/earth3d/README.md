@@ -112,7 +112,7 @@ npx remotion render src/index.ts SinoJapaneseWarDemo out/war-overlay.mov --gl=an
 | 缓存 | 上限 | 位置 |
 |---|---|---|
 | 解压后的地形分块数据 | 256MB，按最近使用淘汰，当前帧用到的不淘汰 | `globe/terrain/tileStore.ts` |
-| 地形、水面网格和坡度、地平线、地表分类纹理（显存） | 512MB，同上；上传显卡后释放内存里的副本 | `globe/terrain/chunkMesh.ts` |
+| 地形、水面网格和坡度、地平线、地表分类纹理 | 内存和显存合计 1GB，按最近使用淘汰，当前帧用到的不淘汰；内存里的数据保留，Studio 新建画布时能重新上传 | `globe/terrain/chunkMesh.ts` |
 | 控制区叠加图 | 最近 4 张（每张约 32MB） | `layers/territory.ts` |
 | 城市建筑 | 最近 4 座城市；城市离开画面时释放显卡实例数据 | `globe/buildings/cityBuildings.ts` |
 | 贴地线条几何 | 每条只留最新一份，地形变化重建时释放旧的 | `layers/geometryCache.ts` |
@@ -179,7 +179,9 @@ src/earth3d/
     build_borders.py        1938 年陆上国界
     build_tiles.py          渲染分块
     relief.py               坡度图、8 方向地平线图（细法线、山体投影、天空可见度）
-    build_all.py            按顺序跑完以上全部步骤，最后与 assets.sha256 核对
+    build_all.py            检查并增量重建以上全部步骤，最后与 assets.sha256 核对
+    progress_window.py      重建时的进度窗口
+    fsutil.py               产物原子写入、中断杂物清理
     manifest.py             生成、核对 assets.sha256
     requirements.txt        固定版本的 Python 依赖
     inputs.lock.json        河流、湖泊、海洋、城市矢量数据的锁定校验值
@@ -207,27 +209,40 @@ WorldCover 是 2021 年的地表数据。现代建成区按耕地处理，1937 �
 
 ## 重建数据
 
-仓库里提交了城市、河流、国界这几个小数据文件；地形分块（约 775MB）不提交，克隆后要用脚本重建。没有地形分块时，其他动画照常可用，`Earth3DPreview` 会在画面上提示运行重建脚本。
+仓库里提交了城市、河流、国界这几个小数据文件；地形分块（约 775MB）不提交，克隆后要重建。没有地形分块时，其他动画照常可用，用到地球的动画会在画面上提示。
 
-脚本使用 `.cache/venv` 里的独立 Python 3.13 环境，依赖版本固定在 `pipeline/requirements.txt`。默认 PyPI 源安装 `rasterio` 时可能卡住，可以改用镜像源：
+**不用手动操作：仓库根目录的 `start.bat` 每次启动时都会快速检查一遍**（约一秒，只比较源码指纹、产物是否存在、分块数量，不读数据内容）。都是最新就静默通过；有缺的或过期的，就在后台开始重建并弹出进度窗口，Studio 照常启动，数据生成好后刷新一下页面即可。
 
-```bash
-uv venv -p 3.13 src/earth3d/.cache/venv
-uv pip install -p src/earth3d/.cache/venv/Scripts/python.exe --index-url https://pypi.tuna.tsinghua.edu.cn/simple -r src/earth3d/pipeline/requirements.txt
-```
+手动做完整检查（包括逐个文件核对 `assets.sha256`）：双击 **`src/earth3d/rebuild.bat`**。重建时会：
 
-全部重建（下载约 3GB，耗时约一小时，每一步都能断点续跑）：
+- 第一次运行时自动创建 `.cache/venv` 里的 Python 3.13 环境（依赖版本固定在 `pipeline/requirements.txt`）。
+- 弹出进度窗口，实时显示 9 个步骤的完成情况、当前进度条、剩余时间和最新输出；关掉窗口不影响重建。
+- 每一步先检查：步骤脚本、它引用的模块、输入数据和上游步骤的指纹都没变，产物也都在，就跳过；只重做变了或缺了的部分。地形分块逐个判断，缺的补上，源码变了就把旧的逐个覆盖重建。
+- 最后与 `assets.sha256` 逐个文件核对；有不一致的分块只重建这些，再核对一次。
+- 不删除有用的文件。产物先写 `.tmp`、写完再替换；中途停掉不会留下半截文件。
+- 同一时间只有一个重建、一个进度窗口；重建中再双击，只会把窗口叫出来。重建进程无论怎么退出，它的子进程都一起结束。
+- 开始和结束时清掉中断留下的临时文件；日志只留本次和上一次（`.cache/rebuild.log`、`rebuild.previous.log`）。
+- 某一步失败自动重试，最多 3 次；还是失败就停下，窗口显示原因，再运行一次从中断处继续。
+- 不重复下载：已下载的文件直接跳过；大文件下载中断后从断开处续传。数据源发布了新版本时，新下载的先核对，对不上就丢掉新的、保留原有数据。
+- 下载步骤的指纹只看数据源地址和锁定值，改进下载脚本本身不会让后面的步骤重做。
+
+全新下载约 3GB，耗时约一小时。数据来源都是固定版本：高程瓦片、ESA WorldCover 2021 v200、HydroRIVERS v1.0 不再更新；Natural Earth 的下载地址指向最新版，`fetch_vectors.py` 会对照 `inputs.lock.json` 核对，对方发布新版本时会停下说明，不会悄悄算出不同的结果。
+
+命令行用法（无图形界面的机器加 `--no-window`）：
 
 ```bash
 cd src/earth3d/pipeline
 ../.cache/venv/Scripts/python.exe build_all.py
 ```
 
-最后一步会把生成的每个文件和 `assets.sha256` 逐个核对，输出 `assets identical to manifest` 就说明和仓库作者的数据完全一致。数据来源都是固定版本：高程瓦片、ESA WorldCover 2021 v200、HydroRIVERS v1.0 不再更新；Natural Earth 的下载地址指向最新版，`fetch_vectors.py` 会对照 `inputs.lock.json` 核对，对方发布新版本时会停下说明，不会悄悄算出不同的结果。
+默认 PyPI 源安装 `rasterio` 时可能卡住，可以先用镜像源手动建环境：
+
+```bash
+uv venv -p 3.13 src/earth3d/.cache/venv
+uv pip install -p src/earth3d/.cache/venv/Scripts/python.exe --index-url https://pypi.tuna.tsinghua.edu.cn/simple -r src/earth3d/pipeline/requirements.txt
+```
 
 有意修改了数据处理后，重建并运行 `python manifest.py write` 更新校验清单，再一起提交。
-
-`assets/tiles/` 和 `.cache/` 可以随时整个删掉后重建。
 
 ## 预览与调参
 

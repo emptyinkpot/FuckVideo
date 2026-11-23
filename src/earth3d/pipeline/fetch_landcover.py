@@ -23,6 +23,7 @@ import rasterio
 import requests
 from rasterio.enums import Resampling
 
+from fsutil import save_npy, write_bytes, write_text
 from config import LANDCOVER_CACHE, THEATER_BOUNDS, WORLDCOVER_GRID_URL, WORLDCOVER_URL
 
 os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
@@ -41,7 +42,7 @@ def tile_names() -> list[str]:
         LANDCOVER_CACHE.mkdir(parents=True, exist_ok=True)
         response = requests.get(WORLDCOVER_GRID_URL, timeout=120)
         response.raise_for_status()
-        path.write_bytes(response.content)
+        write_bytes(path, response.content)
     grid = json.loads(path.read_text(encoding="utf-8"))
     return sorted(feature["properties"]["ll_tile"] for feature in grid["features"])
 
@@ -121,15 +122,15 @@ def build(label: str, names: list[str], bounds: tuple[int, int, int, int], px: i
             col = (lon - west) // 3 * px
             row = (north - (lat + 3)) // 3 * px
             mosaic[row:row + px, col:col + px] = data
-            if index % 200 == 0:
+            if index % 20 == 0 or index == len(selected):
                 print(f"  {index}/{len(selected)}", flush=True)
     if failures:
         print(f"{label}: {failures} tiles failed; rerun to retry")
         sys.exit(1)
-    np.save(LANDCOVER_CACHE / f"{label}.npy", mosaic)
+    save_npy(LANDCOVER_CACHE / f"{label}.npy", mosaic)
     meta = {"west": west, "south": south, "east": east, "north": north,
             "cols": cols, "rows": rows}
-    (LANDCOVER_CACHE / f"{label}.json").write_text(json.dumps(meta), encoding="utf-8")
+    write_text(LANDCOVER_CACHE / f"{label}.json", json.dumps(meta))
 
 
 def main() -> None:

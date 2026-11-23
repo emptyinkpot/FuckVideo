@@ -18,11 +18,15 @@ from __future__ import annotations
 import gzip
 import json
 import math
+import os
 import sys
+import time
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 import numpy as np
 
+from fsutil import write_bytes, write_text
 from config import (ASSETS, CACHE, CLASS_RES, LANDCOVER_CACHE, TILE_OUT, all_tiles, grid_for_zoom)
 from dem import TILE, Dem, pixel_lonlat
 from relief import HORIZON_RES, NORMAL_RES, relief_payload
@@ -165,10 +169,24 @@ def height_and_water(z: int, x: int, y: int) -> tuple[np.ndarray, np.ndarray]:
     return height.astype("<i2"), water[1:-1, 1:-1].astype("<i2")
 
 
+# build_all.py 传入：早于 EARTH3D_TILES_SINCE（时间戳）的分块是旧源码生成的，需要重建；
+# EARTH3D_TILES_REDO 指向一个 json 列表（"z/x/y"），这些分块与校验清单不一致，也要重建。
+# 重建都是写临时文件再替换，已有文件在新文件写好之前一直保留。
+TILES_SINCE = float(os.environ.get("EARTH3D_TILES_SINCE") or 0)
+TILES_REDO = (
+    set(json.loads(Path(os.environ["EARTH3D_TILES_REDO"]).read_text(encoding="utf-8")))
+    if os.environ.get("EARTH3D_TILES_REDO") else set()
+)
+
+
+def up_to_date(path: Path, key: str) -> bool:
+    return path.exists() and key not in TILES_REDO and path.stat().st_mtime >= TILES_SINCE
+
+
 def build(tile: tuple[int, int, int]) -> str | None:
     z, x, y = tile
     path = TILE_OUT / str(z) / str(x) / f"{y}.e3d"
-    if path.exists():
+    if up_to_date(path, f"{z}/{x}/{y}"):
         return None
     height, water = height_and_water(z, x, y)
     surface = surface_grid(z, x, y)
@@ -176,9 +194,7 @@ def build(tile: tuple[int, int, int]) -> str | None:
     payload = (header.tobytes() + height.tobytes() + water.tobytes() + surface.astype(np.uint8).tobytes()
                + relief_payload(load_state()["dem"], z, x, y))
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_bytes(gzip.compress(payload, 6, mtime=0))
-    tmp.replace(path)
+    write_bytes(path, gzip.compress(payload, 6, mtime=0))
     return None
 
 
@@ -191,8 +207,8 @@ def build_column(tiles: list[tuple[int, int, int]]) -> int:
 def main() -> None:
     tiles = all_tiles()
     if len(sys.argv) > 1 and sys.argv[1] == "--force":
-        import shutil
-        shutil.rmtree(TILE_OUT, ignore_errors=True)
+        # 全部重新生成：逐个覆盖，不先删除（子进程从环境变量读取）
+        os.environ["EARTH3D_TILES_SINCE"] = str(time.time())
     # 按 (z, x) 分列交给进程，相邻瓦片在同一进程里复用高程缓存
     columns: dict[tuple[int, int], list] = {}
     for z, x, y in tiles:
@@ -202,13 +218,13 @@ def main() -> None:
     with ProcessPoolExecutor(6) as pool:
         for count in pool.map(build_column, jobs):
             done += count
-            if done % 500 < count:
+            if done % 100 < count or done == len(tiles):
                 print(f"  {done}/{len(tiles)}", flush=True)
     meta = {
         "surfaceRes": CLASS_RES, "normalRes": NORMAL_RES, "horizonRes": HORIZON_RES, "noWater": NO_WATER,
         "tiles": sorted(f"{z}/{x}/{y}" for z, x, y in tiles),
     }
-    (ASSETS / "tiles.json").write_text(json.dumps(meta), encoding="utf-8")
+    write_text(ASSETS / "tiles.json", json.dumps(meta))
     print(f"tiles done: {len(tiles)}")
 
 

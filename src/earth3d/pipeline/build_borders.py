@@ -23,6 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
+from fsutil import write_bytes
 from config import ASSETS, CACHE, EARTH3D, THEATER_BOUNDS
 from dem import Dem
 
@@ -120,7 +121,7 @@ def main() -> None:
                + np.concatenate(lons).astype("<f4").tobytes()
                + np.concatenate(lats).astype("<f4").tobytes()
                + np.concatenate(heights).astype("<f4").tobytes())
-    (ASSETS / "borders-1938.bin").write_bytes(gzip.compress(payload, 6, mtime=0))
+    write_bytes(ASSETS / "borders-1938.bin", gzip.compress(payload, 6, mtime=0))
     print(f"borders: {len(lines)} lines, {offsets[-1]} vertices")
 
 
