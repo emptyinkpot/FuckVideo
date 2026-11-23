@@ -1,7 +1,7 @@
 {
   "name": "fuckvideo",
   "version": "1.0.0",
-  "description": "My Remotion video",
+  "description": "Code-driven Remotion animation templates",
   "repository": {
     "type": "git",
     "url": "https://github.com/emptyinkpot/FuckVideo.git"
@@ -38,28 +38,10 @@
   },
   "scripts": {
     "dev": "remotion studio",
-    "dev:video": "node videolab/server/start.mjs",
     "build": "remotion bundle",
-    "plan-scenes": "node pipeline/scene-planner.mjs",
-    "text-to-scenes-video": "node pipeline/text-to-scenes-video.mjs",
-    "text-to-scenes-tts-video": "node pipeline/text-to-scenes-tts-video.mjs",
-    "import-mixkit-reveal": "node pipeline/import-mixkit-reveal.mjs",
-    "index-assets": "node pipeline/asset-indexer.mjs",
-    "index-assets:v2": "node pipeline/asset-indexer.mjs",
-    "material:seed": "node pipeline/material-seed.mjs",
-    "match-assets": "node pipeline/scene-asset-planner.mjs",
-    "validate-animation-contracts": "node pipeline/animation-contracts.mjs",
-    "smoke:minimal": "node pipeline/smoke-minimal-pipeline.mjs",
-    "test:material-seed": "node tests/validate-material-seed.mjs",
-    "test:material-vector-service": "node tests/validate-material-vector-service.mjs",
-    "resolve-evidence": "node pipeline/evidence-resolver.mjs",
-    "export-project": "node pipeline/export-video-project.mjs",
-    "text-to-video": "node pipeline/text-to-video.mjs",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src videolab/overlay && tsc",
-    "verify:upstream": "npm run lint && node tests/verify-upstream.mjs && node tests/videolab-smoke.mjs",
-    "videolab": "node videolab/server/server.mjs",
-    "test:videolab": "node tests/videolab-smoke.mjs"
+    "lint": "eslint src && tsc",
+    "verify:upstream": "npm run lint && node tests/verify-upstream.mjs"
   },
   "sideEffects": [
     "*.css"

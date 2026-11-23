@@ -37,7 +37,6 @@ import {
   PortraitFocus,
   QuoteReveal,
 } from "./AutoSceneTemplates";
-import { FootageScene } from "./FootageScene";
 import {
   VideoInfrastructure,
   type CaptionStyle,
@@ -56,7 +55,6 @@ export type ExistingTemplateId =
   | "PortraitFocus"
   | "ConceptDiagram"
   | "MetaphorVisual"
-  | "FootageScene"
   | "MixkitReveal"
   | "SinoJapaneseWarDemo"
   | "HistoricalGlobeTexture1938"
@@ -103,7 +101,6 @@ const templates: Record<ExistingTemplateId, React.FC> = {
   PortraitFocus: asTemplate(PortraitFocus),
   ConceptDiagram: asTemplate(ConceptDiagram),
   MetaphorVisual: asTemplate(MetaphorVisual),
-  FootageScene: asTemplate(FootageScene),
   MixkitReveal: asTemplate(MixkitReveal),
   SinoJapaneseWarDemo: asTemplate(SinoJapaneseWarDemo),
   HistoricalGlobeTexture1938: asTemplate(HistoricalGlobeTexture1938),
@@ -134,7 +131,6 @@ export const templateOptions: Array<{ id: ExistingTemplateId; label: string }> =
     { id: "PortraitFocus", label: "人物身份卡" },
     { id: "ConceptDiagram", label: "概念关系图" },
     { id: "MetaphorVisual", label: "隐喻可视化" },
-    { id: "FootageScene", label: "本地素材片段" },
     { id: "MixkitReveal", label: "Mixkit 揭示预设" },
     { id: "SinoJapaneseWarDemo", label: "中日战争历史地球" },
     { id: "HistoricalGlobeTexture1938", label: "1938 历史地球纹理" },

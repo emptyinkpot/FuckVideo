@@ -16,7 +16,6 @@ import {
   type PortraitFocusProps,
   type QuoteRevealProps,
 } from "./AutoSceneTemplates";
-import { FootageScene, type FootageSceneProps } from "./FootageScene";
 
 export type AutoSceneTemplateId =
   | "DocumentReveal"
@@ -32,7 +31,6 @@ export type AutoSceneTemplateId =
   | "RulerProgress"
   | "PromptTextRotation"
   | "MixkitReveal"
-  | "FootageScene"
   | "NarratedScene";
 
 export type AutoSceneVisualLayer =
@@ -40,26 +38,6 @@ export type AutoSceneVisualLayer =
       type: "template";
       templateId?: AutoSceneTemplateId;
       providerType?: string;
-      confidence?: number;
-      reason?: string;
-    }
-  | {
-      type: "footage";
-      providerType?: string;
-      clipId?: string;
-      path: string;
-      title?: string;
-      confidence?: number;
-      reason?: string;
-      fallbackTemplateId?: AutoSceneTemplateId;
-    }
-  | {
-      type: "template_with_footage_hint";
-      templateId?: AutoSceneTemplateId;
-      providerType?: string;
-      clipId?: string;
-      path?: string;
-      title?: string;
       confidence?: number;
       reason?: string;
     };
@@ -123,6 +101,7 @@ const FallbackScene = ({
       padding: 82,
       fontFamily: "Inter, Arial, sans-serif",
     }}
+    hidden
   >
     <div style={{ fontSize: 54, fontWeight: 900, lineHeight: 1.08 }}>
       {title || "旁白镜头"}
@@ -142,26 +121,6 @@ const FallbackScene = ({
 );
 
 export const renderSceneTemplate = (scene: AutoScene) => {
-  if (scene.visualLayer?.type === "footage") {
-    return (
-      <FootageScene
-        src={scene.visualLayer.path}
-        title={
-          (scene.props.title as string | undefined) ||
-          scene.visualLayer.title ||
-          commonProps(scene).title
-        }
-        subtitle={
-          scene.visualIntent ||
-          scene.visualLayer.reason ||
-          commonProps(scene).subtitle
-        }
-        darken={0.28}
-        zoom={1.08}
-      />
-    );
-  }
-
   switch (scene.templateId) {
     case "DocumentReveal":
       return (
@@ -319,16 +278,6 @@ export const renderSceneTemplate = (scene: AutoScene) => {
             backgroundColor: "#f4efe5",
             fillColorA: "#21a87a",
             fillColorB: "#5ee7ac",
-            ...scene.props,
-          })}
-        />
-      );
-    case "FootageScene":
-      return (
-        <FootageScene
-          {...asProps<FootageSceneProps>({
-            title: commonProps(scene).title,
-            subtitle: commonProps(scene).subtitle,
             ...scene.props,
           })}
         />

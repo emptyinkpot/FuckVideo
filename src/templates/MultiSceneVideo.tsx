@@ -195,7 +195,11 @@ export const MultiSceneVideo = ({
     <AbsoluteFill style={{ background: "#050505", overflow: "hidden" }}>
       {canRenderAudio ? <Audio src={staticFile(safeAudioSrc)} /> : null}
       {scenes.map((scene) => (
-        <Sequence key={scene.id} from={scene.fromFrame} durationInFrames={scene.durationInFrames}>
+        <Sequence
+          key={scene.id}
+          from={scene.fromFrame}
+          durationInFrames={scene.durationInFrames}
+        >
           {renderSceneTemplate(scene)}
           {showSceneLabels ? (
             <div

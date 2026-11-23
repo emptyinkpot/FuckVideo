@@ -1,14 +1,10 @@
 // FuckVideo.exe — double-click launcher for FuckVideo.
 //
 // - If Remotion Studio (http://localhost:3000) is already up, just opens its window.
-// - Otherwise starts `node videolab/server/start.mjs` hidden (no console window; it runs
-//   Remotion Studio and the VideoLab API on :3037), logs to out\launcher.log, shows a small
-//   "starting" window, and opens Studio once both answer. The launcher then exits.
+// - Otherwise starts Remotion Studio hidden, logs to out\launcher.log, shows a small
+//   "starting" window, and opens Studio once it answers. The launcher then exits.
 // - Studio opens as a standalone window (Edge app mode: no tabs, no address bar, own taskbar
-//   icon); falls back to the default browser if Edge is missing. The FuckVideo workbench is the
-//   floating "FV" button inside Studio.
-// - Shutting down is done from the workbench (设置 -> 关闭), which calls POST /api/shutdown and
-//   kills the whole node process tree.
+//   icon); falls back to the default browser if Edge is missing.
 //
 // Build: videolab\launcheruild.cmd (uses the C# compiler bundled with .NET Framework 4.x).
 // The exe must sit in the FuckVideo repo root; it locates everything relative to itself.
@@ -25,7 +21,6 @@ static class FuckVideoLauncher
 {
     const string StudioUrl = "http://localhost:3000";
     const string StudioProbe = "http://127.0.0.1:3000";
-    const string ApiProbe = "http://127.0.0.1:3037/api/projects";
     const int StartupTimeoutSeconds = 180;
 
     [STAThread]
@@ -40,10 +35,10 @@ static class FuckVideoLauncher
             return 0;
         }
 
-        string entry = Path.Combine(root, "videolab", "server", "start.mjs");
+        string entry = Path.Combine(root, "node_modules", "@remotion", "cli", "remotion-cli.js");
         if (!File.Exists(entry))
         {
-            Fail("找不到 " + entry + "\n\nFuckVideo.exe 必须放在 FuckVideo 项目根目录里。");
+            Fail("找不到 Remotion CLI：" + entry + "\n\n请先在项目目录安装 npm 依赖。");
             return 1;
         }
 
@@ -60,7 +55,7 @@ static class FuckVideoLauncher
 
         // cmd only does the log redirection; node keeps running after this exe exits.
         var psi = new ProcessStartInfo("cmd.exe",
-            "/d /c \"\"" + node + "\" \"" + entry + "\" > \"" + log + "\" 2>&1\"");
+            "/d /c \"\"" + node + "\" \"" + entry + "\" studio src/index.ts --port=3000 --no-open > \"" + log + "\" 2>&1\"");
         psi.WorkingDirectory = root;
         psi.UseShellExecute = false;
         psi.CreateNoWindow = true;
@@ -101,7 +96,7 @@ static class FuckVideoLauncher
         label.TextAlign = ContentAlignment.MiddleCenter;
         label.ForeColor = Color.FromArgb(229, 231, 235);
         label.Font = new Font("Microsoft YaHei UI", 11f);
-        label.Text = "正在启动 FuckVideo 工作台…";
+            label.Text = "正在启动 Remotion Studio…";
         form.Controls.Add(label);
 
         bool ready = false;
@@ -111,7 +106,7 @@ static class FuckVideoLauncher
         timer.Tick += delegate
         {
             int secs = (int)(DateTime.Now - started).TotalSeconds;
-            label.Text = "正在启动 FuckVideo 工作台… " + secs + "s";
+            label.Text = "正在启动 Remotion Studio… " + secs + "s";
             if (proc.HasExited || secs > StartupTimeoutSeconds)
             {
                 timer.Stop();
@@ -120,7 +115,7 @@ static class FuckVideoLauncher
             }
             ThreadPool.QueueUserWorkItem(delegate
             {
-                if (IsUp(StudioProbe) && IsUp(ApiProbe))
+                if (IsUp(StudioProbe))
                 {
                     ready = true;
                     form.BeginInvoke((MethodInvoker)delegate { timer.Stop(); form.Close(); });

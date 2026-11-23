@@ -15,12 +15,10 @@
   "exclude": [
     "remotion.config.ts",
     "asset-source",
-    "src/remotionlab-showcase",
     ".runtime",
     "out",
     "public/generated",
     "data",
-    "artifacts",
-    "videolab"
+    "artifacts"
   ]
 }

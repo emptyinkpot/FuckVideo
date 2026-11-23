@@ -306,20 +306,6 @@
     "scoring": { "kindMatch": 45, "mustShowMatch": 20, "providerPriority": 28 }
   },
   {
-    "id": "FootageScene",
-    "displayName": "本地素材片段",
-    "providerType": "footage",
-    "category": "battle",
-    "accepts": {
-      "visualKinds": ["battle", "atmosphere", "ruins", "crowd", "industry", "train"],
-      "requiredCapabilities": ["loopable"]
-    },
-    "capabilities": ["loopable"],
-    "duration": { "minSec": 2, "idealSec": 5, "maxSec": 10, "canLoop": true },
-    "sound": { "supportsAmbient": true, "supportsFx": false },
-    "scoring": { "kindMatch": 35, "mustShowMatch": 30, "providerPriority": 12 }
-  },
-  {
     "id": "NarratedScene",
     "templateId": "NarratedScene",
     "displayName": "低置信兜底镜头",

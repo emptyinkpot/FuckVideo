@@ -15,11 +15,8 @@ remotion-studio.*.log
 __pycache__/
 *.pyc
 
-# Do not vendor nested Git metadata from downloaded source repositories.
+# Do not vendor nested Git metadata from source references.
 asset-source/**/.git/
-asset-source/mixkit-reveal/originals/
-asset-source/mixkit-reveal/previews/
-asset-source/mixkit-reveal/posters/
 
 # Local visual/debug artifacts.
 screenshots/
@@ -27,17 +24,9 @@ screenshots/
 # Local Vercel project binding.
 .vercel
 
-# Local-only config and private material (never commit; kept on this machine only).
+# Local-only RemotionLab code references.
 .env.example
 asset-source/remotionlab/
-
-# Local data stores folded into the repo root (never commit).
-/data/
-/artifacts/
-
-# Launcher build output (source lives in launcher/).
-/FuckVideo.exe
-
 
 # Upstream reference clone (https://github.com/av/remotion-bits), local only; not imported by code.
 asset-source/programmatic-visual-assets/remotion-bits/

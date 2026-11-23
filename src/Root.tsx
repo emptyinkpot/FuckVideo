@@ -52,12 +52,6 @@ import {
   PortraitFocus,
   QuoteReveal,
 } from "./templates/AutoSceneTemplates";
-import { FootageScene } from "./templates/FootageScene";
-import {
-  DEFAULT_REMOTIONLAB_SHOWCASE_ASSET_ID,
-  RemotionLabShowcaseAsset,
-  REMOTIONLAB_SHOWCASE_ASSET_IDS,
-} from "./remotionlab-showcase";
 
 const templateIdSchema = z.enum([
   "DocumentReveal",
@@ -65,7 +59,6 @@ const templateIdSchema = z.enum([
   "PortraitFocus",
   "ConceptDiagram",
   "MetaphorVisual",
-  "FootageScene",
   "MixkitReveal",
   "SinoJapaneseWarDemo",
   "HistoricalGlobeTexture1938",
@@ -181,16 +174,6 @@ const metaphorVisualSchema = z.object({
   tone: z.enum(["historical", "dark", "clean", "dramatic"]).optional(),
 });
 
-const footageSceneSchema = z.object({
-  src: z.string().optional(),
-  title: z.string().optional(),
-  subtitle: z.string().optional(),
-  fit: z.enum(["cover", "contain"]).optional(),
-  darken: z.number().min(0).max(0.85).optional(),
-  zoom: z.number().min(1).max(1.5).optional(),
-  showTitle: z.boolean().optional(),
-});
-
 const mixkitRevealSchema = z.object({
   presetId: z.enum(MIXKIT_REVEAL_PRESET_IDS).optional(),
   title: z.string().optional(),
@@ -202,14 +185,6 @@ const mixkitRevealSchema = z.object({
   backgroundColor: z.string().optional(),
   intensity: z.number().min(0.2).max(2).optional(),
   showSourceLabel: z.boolean().optional(),
-});
-
-const remotionLabShowcaseAssetSchema = z.object({
-  assetId: z.enum(REMOTIONLAB_SHOWCASE_ASSET_IDS).optional(),
-  showMetadata: z.boolean().optional(),
-  fit: z.enum(["cover", "contain"]).optional(),
-  darken: z.number().min(0).max(0.8).optional(),
-  showPreviewVideo: z.boolean().optional(),
 });
 
 const multiSceneVideoSchema = z.object({
@@ -501,16 +476,6 @@ const metaphorVisualDefaultProps: z.input<typeof metaphorVisualSchema> = {
   tone: "historical",
 };
 
-const footageSceneDefaultProps: z.input<typeof footageSceneSchema> = {
-  src: "",
-  title: "本地素材片段",
-  subtitle: "把视频放进 public/footage 后，可由素材检索系统自动调用。",
-  fit: "cover",
-  darken: 0.26,
-  zoom: 1.06,
-  showTitle: true,
-};
-
 const mixkitRevealDefaultProps: z.input<typeof mixkitRevealSchema> = {
   presetId: "bar-transition-text-625",
   title: "VideoLab",
@@ -519,16 +484,6 @@ const mixkitRevealDefaultProps: z.input<typeof mixkitRevealSchema> = {
   body: "A single reusable composition can switch between bars, lower thirds, particles, neon, glitch, seasonal, sports, news, and logo reveal styles.",
   intensity: 1,
   showSourceLabel: true,
-};
-
-const remotionLabShowcaseAssetDefaultProps: z.input<
-  typeof remotionLabShowcaseAssetSchema
-> = {
-  assetId: DEFAULT_REMOTIONLAB_SHOWCASE_ASSET_ID,
-  showMetadata: true,
-  fit: "contain",
-  darken: 0.18,
-  showPreviewVideo: false,
 };
 
 const claudeTyperDefaultProps: z.input<typeof claudeTyperSchema> = {
@@ -752,16 +707,6 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={metaphorVisualDefaultProps}
       />
       <Composition
-        id="FootageScene"
-        component={FootageScene}
-        schema={footageSceneSchema}
-        durationInFrames={180}
-        fps={30}
-        width={1280}
-        height={720}
-        defaultProps={footageSceneDefaultProps}
-      />
-      <Composition
         id="MixkitReveal"
         component={MixkitReveal}
         schema={mixkitRevealSchema}
@@ -770,16 +715,6 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={mixkitRevealDefaultProps}
-      />
-      <Composition
-        id="RemotionLabShowcaseAsset"
-        component={RemotionLabShowcaseAsset}
-        schema={remotionLabShowcaseAssetSchema}
-        durationInFrames={180}
-        fps={30}
-        width={1280}
-        height={720}
-        defaultProps={remotionLabShowcaseAssetDefaultProps}
       />
       <Composition
         id="MultiSceneVideo"

@@ -3,7 +3,7 @@ import { config } from "@remotion/eslint-config-flat";
 // Upgrade guard: our code may only use Remotion's public API, so `npx remotion upgrade`
 // stays a version bump. Internal entry points change without notice between releases.
 const publicRemotionApiOnly = {
-  files: ["src/**/*.{ts,tsx}", "videolab/overlay/**/*.{ts,tsx}"],
+  files: ["src/**/*.{ts,tsx}"],
   rules: {
     "no-restricted-imports": [
       "error",
