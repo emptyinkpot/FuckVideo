@@ -5,6 +5,7 @@ import {
   useVideoConfig,
 } from "remotion";
 import { fontStack, radius, shadow } from "./remotionDesignSystem";
+import { PaperImageReveal } from "./PaperImageReveal";
 import {
   cameraPush,
   motionDuration,
@@ -14,6 +15,7 @@ import {
 } from "./remotionMotionSystem";
 
 export type DocumentRevealProps = {
+  imageSrc?: string;
   title?: string;
   subtitle?: string;
   body?: string;
@@ -92,6 +94,7 @@ const toneToStyle = (
 };
 
 export const DocumentReveal = ({
+  imageSrc,
   title = "历史文件",
   subtitle = "历史文件",
   body = "条约上用词谨慎，所谓“转让”遮住了更复杂的权力关系。",
@@ -123,44 +126,18 @@ export const DocumentReveal = ({
   const paperDriftRotate = Math.sin(frame / 53) * 0.06;
   const lightSweep = interpolate(timedProgress(frame, 34, 82), [0, 1], [-35, 118]);
 
+  if (imageSrc) {
+    return <PaperImageReveal imageSrc={imageSrc} />;
+  }
+
   return (
     <AbsoluteFill
       style={{
-        background: theme.bg,
+        background: "transparent",
         overflow: "hidden",
         fontFamily: theme.font,
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            resolvedStyle === "old_paper"
-              ? "radial-gradient(circle at 50% 35%, rgba(234,206,154,0.14), transparent 38%)"
-              : "radial-gradient(circle at 52% 34%, rgba(215,168,79,0.08), transparent 36%)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: resolvedStyle === "old_paper" ? 0.08 : 0.035,
-          backgroundImage:
-            "linear-gradient(0deg, rgba(255,255,255,.10) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(circle at 50% 48%, transparent 50%, rgba(0,0,0,0.28) 100%)",
-          mixBlendMode: "multiply",
-        }}
-      />
-
       <div
         style={{
           position: "absolute",

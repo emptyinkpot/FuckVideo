@@ -15,7 +15,7 @@
   },
   "framework": {
     "name": "Remotion",
-    "version": "4.0.542",
+    "version": "4.0.545",
     "entry": "src/index.ts",
     "compositionRegistry": "src/Root.tsx"
   },
