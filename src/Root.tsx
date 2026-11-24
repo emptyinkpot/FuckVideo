@@ -3,10 +3,13 @@ import "./fonts";
 import { Composition } from "remotion";
 import { z } from "zod";
 import {
+  EARTH_STYLE_IDS,
   Earth3DPreview,
   EarthFlyover,
   SINO_JAPANESE_WAR_DURATION,
+  STRATEGIC_MAP_DURATION,
   SinoJapaneseWarDemo,
+  StrategicMapDemo,
 } from "./earth3d";
 import {
   PromptAnimatedShapes,
@@ -354,6 +357,8 @@ const mapRouteFlyoverSchema = z.object({
 
 // 地球画面的分层导出：full 完整；globe 只有基础地球；overlay 只有图层（透明背景）；labels 只有文字（透明背景）
 const renderPassSchema = z.enum(["full", "globe", "overlay", "labels"]);
+// 地球画面风格：default 写实、strategic 态势图（src/earth3d/styles）
+const earthStyleSchema = z.enum(EARTH_STYLE_IDS);
 
 const earthFlyoverSchema = z.object({
   title: text(),
@@ -370,6 +375,7 @@ const earthFlyoverSchema = z.object({
     route: z.boolean(),
     pins: z.boolean(),
   }),
+  style: earthStyleSchema,
   pass: renderPassSchema,
 });
 
@@ -389,6 +395,7 @@ const sinoJapaneseWarDemoSchema = z.object({
     cities: z.boolean(),
     regions: z.boolean(),
   }),
+  style: earthStyleSchema,
   pass: renderPassSchema,
 });
 
@@ -403,10 +410,24 @@ const geoCameraSchema = z.object({
 const earth3DPreviewSchema = z.object({
   view: geoCameraSchema,
   keyframes: z.array(z.object({ frame: z.number().min(0), camera: geoCameraSchema })),
-  exaggeration: z.number().min(0.5).max(5),
+  style: earthStyleSchema,
+  // 不填时由风格决定
+  exaggeration: z.number().min(0.5).max(8).optional(),
   layers: z.object({ rivers: z.boolean(), buildings: z.boolean(), borders: z.boolean() }),
   pixelError: z.number().min(0.5).max(8),
-  hazeDensity: z.number().min(0).max(0.1),
+  hazeDensity: z.number().min(0).max(0.1).optional(),
+  pass: renderPassSchema,
+});
+
+const strategicMapDemoSchema = z.object({
+  style: earthStyleSchema,
+  layers: z.object({
+    rivers: z.boolean(),
+    territory: z.boolean(),
+    arrows: z.boolean(),
+    places: z.boolean(),
+    hud: z.boolean(),
+  }),
   pass: renderPassSchema,
 });
 
@@ -642,6 +663,7 @@ const earthFlyoverDefaultProps: z.input<typeof earthFlyoverSchema> = {
   routeColor: "#f97316",
   overlayOpacity: 0.86,
   layers: { rivers: true, borders: true, route: true, pins: true },
+  style: "default",
   pass: "full",
 };
 
@@ -663,6 +685,7 @@ const sinoJapaneseWarDemoDefaultProps: z.input<
     cities: true,
     regions: true,
   },
+  style: "default",
   pass: "full",
 };
 
@@ -986,10 +1009,23 @@ export const RemotionRoot: React.FC = () => {
             { frame: 299, camera: { lon: 118.78, lat: 32.04, rangeKm: 40, pitchDeg: 62, headingDeg: 20 } },
           ],
           view: { lon: 116, lat: 33, rangeKm: 14000, pitchDeg: 0, headingDeg: 0 },
-          exaggeration: 1,
+          style: "default",
           layers: { rivers: true, buildings: true, borders: true },
           pixelError: 1.5,
-          hazeDensity: 1 / 140,
+          pass: "full",
+        }}
+      />
+      <Composition
+        id="StrategicMapDemo"
+        component={StrategicMapDemo}
+        schema={strategicMapDemoSchema}
+        durationInFrames={STRATEGIC_MAP_DURATION}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{
+          style: "strategic",
+          layers: { rivers: true, territory: true, arrows: true, places: true, hud: true },
           pass: "full",
         }}
       />

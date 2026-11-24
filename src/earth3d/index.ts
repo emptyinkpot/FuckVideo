@@ -10,6 +10,10 @@ export type { GlobeSceneProps, SunSetting } from "./globe/GlobeScene";
 export { EarthView } from "./view/EarthView";
 export type { EarthViewProps } from "./view/EarthView";
 
+// 风格
+export { EARTH_STYLES, EARTH_STYLE_IDS, defaultStyle, resolveStyle, strategicStyle } from "./styles";
+export type { EarthStyle, EarthStyleId, Rgb } from "./styles";
+
 // 图层
 export type { DecalSource, EarthLayer, LayerContext, Projector, RenderPass } from "./layers/types";
 export { bordersLayer } from "./layers/borders";
@@ -29,4 +33,6 @@ export type { EarthFlyoverProps } from "./scenes/EarthFlyover";
 export { EarthBackdrop } from "./scenes/EarthBackdrop";
 export type { EarthBackdropProps } from "./scenes/EarthBackdrop";
 export { Earth3DPreview, defaultEarth3DView } from "./scenes/Earth3DPreview";
+export { StrategicMapDemo, STRATEGIC_MAP_DURATION } from "./scenes/StrategicMapDemo";
+export type { StrategicMapDemoProps } from "./scenes/StrategicMapDemo";
 export type { Earth3DPreviewProps } from "./scenes/Earth3DPreview";

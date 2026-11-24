@@ -21,6 +21,12 @@ const OCCUPIED_FILL = "rgba(196, 48, 38, 0.42)";
 const OCCUPIED_EDGE = "rgba(150, 28, 22, 0.85)";
 const CONTESTED_STRIPE = "rgba(250, 204, 21, 0.5)";
 const CONTESTED_EDGE = "rgba(250, 204, 21, 0.85)";
+/** 争夺区不画斜纹时的淡色填充（近景下斜纹会变成几十公里宽的条带） */
+const CONTESTED_TINT = "rgba(245, 165, 40, 0.19)";
+
+/** hatch：争夺区画斜纹；tint：画淡色填充。edges：是否描区块边线（每个像素约 2.7 公里，近景时偏粗）。 */
+export type TerritoryLook = { contested: "hatch" | "tint"; edges: boolean };
+const DEFAULT_LOOK: TerritoryLook = { contested: "hatch", edges: true };
 
 type Polygon = number[][][];
 type GeoFeature = { properties: Record<string, unknown>; geometry: { type: string; coordinates: unknown } };
@@ -124,8 +130,13 @@ const remember = (key: string, texture: THREE.CanvasTexture) => {
  * 其上按史料库的控制期逐区覆盖：日本、满洲国控制的染红，争夺区画斜纹，中国控制的清空。
  * extraContested：事件额外标注的争夺省份（按省名）。
  */
-export const territoryOverlay = (dataset: HistoricalDataset, date: string, extraContested: string[] = []) => {
-  const key = `${date}|${extraContested.join(",")}`;
+export const territoryOverlay = (
+  dataset: HistoricalDataset,
+  date: string,
+  extraContested: string[] = [],
+  look: TerritoryLook = DEFAULT_LOOK,
+) => {
+  const key = `${date}|${extraContested.join(",")}|${look.contested}|${look.edges}`;
   const cached = cache.get(key);
   if (cached) {
     // 最近用过的放到最后，淘汰时最后才轮到它
@@ -156,7 +167,7 @@ export const territoryOverlay = (dataset: HistoricalDataset, date: string, extra
     tracePolygons(context, polygons);
     context.fillStyle = fill;
     context.fill("evenodd");
-    if (edge) {
+    if (edge && look.edges) {
       context.strokeStyle = edge;
       context.lineWidth = 1.5;
       context.stroke();
@@ -176,7 +187,7 @@ export const territoryOverlay = (dataset: HistoricalDataset, date: string, extra
     paint(polygonsOf(empire.geometry).filter((_, index) => !skip.has(index)), OCCUPIED_FILL, OCCUPIED_EDGE);
   }
 
-  const pattern = stripePattern(context);
+  const pattern = look.contested === "hatch" ? stripePattern(context) : CONTESTED_TINT;
   for (const region of state.regions) {
     const polygons = regionPolygons(region, data);
     if (region.status === "contested" || region.controllerId === "contested") {
@@ -210,6 +221,8 @@ export type TerritoryLayerOptions = {
   contested?: string[];
   /** 过渡到另一天的状态：mix 从 0 到 1 */
   next?: { date: string; contested?: string[]; mix: number } | null;
+  /** 争夺区画法、是否描边线，默认斜纹加边线 */
+  look?: TerritoryLook;
   opacity?: number;
   order?: number;
 };
@@ -220,6 +233,7 @@ export const territoryLayer = ({
   date,
   contested = [],
   next = null,
+  look = DEFAULT_LOOK,
   opacity = 1,
   order = 0,
 }: TerritoryLayerOptions): EarthLayer => ({
@@ -228,9 +242,9 @@ export const territoryLayer = ({
   opacity,
   decal: () => {
     loadTerritorySources();
-    const a = territoryOverlay(dataset, date, contested);
+    const a = territoryOverlay(dataset, date, contested, look);
     if (!a) return null;
-    const b = next && next.mix > 0 ? territoryOverlay(dataset, next.date, next.contested ?? []) : null;
+    const b = next && next.mix > 0 ? territoryOverlay(dataset, next.date, next.contested ?? [], look) : null;
     return {
       a,
       b,

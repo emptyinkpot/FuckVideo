@@ -35,6 +35,9 @@ void main() {
 `;
 
 const fragmentShader = /* glsl */ `
+uniform vec3 uWaterTint;
+uniform vec3 uRiverColor;
+uniform float uRiverMix;
 varying vec3 vWorld;
 varying float vAlpha;
 varying float vAcross;
@@ -49,7 +52,9 @@ void main() {
   vec3 shallow = pow(vec3(0.38, 0.40, 0.32), vec3(2.2));
   vec3 deep = pow(vec3(0.20, 0.27, 0.27), vec3(2.2));
   float depth = 4.0 * (1.0 - abs(vAcross));
-  vec3 color = e3dWaterColor(vWorld, depth, shallow, deep);
+  vec3 color = e3dWaterColor(vWorld, depth, shallow * uWaterTint, deep * uWaterTint);
+  // 风格可以把河流换成单独的颜色（中间亮、两边暗，像发光的细线）
+  color = mix(color, uRiverColor * (0.75 + 0.5 * (1.0 - abs(vAcross))), uRiverMix);
   float edge = 1.0 - smoothstep(0.75, 1.0, abs(vAcross));
   gl_FragColor = vec4(color, vAlpha * edge);
   #include <colorspace_fragment>

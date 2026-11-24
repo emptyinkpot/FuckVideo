@@ -27,6 +27,14 @@ void main() {
 const fragmentShader = /* glsl */ `
 uniform sampler2D uSurface;
 uniform float uTexelKm;
+uniform float uStyleSurface;
+uniform vec3 uStyleLow;
+uniform vec3 uStyleHigh;
+uniform vec3 uStyleRock;
+uniform vec2 uStyleHeights;
+uniform float uStyleVariation;
+uniform float uStyleSnow;
+uniform vec3 uWaterTint;
 varying vec3 vWorld;
 varying vec3 vNormalW;
 varying vec2 vUv;
@@ -203,13 +211,20 @@ void main() {
   albedo = mix(albedo, srgb(vec3(0.42, 0.39, 0.35)) * (1.0 + micro * 0.3), rock);
   float snowline = mix(5600.0, 900.0, smoothstep(30.0, 65.0, alat)) + macro * 700.0;
   float snow = smoothstep(snowline - 200.0, snowline + 250.0, vHeight) * (1.0 - smoothstep(0.30, 0.5, slope));
-  albedo = mix(albedo, srgb(vec3(0.92, 0.93, 0.95)), snow);
+  if (uStyleSurface > 0.0) {
+    // 风格化底色：按海拔在低处、高处两种颜色之间渐变，陡坡露岩石，不用地表分类的色斑
+    vec3 styled = mix(uStyleLow, uStyleHigh, smoothstep(uStyleHeights.x, uStyleHeights.y, vHeight));
+    styled *= 1.0 + macro * uStyleVariation * 1.6 + micro * uStyleVariation * 0.6;
+    styled = mix(styled, uStyleRock, rock);
+    albedo = mix(albedo, styled, uStyleSurface);
+  }
+  albedo = mix(albedo, srgb(vec3(0.92, 0.93, 0.95)), snow * uStyleSnow);
 
   vec3 color = albedo * e3dReliefLight(n, up, landFactor);
   color = e3dApplyHaze(color, vWorld);
   // WorldCover 标为水体但不在湖泊、海洋数据里的地方（河道、池塘）按水面着色
   if (waterShare > 0.0) {
-    vec3 water = e3dWaterColor(vWorld, 3.0, srgb(vec3(0.33, 0.42, 0.44)), srgb(vec3(0.16, 0.26, 0.33)));
+    vec3 water = e3dWaterColor(vWorld, 3.0, srgb(vec3(0.33, 0.42, 0.44)) * uWaterTint, srgb(vec3(0.16, 0.26, 0.33)) * uWaterTint);
     color = mix(color, water, smoothstep(0.45, 0.75, waterShare));
   }
   gl_FragColor = vec4(color, 1.0);

@@ -42,6 +42,9 @@ export const ATMOSPHERE_GLSL = /* glsl */ `
 uniform vec3 uCameraPos;
 uniform vec3 uSunDir;
 uniform float uHazeDensity;
+// 风格：雾的颜色，0 为物理计算的天光颜色，1 为完全用 uHazeTint
+uniform float uHazeMix;
+uniform vec3 uHazeTint;
 
 const float E3D_RADIUS = 6371.0;
 const float E3D_SCALE_HEIGHT = 8.0;
@@ -81,6 +84,7 @@ vec3 e3dApplyHaze(vec3 color, vec3 worldPos) {
   float mie = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cosTheta, 1.5) / 12.566;
   float sunUp = smoothstep(-0.05, 0.2, dot(normalize(worldPos), uSunDir));
   vec3 inscatter = e3dHazeColor(worldPos) + vec3(1.0, 0.86, 0.68) * mie * 0.55 * sunUp;
+  inscatter = mix(inscatter, uHazeTint, uHazeMix);
   return color * extinction + inscatter * (1.0 - extinction);
 }
 
@@ -114,6 +118,12 @@ uniform sampler2D uSlope;
 uniform sampler2D uHorizonA;
 uniform sampler2D uHorizonB;
 uniform float uExaggeration;
+// 风格：阳光、天光强度，山脊提亮、沟谷压暗（见 styles/types.ts）
+uniform float uSunGain;
+uniform float uSkyGain;
+uniform float uRidge;
+uniform float uValley;
+uniform float uCurvatureTexels;
 
 vec3 e3dEast(vec3 up) { return normalize(cross(vec3(0.0, 1.0, 0.0), up) + vec3(1e-7, 0.0, 0.0)); }
 
@@ -124,6 +134,23 @@ vec3 e3dReliefNormal(vec3 up) {
   vec3 east = e3dEast(up);
   vec3 north = cross(up, east);
   return normalize(up - east * slope.x - north * slope.y);
+}
+
+// 某一点的坡度（向东、向北），按高度倍数放大
+vec2 e3dSlopeAt(vec2 uv) {
+  vec2 encoded = clamp(texture2D(uSlope, uv).rg, 0.004, 0.996);
+  return tan((encoded - 0.5) * PI) * uExaggeration;
+}
+
+// 曲率：坡度的散度（即高度的拉普拉斯）。小于 0 是凸起的山脊，大于 0 是凹下的沟谷。
+// 纹理坐标 v 向南增大。
+float e3dCurvature() {
+  float d = uCurvatureTexels / 256.0;
+  vec2 east = e3dSlopeAt(vUv + vec2(d, 0.0));
+  vec2 west = e3dSlopeAt(vUv - vec2(d, 0.0));
+  vec2 south = e3dSlopeAt(vUv + vec2(0.0, d));
+  vec2 north = e3dSlopeAt(vUv - vec2(0.0, d));
+  return (east.x - west.x) + (north.y - south.y);
 }
 
 // 8 个方向的地平线仰角（度），北起顺时针；按高度倍数放大
@@ -168,7 +195,16 @@ vec3 e3dReliefLight(vec3 normal, vec3 up, float landFactor) {
   float sky = mix(1.0, e3dSkyVisibility(), landFactor);
   float cavity = mix(0.78, 1.0, smoothstep(0.0, 0.25, dot(normal, up) - 0.7));
   float diffuse = max(dot(normal, uSunDir), 0.0);
-  vec3 light = e3dSunColor(up) * diffuse * 1.45 * shadow + e3dSkyLight(normal, up) * 0.24 * sky * sky;
-  return light * mix(1.0, cavity, landFactor);
+  vec3 light = e3dSunColor(up) * diffuse * uSunGain * shadow + e3dSkyLight(normal, up) * uSkyGain * sky * sky;
+  light *= mix(1.0, cavity, landFactor);
+  if (uRidge + uValley > 0.0) {
+    // 山脊棱线提亮（受光一侧更亮）、沟底压暗，让山体轮廓清楚
+    float k = e3dCurvature();
+    float ridge = smoothstep(0.03, 0.45, -k);
+    float valley = smoothstep(0.03, 0.45, k);
+    float lit = 0.3 + 0.7 * shadow * smoothstep(0.0, 0.35, diffuse);
+    light *= mix(1.0, (1.0 + uRidge * ridge * lit) * (1.0 - 0.8 * uValley * valley), landFactor);
+  }
+  return light;
 }
 `;

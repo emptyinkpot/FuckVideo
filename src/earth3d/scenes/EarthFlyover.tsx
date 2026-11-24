@@ -6,8 +6,11 @@ import { bordersLayer } from "../layers/borders";
 import type { EarthLayer, RenderPass } from "../layers/types";
 import { arrowsLayer } from "../layers/warLayers";
 import { EarthView } from "../view/EarthView";
+import type { EarthStyleId } from "../styles";
 
 export type EarthFlyoverProps = {
+  /** 画面风格：default（写实）、strategic（态势图），见 src/earth3d/styles */
+  style?: EarthStyleId;
   title?: string;
   subtitle?: string;
   /** 起点 [经度, 纬度] */
@@ -40,6 +43,7 @@ export const EarthFlyover = ({
   overlayOpacity = 0.86,
   layers: toggles = {},
   pass = "full",
+  style = "default",
 }: EarthFlyoverProps) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
@@ -131,7 +135,7 @@ export const EarthFlyover = ({
   return (
     <AbsoluteFill style={{ overflow: "hidden", fontFamily: FONT_SANS }}>
       <AbsoluteFill style={{ opacity: intro }}>
-        <EarthView view={view} layers={layers} pass={pass} showRivers={show("rivers")} showBuildings={false} />
+        <EarthView view={view} style={style} layers={layers} pass={pass} showRivers={show("rivers")} showBuildings={false} />
       </AbsoluteFill>
       {pass === "full" ? (
         <div

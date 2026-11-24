@@ -17,6 +17,7 @@ uniform sampler2D uDecalB;
 uniform float uMix;
 uniform float uOpacity;
 uniform vec4 uBounds;
+uniform float uDecalStrength;
 varying vec3 vWorld;
 varying vec3 vNormalW;
 varying vec2 vUv;
@@ -34,7 +35,8 @@ void main() {
   vec2 uv = vec2((lon - uBounds.x) / (uBounds.z - uBounds.x), (lat - uBounds.y) / (uBounds.w - uBounds.y));
   if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) discard;
   vec4 decal = mix(texture2D(uDecalA, uv), texture2D(uDecalB, uv), uMix);
-  float alpha = decal.a * uOpacity;
+  // 风格的 decalStrength 越大越像直接把地形染色（明暗仍按地形受光）
+  float alpha = min(1.0, decal.a * uOpacity * uDecalStrength);
   if (alpha < 0.002) discard;
   vec3 n = gl_FrontFacing ? e3dReliefNormal(up) : up;
   vec3 color = decal.rgb * e3dReliefLight(n, up, step(-2.0, vHeight));

@@ -63,6 +63,7 @@ vec3 e3dWaterColor(vec3 p, float depth, vec3 shallow, vec3 deep) {
 `;
 
 const fragmentShader = /* glsl */ `
+uniform vec3 uWaterTint;
 varying vec3 vWorld;
 varying float vDepth;
 #include <common>
@@ -75,7 +76,7 @@ void main() {
   #include <logdepthbuf_fragment>
   vec3 shallow = pow(vec3(0.33, 0.42, 0.36), vec3(2.2));
   vec3 deep = pow(vec3(0.04, 0.13, 0.22), vec3(2.2));
-  vec3 color = e3dWaterColor(vWorld, vDepth, shallow, deep);
+  vec3 color = e3dWaterColor(vWorld, vDepth, shallow * uWaterTint, deep * uWaterTint);
   float alpha = mix(0.55, 1.0, smoothstep(0.0, 6.0, vDepth));
   gl_FragColor = vec4(color, alpha);
   #include <colorspace_fragment>

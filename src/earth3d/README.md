@@ -107,6 +107,23 @@ npx remotion render src/index.ts SinoJapaneseWarDemo out/war-overlay.mov --gl=an
 
 各图层也可以单独开关，Studio 右侧面板里勾选（`layers` 参数），例如关掉国界、只留控制区和箭头。
 
+## 风格
+
+画面风格放在 `styles/`，每个风格一个文件。着色器只读风格参数，不写死任何一种风格：
+
+| 风格 | 文件 | 样子 |
+|---|---|---|
+| `default` 写实 | `styles/default.ts` | 真实比例地形、真实地表分类、物理天空和空气透视（风格系统建立之前的画面，逐像素一致） |
+| `strategic` 态势图 | `styles/strategic.ts` | 地形放大 3.5 倍；西北方向低角度侧光、深阴影；山脊棱线提亮、沟底压暗；统一暗青灰底色；控制区着色接近直接把山体染色；河流换成亮蓝色；远处沉进暗色雾里，四周暗角 |
+
+每个地球组合（战争动画、路线飞越、预览、背景、态势图示例）都有 `style` 参数，Studio 右侧面板里是下拉框。风格参数（`styles/types.ts`）包括：地形高度倍数、自动太阳、地表底色（真实分类或按海拔、坡度的风格化底色）、阳光和天光强度、山脊高光和沟谷压暗、雾的浓度和颜色、天空颜色、水面和河流颜色、贴地图层强度、整体调色和暗角。
+
+新风格：复制一个风格文件改数值，再登记到 `styles/index.ts` 的 `EARTH_STYLES`，下拉框会自动出现。
+
+控制区图层另有画法选项 `look`：争夺区画斜纹（`hatch`，适合全国尺度）或淡色填充（`tint`，适合几百公里以内的近景，斜纹在近景下会变成几十公里宽的条带），以及是否描区块边线。
+
+态势图示例 `StrategicMapDemo`：1937 年平型关战役，12 秒。镜头从高空推近到恒山、五台山之间，日军第 5 师团由灵丘向平型关推进，八路军第 115 师在乔沟一线设伏；顶部状态条、图例、字幕。
+
 ## 内存
 
 | 缓存 | 上限 | 位置 |
@@ -146,6 +163,11 @@ src/earth3d/
       skyMaterials.ts       天空、太空大气辉光、星空
     water/rivers.ts         河网加载与带状网格
     buildings/              城市建筑生成（街网、院落、联排房）与房屋材质
+  styles/                   画面风格
+    types.ts                风格参数的定义
+    default.ts              默认（写实）
+    strategic.ts            态势图
+    index.ts                风格登记、写入着色器参数、整体调色
   layers/                   图层
     types.ts                图层接口、渲染通道
     borders.tsx             1938 年国界
@@ -163,6 +185,7 @@ src/earth3d/
     EarthFlyover.tsx        路线飞越（自动场景系统、多场景视频也在用）
     EarthBackdrop.tsx       讲解视频的地球背景（只有基础地球）
     Earth3DPreview.tsx      新地球预览
+    StrategicMapDemo.tsx    态势图风格示例：1937 年平型关战役
   history/                  史料库（字段说明见 history/README.md）
     datasets/               史实数据
     wars/sinoJapaneseWar.ts 中日战争成片的配置：事件顺序、镜头规则、阵营颜色、城市、国家名

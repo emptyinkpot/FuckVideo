@@ -15,6 +15,7 @@ import { createTerrainMaterial } from "./materials/terrainMaterial";
 import { waterMaterial } from "./materials/waterMaterial";
 import { beginChunkFrame, getChunk } from "./terrain/chunkMesh";
 import { selectTiles } from "./terrain/selectTiles";
+import { applyStyleUniforms, resolveStyle, type EarthStyle, type EarthStyleId } from "../styles";
 import { ensureTiles, getTile, loadedTileCount, releaseLoadedTiles, subscribeTiles } from "./terrain/tileStore";
 import { RIVER_ORIGIN, buildRiverGeometry, getRivers, loadRivers } from "./water/rivers";
 
@@ -26,19 +27,22 @@ export type SunSetting = {
 };
 
 /**
- * 默认太阳：近距离时较低（18°），山体投影和坡面明暗都明显；远距离时升高到 60°，
- * 避免整个地球有一大片昏暗的晨昏区。需要更强的立体感时可以把 elevationDeg 设到 10-12°。
+ * 自动太阳（由风格决定）：近距离时较低，山体投影和坡面明暗都明显；远距离时升高，
+ * 避免整个地球有一大片昏暗的晨昏区。
  */
-const autoSun = (rangeKm: number): SunSetting => {
+const autoSun = (rangeKm: number, style: EarthStyle): SunSetting => {
   const t = Math.min(1, Math.max(0, (Math.log(rangeKm) - Math.log(300)) / (Math.log(6000) - Math.log(300))));
-  return { azimuthDeg: 210, elevationDeg: 18 + (60 - 18) * t };
+  const { azimuthDeg, elevationNearDeg, elevationFarDeg } = style.sun;
+  return { azimuthDeg, elevationDeg: elevationNearDeg + (elevationFarDeg - elevationNearDeg) * t };
 };
 
 export type GlobeSceneProps = {
   view: GeoCamera;
-  /** 太阳方位角、高度角；不填时按镜头距离自动设置 */
+  /** 画面风格（styles/）：风格名或完整的风格对象，默认 "default" */
+  style?: EarthStyleId | EarthStyle;
+  /** 太阳方位角、高度角；不填时按风格和镜头距离自动设置 */
   sun?: SunSetting;
-  /** 地形高度放大倍数，1 为真实比例 */
+  /** 地形高度放大倍数，1 为真实比例；不填时用风格的设置 */
   exaggeration?: number;
   /** 河流（属于基础地球） */
   showRivers?: boolean;
@@ -46,7 +50,7 @@ export type GlobeSceneProps = {
   showBuildings?: boolean;
   /** 地形精度：屏幕误差容许的像素数，越小越精细 */
   pixelError?: number;
-  /** 海平面处每公里消光系数，越大越朦胧 */
+  /** 海平面处每公里消光系数，越大越朦胧；不填时用风格的设置 */
   hazeDensity?: number;
   /** 叠加在基础地球上的图层，按 order 从下到上绘制 */
   layers?: EarthLayer[];
@@ -122,15 +126,19 @@ const CityMeshes = ({ data }: { data: CityBuildings }) => {
  */
 export const GlobeScene = ({
   view,
+  style: styleInput,
   sun,
-  exaggeration = 1,
+  exaggeration: exaggerationInput,
   showRivers = true,
   showBuildings = true,
   pixelError = 1.5,
-  hazeDensity = 1 / 140,
+  hazeDensity: hazeInput,
   layers = [],
   pass = "full",
 }: GlobeSceneProps) => {
+  const style = resolveStyle(styleInput);
+  const exaggeration = exaggerationInput ?? style.exaggeration;
+  const hazeDensity = hazeInput ?? style.haze.density;
   const { camera, size, advance } = useThree();
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -164,7 +172,8 @@ export const GlobeScene = ({
 
   // 3. 共享 uniform
   earthUniforms.uCameraPos.value.copy(pose.position);
-  const sunSetting = sun ?? autoSun(view.rangeKm);
+  applyStyleUniforms(style);
+  const sunSetting = sun ?? autoSun(view.rangeKm, style);
   earthUniforms.uSunDir.value.copy(sunDirection(view.lon, view.lat, sunSetting.azimuthDeg, sunSetting.elevationDeg));
   earthUniforms.uHazeDensity.value = hazeDensity;
   earthUniforms.uTime.value = frame / fps;

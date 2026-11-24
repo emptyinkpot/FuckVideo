@@ -5,6 +5,7 @@ import { FONT_SANS } from "../../fonts";
 import { cameraPose } from "../core/camera";
 import { GlobeScene, type GlobeSceneProps } from "../globe/GlobeScene";
 import { builtTileCount, subscribeTiles } from "../globe/terrain/tileStore";
+import { gradeFilter, resolveStyle } from "../styles";
 import { screenProjector } from "./screenProjection";
 
 export type EarthViewProps = GlobeSceneProps & {
@@ -31,18 +32,31 @@ export const EarthView = ({ background = "black", ...props }: EarthViewProps) =>
   const showLabels = pass === "full" || pass === "labels";
   const project = screenProjector(cameraPose(props.view), width, height);
   const layers = [...(props.layers ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const style = resolveStyle(props.style);
+  const vignette = style.grade.vignette;
 
   return (
     <AbsoluteFill style={{ background: transparent ? "transparent" : background }}>
-      <ThreeCanvas
-        width={width}
-        height={height}
-        flat
-        gl={{ logarithmicDepthBuffer: true, antialias: true, alpha: true }}
-        camera={{ fov: 35, near: 0.0005, far: 400000 }}
-      >
-        {pass === "labels" ? <GlobeScene {...props} pass="overlay" layers={[]} /> : <GlobeScene {...props} />}
-      </ThreeCanvas>
+      {/* 风格的整体调色只作用在三维画布上，文字不受影响 */}
+      <AbsoluteFill style={{ filter: gradeFilter(style) }}>
+        <ThreeCanvas
+          width={width}
+          height={height}
+          flat
+          gl={{ logarithmicDepthBuffer: true, antialias: true, alpha: true }}
+          camera={{ fov: 35, near: 0.0005, far: 400000 }}
+        >
+          {pass === "labels" ? <GlobeScene {...props} pass="overlay" layers={[]} /> : <GlobeScene {...props} />}
+        </ThreeCanvas>
+      </AbsoluteFill>
+      {vignette > 0 && (pass === "full" || pass === "globe") ? (
+        <AbsoluteFill
+          style={{
+            pointerEvents: "none",
+            background: `radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,${vignette}) 100%)`,
+          }}
+        />
+      ) : null}
       {showLabels
         ? layers.map((layer) =>
             layer.labels ? (
@@ -68,7 +82,7 @@ export const EarthView = ({ background = "black", ...props }: EarthViewProps) =>
             地形数据还没有生成
             <br />
             <span style={{ fontSize: 22, opacity: 0.8 }}>
-              运行 src/earth3d/pipeline/build_all.py（约一小时，见 src/earth3d/README.md）
+              运行 src/earth3d/rebuild.bat，或重新打开 start.bat（约一小时，见 src/earth3d/README.md）
             </span>
           </div>
         </AbsoluteFill>

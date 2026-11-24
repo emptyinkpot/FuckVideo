@@ -19,6 +19,8 @@ export const skyMaterial = new THREE.ShaderMaterial({
   fragmentShader: /* glsl */ `
     uniform vec3 uCameraPos;
     uniform vec3 uSunDir;
+    uniform float uSkyMix;
+    uniform vec3 uSkyTint;
     varying vec3 vWorld;
     #include <common>
     vec3 srgb(vec3 c) { return pow(c, vec3(2.2)); }
@@ -43,6 +45,7 @@ export const skyMaterial = new THREE.ShaderMaterial({
       sky *= smoothstep(-0.25, 0.1, sunUp);
       float space = smoothstep(15.0, 90.0, altitude);
       vec3 color = mix(sky, vec3(0.0), space);
+      color = mix(color, uSkyTint * (1.0 - space), uSkyMix);
       gl_FragColor = vec4(color, 1.0);
       #include <colorspace_fragment>
     }

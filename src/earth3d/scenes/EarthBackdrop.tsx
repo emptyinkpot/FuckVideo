@@ -1,8 +1,11 @@
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import type { GeoCamera } from "../core/camera";
 import { EarthView } from "../view/EarthView";
+import type { EarthStyleId } from "../styles";
 
 export type EarthBackdropProps = {
+  /** 画面风格：default（写实）、strategic（态势图），见 src/earth3d/styles */
+  style?: EarthStyleId;
   /** 画面中心对准的经纬度 */
   lon?: number;
   lat?: number;
@@ -23,10 +26,11 @@ export const EarthBackdrop = ({
   rangeKm = 5200,
   pitchDeg = 18,
   driftDeg = 6,
+  style = "default",
 }: EarthBackdropProps) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const t = durationInFrames > 1 ? frame / (durationInFrames - 1) : 0;
   const view: GeoCamera = { lon: lon - driftDeg / 2 + driftDeg * t, lat, rangeKm, pitchDeg, headingDeg: 0 };
-  return <EarthView view={view} showBuildings={false} />;
+  return <EarthView view={view} style={style} showBuildings={false} />;
 };

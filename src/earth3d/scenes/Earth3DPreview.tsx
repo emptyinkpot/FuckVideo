@@ -4,12 +4,16 @@ import type { SunSetting } from "../globe/GlobeScene";
 import { bordersLayer } from "../layers/borders";
 import type { EarthLayer, RenderPass } from "../layers/types";
 import { EarthView } from "../view/EarthView";
+import type { EarthStyleId } from "../styles";
 
 export type Earth3DPreviewProps = {
+  /** 画面风格：default（写实）、strategic（态势图），见 src/earth3d/styles */
+  style?: EarthStyleId;
   /** 单个镜头；给了 keyframes 时忽略 */
   view?: GeoCamera;
   keyframes?: CameraKeyframe[];
   sun?: SunSetting;
+  /** 不填时用风格的设置 */
   exaggeration?: number;
   /** 图层开关；不填的都显示 */
   layers?: { rivers?: boolean; buildings?: boolean; borders?: boolean };
@@ -32,7 +36,8 @@ export const Earth3DPreview = ({
   view = defaultEarth3DView,
   keyframes,
   sun,
-  exaggeration = 1,
+  exaggeration,
+  style = "default",
   layers: toggles = {},
   pixelError = 1.5,
   hazeDensity = 1 / 140,
@@ -43,6 +48,7 @@ export const Earth3DPreview = ({
   const layers: EarthLayer[] = toggles.borders === false ? [] : [bordersLayer()];
   return (
     <EarthView
+      style={style}
       view={current}
       sun={sun}
       exaggeration={exaggeration}

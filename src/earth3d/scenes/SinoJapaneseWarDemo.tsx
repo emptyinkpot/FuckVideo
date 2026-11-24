@@ -16,6 +16,7 @@ import { territoryLayer } from "../layers/territory";
 import type { EarthLayer, RenderPass } from "../layers/types";
 import { arrowsLayer, frontlinesLayer } from "../layers/warLayers";
 import { EarthView } from "../view/EarthView";
+import type { EarthStyleId } from "../styles";
 
 const FPS = 30;
 /** 开场：从太空降到第一个事件 */
@@ -44,6 +45,8 @@ export type WarLayerToggles = {
 };
 
 export type SinoJapaneseWarDemoProps = {
+  /** 画面风格：default（写实）、strategic（态势图），见 src/earth3d/styles */
+  style?: EarthStyleId;
   title?: string;
   subtitle?: string;
   cardLeft?: number;
@@ -82,6 +85,7 @@ export const SinoJapaneseWarDemo = ({
   showProgressBar = true,
   layers: toggles = {},
   pass = "full",
+  style = "default",
 }: SinoJapaneseWarDemoProps) => {
   const frame = useCurrentFrame();
   const show = (key: keyof WarLayerToggles) => toggles[key] !== false;
@@ -150,6 +154,7 @@ export const SinoJapaneseWarDemo = ({
   return (
     <AbsoluteFill style={{ fontFamily: FONT_SANS }}>
       <EarthView
+        style={style}
         view={cameraAtFrame(KEYFRAMES, frame)}
         layers={layers}
         pass={pass}
