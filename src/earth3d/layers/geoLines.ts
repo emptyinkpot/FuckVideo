@@ -20,6 +20,8 @@ export const buildLineGeometry = (lines: PolylineSet, origin: THREE.Vector3, exa
   const positions = new Float32Array(vertexCount * 2 * 3);
   const tangents = new Float32Array(vertexCount * 2 * 3);
   const sides = new Float32Array(vertexCount * 2);
+  // 沿线累计距离（公里），铁路的虚线、流光按它计算
+  const along = new Float32Array(vertexCount * 2);
   const indices: number[] = [];
   const world: THREE.Vector3[] = [];
   const tangent = new THREE.Vector3();
@@ -30,8 +32,10 @@ export const buildLineGeometry = (lines: PolylineSet, origin: THREE.Vector3, exa
     for (let k = start; k < end; k++) {
       world.push(lonLatToVector(lines.lon[k], lines.lat[k], (lines.height[k] / 1000) * exaggeration));
     }
+    let distance = 0;
     for (let k = start; k < end; k++) {
       const local = k - start;
+      if (local > 0) distance += world[local].distanceTo(world[local - 1]);
       tangent.subVectors(world[Math.min(world.length - 1, local + 1)], world[Math.max(0, local - 1)]).normalize();
       for (let side = 0; side < 2; side++) {
         const v = k * 2 + side;
@@ -40,6 +44,7 @@ export const buildLineGeometry = (lines: PolylineSet, origin: THREE.Vector3, exa
         positions[v * 3 + 2] = world[local].z - origin.z;
         tangents.set([tangent.x, tangent.y, tangent.z], v * 3);
         sides[v] = side === 0 ? -1 : 1;
+        along[v] = distance;
       }
       if (k < end - 1) {
         const a = k * 2;
@@ -51,13 +56,17 @@ export const buildLineGeometry = (lines: PolylineSet, origin: THREE.Vector3, exa
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute("aTangent", new THREE.BufferAttribute(tangents, 3));
   geometry.setAttribute("aSide", new THREE.BufferAttribute(sides, 1));
+  geometry.setAttribute("aAlong", new THREE.BufferAttribute(along, 1));
   geometry.setIndex(indices);
   geometry.computeBoundingSphere();
   return geometry;
 };
 
-/** 按像素宽度画的贴地线：国界、战线等。随距离抬离地面一点，避免被地形遮住。 */
-export const createLineMaterial = (color: THREE.ColorRepresentation, widthPx: number, opacity = 1) =>
+/**
+ * 按像素宽度画的贴地线：国界、战线、铁路等。随距离抬离地面一点，避免被地形遮住。
+ * glowPx > 0 时线外再加一圈按像素衰减的光晕（uGlowPx、uGlowAlpha 可以随时改）。
+ */
+export const createLineMaterial = (color: THREE.ColorRepresentation, widthPx: number, opacity = 1, glowPx = 0, glowAlpha = 0) =>
   new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -67,15 +76,24 @@ export const createLineMaterial = (color: THREE.ColorRepresentation, widthPx: nu
       uColor: { value: new THREE.Color(color) },
       uWidthPx: { value: widthPx },
       uOpacity: { value: opacity },
+      uGlowPx: { value: glowPx },
+      uGlowAlpha: { value: glowAlpha },
+      // 虚线：一段长 uDashPx 像素（0 为实线），以 uDashSpeed 像素/秒沿线流动
+      uDashPx: { value: 0 },
+      uDashSpeed: { value: 0 },
     },
     vertexShader: /* glsl */ `
       attribute float aSide;
       attribute vec3 aTangent;
+      attribute float aAlong;
       uniform vec3 uCameraPos;
       uniform float uPixelAngle;
       uniform float uWidthPx;
+      uniform float uGlowPx;
       varying vec3 vWorld;
       varying float vAcross;
+      varying float vAlong;
+      varying float vPixelKm;
       #include <common>
       #include <logdepthbuf_pars_vertex>
       void main() {
@@ -84,9 +102,13 @@ export const createLineMaterial = (color: THREE.ColorRepresentation, widthPx: nu
         float dist = length(uCameraPos - world);
         float pixelKm = dist * uPixelAngle;
         vec3 side = normalize(cross(aTangent, up));
-        vec3 offset = side * aSide * pixelKm * uWidthPx * 0.5 + up * (0.01 + dist * 0.0008);
+        // 带宽 = 线宽 + 两侧光晕（光晕约 3 倍衰减宽度后可以忽略）
+        float total = uWidthPx + 6.0 * uGlowPx;
+        vec3 offset = side * aSide * pixelKm * total * 0.5 + up * (0.01 + dist * 0.0008);
         vWorld = world + offset;
         vAcross = aSide;
+        vAlong = aAlong;
+        vPixelKm = pixelKm;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position + inverse(mat3(modelMatrix)) * offset, 1.0);
         #include <logdepthbuf_vertex>
       }
@@ -94,14 +116,34 @@ export const createLineMaterial = (color: THREE.ColorRepresentation, widthPx: nu
     fragmentShader: /* glsl */ `
       uniform vec3 uColor;
       uniform float uOpacity;
+      uniform float uWidthPx;
+      uniform float uGlowPx;
+      uniform float uGlowAlpha;
+      uniform float uDashPx;
+      uniform float uDashSpeed;
+      uniform float uTime;
       varying vec3 vWorld;
       varying float vAcross;
+      varying float vAlong;
+      varying float vPixelKm;
       #include <common>
       #include <logdepthbuf_pars_fragment>
       ${ATMOSPHERE_GLSL}
       void main() {
         #include <logdepthbuf_fragment>
         float edge = 1.0 - smoothstep(0.6, 1.0, abs(vAcross));
+        if (uGlowPx > 0.0) {
+          // 到线中心的距离（像素）：实线部分抗锯齿，外面按指数衰减的光晕
+          float px = abs(vAcross) * (uWidthPx + 6.0 * uGlowPx) * 0.5;
+          float halfWidth = uWidthPx * 0.5;
+          float core = 1.0 - smoothstep(halfWidth - 0.6, halfWidth + 0.6, px);
+          float glow = exp(-max(px - halfWidth, 0.0) / uGlowPx) * uGlowAlpha;
+          edge = max(core, glow);
+        }
+        if (uDashPx > 0.0) {
+          float alongPx = vAlong / max(vPixelKm, 1e-6);
+          edge *= step(fract((alongPx - uTime * uDashSpeed) / (2.0 * uDashPx)), 0.5);
+        }
         // 线条也受空气透视影响，但只取一半，保证远处仍然清楚
         vec3 color = mix(uColor, e3dApplyHaze(uColor, vWorld), 0.5);
         gl_FragColor = vec4(color, uOpacity * edge);

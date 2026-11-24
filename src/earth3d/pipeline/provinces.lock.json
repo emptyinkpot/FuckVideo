@@ -1,0 +1,22 @@
+{
+  "chn-adm2.geojson": {
+    "url": "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/CHN/ADM2/geoBoundaries-CHN-ADM2_simplified.geojson",
+    "sha256": "8c7dfa8e40842f9162453d9b0b614276a48bf635559ba371c7982cb288e7b303"
+  },
+  "ne-admin1.zip": {
+    "url": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_1_states_provinces.zip",
+    "sha256": "efc59726337323058f9446210adc96673179cd344e053666ee3d28cb58ba2b05"
+  },
+  "world-1930.geojson": {
+    "url": "https://raw.githubusercontent.com/aourednik/historical-basemaps/d7cc908e67e136674129ba8444a3a7f2e0835bb4/geojson/world_1930.geojson",
+    "sha256": "4eb4c982ad6ebf0f98cc055d2f1403785c3b6fad79b20d992ba3b44b2e045563"
+  },
+  "world-1938.geojson": {
+    "url": "https://raw.githubusercontent.com/aourednik/historical-basemaps/d7cc908e67e136674129ba8444a3a7f2e0835bb4/geojson/world_1938.geojson",
+    "sha256": "f2565926fed1b197227b7fe126934a43ed75b8fce007e38be72a7d21a415d813"
+  },
+  "world-1945.geojson": {
+    "url": "https://raw.githubusercontent.com/aourednik/historical-basemaps/d7cc908e67e136674129ba8444a3a7f2e0835bb4/geojson/world_1945.geojson",
+    "sha256": "3005839db7bcc5256d511b3abb01f1140c0cce245189bc5c28e7d557a47bc775"
+  }
+}

@@ -1,79 +1,59 @@
-# Historical DB
+# 史料库
 
-这里是历史事实数据层。原则是：AI 可以生成镜头、动画节奏和解说，但不能直接编造领土控制、战线和占领区。
+这里只放历史事实，不放任何颜色和画法。原则是：镜头、动画节奏、解说可以自动生成，领土归属、占领范围、战线和箭头必须来自这里的数据。
 
-## 数据流
-
-```txt
-datasets/*.ts
-  -> validateHistoricalDataset()          渲染前校验，有错直接报错
-  -> resolveHistoricalWorldState(date)    某一天每个区域的控制方、状态、颜色
-  -> layers/territory.ts                  画成控制区着色的贴地图层
-  -> wars/sinoJapaneseWar.ts              成片配置：事件顺序、镜头规则、阵营颜色、地名
-  -> scenes/SinoJapaneseWarDemo.tsx       组装镜头、图层（着色、战线、箭头、地名）和字幕
-```
-
-## 推荐建模
-
-长期应该把历史数据拆成两组：
+## 两部分数据
 
 ```txt
-Control Snapshot
-  actors / aliases / region controller / color inheritance / geometry / confidence / sources
+political/          政治地理：某一天每个区域归谁、谁在占领
+  polities.ts       政权表：名称、所属国家、阵营、宗主、存续时间、国名标注位置
+  regions.ts        区域：中国省级区块、1938 年世界底图的各国、手画的近似范围（按绘制顺序）
+  periods.ts        领有时间段（OWNERS）和控制时间段（CONTROLS：occupied 占领、contested 争夺）
+  resolve.ts        数据自检（引用、日期、时间段重叠、政权存续期）
 
-Event Process
-  date / initiator / origin / target / route / process / result / confidence / sources
+datasets/           事件：日期、标题、摘要、镜头提示、战线、进攻箭头、事件发生时正在争夺的省份
+places/             城市表、历史地名、首都的时间段
+wars/               成片配置：事件顺序、镜头规则
 ```
 
-`Control Snapshot` 负责地图上每个地块的归属、颜色、名称和显示规则；`Event Process` 负责战争推演中的起点、目标、过程、箭头、战线、标题和说明。这样同一个历史时点可以复现，同一个事件也能被多种镜头复用。
-
-当前实现里：
-
-- `regions` 定义可寻址地块和 geometry refs。
-- `ownership` 定义 `region + date -> controller/status/sovereign`。
-- `getRegionColor()` 定义唯一颜色规则，颜色只来自 `actors + ownership + renderPolicy`。
-- `resolveHistoricalWorldState(date)` 把两者解析成渲染状态。
-- `events` 定义镜头、字幕、箭头和战线。
-- 不存在 `moments` 兼容路径；新数据集必须同时提供 `regions`、`ownership` 和 `events`。
-
-新增数据后应运行 `validateHistoricalDataset`，保证 ownership/event 没有引用不存在的 actor 或 region。
-
-## 静态底图补丁
-
-当前 `src/earth3d/data/historical-world-1938.geojson` 是单一时间点底图，不适合直接表达 1931 到 1945 的连续变化。比如其中 `Empire of Japan` 的 multipolygon 第 `57` 个 part 是满洲，1932 年前属中国控制，1945 年后又回到中国。
-
-数据集用 `geojson-feature-part` 类型的 geometry 把这个 part 单独定义成一个区域（`base-map-empire-of-japan-part-57`），再由 `ownership` 给出各时段的控制方。控制区着色时，底图里的日本帝国先整体着色，被史料库单独管理的 part 跳过，再按 `ownership` 逐区覆盖。
-
-这不是最终史实边界，只是把错误的静态底图纳入可复现的时间线控制。最终应拆成朝鲜、关东州、满洲国、租借地等独立几何。
-
-## 粒度规则
-
-当前可直接渲染的中国区域只有：
+画面怎么用这些数据：
 
 ```txt
-src/earth3d/data/china-provinces.geojson
+political/  -> map/provinceStore.ts  区域展开成全球地块；某一天每个地块的领有者、控制者（世界其他国家按历史底图）
+            -> map/political.tsx     国家层：按领有者涂色（颜色在风格的 political.colors）
+            -> map/borderLines.tsx   国界、前线：地块边界里两侧不同的
+            -> map/occupation.tsx    占领层：控制者颜色的斜纹；争夺区的流动虚线
+            -> map/regions.tsx       国家名
+datasets/   -> scenes/SinoJapaneseWarDemo.tsx  镜头、字幕、战线、箭头（颜色按阵营，在风格的 events.actors）
 ```
 
-所以数据库里不能把“局部历史区域”强行映射到一个现代省级整块。例如满洲国相关的西部边缘区域不能直接渲染成整个现代 `内蒙古自治区`。这类条目应当：
+## 领有和控制
 
-- 暂不进入 `ownership` 渲染链路；
-- 在 `events[].note`、`frontlines[].note` 或待办数据文档中说明；
-- 等接入历史行政区、市县级或自定义 polygon 后，再加入 `regions`；
-- 设置 `geometry.level: "custom-polygon"`、`prefecture` 或 `county`，并在 `confidence` / `note` 中说明精度。
+参考《钢铁雄心》《欧陆风云》：每个区域有两个属性。
 
-## 字段含义
+- **领有**（`OWNERS`）：这块地归谁。国家层按它涂底色。同一区域的领有时间段不能重叠。
+- **控制**（`CONTROLS`）：这块地实际由谁控制，没有记录就是领有者自己控制。
+  - `occupied`：被占领。底色仍是领有者的，叠上控制者颜色的斜纹。
+  - `contested`：正在争夺。叠上进攻方颜色的流动虚线。
 
-- `ownership[].controllerId`：该区域在该历史时点的控制方。
-- `ownership[].sovereignId`：傀儡、殖民、租借等场景下用于颜色继承的宗主或主导方。
-- `regions[].geometryRefs[].geometry.level`：几何粒度，支持 `country`、`province`、`prefecture`、`county`、`custom-polygon`、`symbolic`。
-- `confidence`：事实或几何表达可信度。
-- `sources`：数据来源，不写来源的条目不能升级为高可信度。
-- `note`：说明简化、争议或待校准问题。
+当前的取舍：
 
-## 下一步
+- 满洲国作为单独的政权领有东北三省（日本阵营的象牙白）。
+- 华北临时政府、维新政府、汪精卫政权、蒙疆治下的地方，记为“国民政府领有、日本控制”，即蓝底白色斜纹。
+- 军阀（晋绥、新桂系、滇系、川系、西北诸马、冀察、山东韩复榘、粤系、新疆盛世才、东北军）是国民政府阵营里的不同政权，颜色是不同深浅的蓝；和中央之间画细线，国与国之间画粗线（按政权的 `country` 区分）。
+- 中共根据地目前只有陕甘宁边区，是手画的近似范围（`regions.ts` 的 `shaanganning`，标了 `approx`）。
 
-要把战争演化做精细，优先补三类数据：
+## 粒度
 
-1. 历史行政区或自定义 polygon 数据，尤其是满洲国、蒙疆、热河、察哈尔等区域。
-2. 战役地图人工校准的 frontlines 和 arrows。
-3. 现代省级数据之外的市级/县级 overlay，用于局部占领和城市周边战线。
+底层是全球地块系统（中国按县，世界其他地方按省、州），但这里整理的史料目前仍按省记录，只能表达大势：
+
+- 日军在华北、华中多是“点线占领”（城市和铁路沿线），按省画占领会夸大范围；一省只有部分被占、战事反复的标为 `contested`。
+- 热河、察哈尔、绥远、西康等已撤销的省份并入了现代省区，无法单独表示；现代内蒙古整块按绥远一带的归属处理（东部当年其实属满洲国兴安各省）。
+- 1938 年世界底图里朝鲜和满洲是“日本帝国”的同一块多边形；中国东北各省画在它上面，剩下的部分就是朝鲜。
+- 世界其他国家只按 1930 / 1938 / 1945 三个年份的底图换归属，年份之间（例如 1939–1942 年欧洲的变化）没有逐次记录。
+
+地块已经细到县，下一步可以按县记录占领范围（点线占领、根据地的实际范围）：在 `regions.ts` 里加 `custom` 范围，或者以后支持按县名列出区域。
+
+## 自检
+
+`resolve.ts` 加载时运行 `validatePoliticalData()`：引用的区域和政权都存在、日期格式正确、同一区域的领有和控制时间段互不重叠、领有时间在政权存续期内。`validateHistoricalDataset()` 检查事件：日期、参与方、坐标，以及 `hatchRegions` 里的省份在政治地理的区域里存在。任何一项有误，渲染前直接报错。

@@ -170,7 +170,7 @@ export const defaultMultiSceneVideoProps = {
         to: [125.32, 43.88],
         fromLabel: "大连",
         toLabel: "长春",
-        routeColor: "#f4d35e",
+        railFocus: ["nanman"],
         overlayOpacity: 0.78,
       },
     },

@@ -1,0 +1,9 @@
+{
+  "ne_railroads": {
+    "url": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_railroads.zip",
+    "files": {
+      "ne_10m_railroads.dbf": "bfe275b4ca9fffbe7f66c7cfd894518960cee835111001f090d570b130a379b3",
+      "ne_10m_railroads.shp": "91bf879cd8d20720ebf548e31e66c7c4187b1b1821bc16b7f162b5f3df94d150"
+    }
+  }
+}

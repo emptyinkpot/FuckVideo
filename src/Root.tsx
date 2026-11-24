@@ -5,6 +5,7 @@ import { z } from "zod";
 import {
   EARTH_STYLE_IDS,
   Earth3DPreview,
+  EarthBackdrop,
   EarthFlyover,
   SINO_JAPANESE_WAR_DURATION,
   STRATEGIC_MAP_DURATION,
@@ -359,44 +360,54 @@ const mapRouteFlyoverSchema = z.object({
 const renderPassSchema = z.enum(["full", "globe", "overlay", "labels"]);
 // 地球画面风格：default 写实、strategic 态势图（src/earth3d/styles）
 const earthStyleSchema = z.enum(EARTH_STYLE_IDS);
+// 人文地理层开关：所有地球动画共用（src/earth3d/map/mapLayers.ts）
+const mapTogglesSchema = z.object({
+  rivers: z.boolean(),
+  nations: z.boolean(),
+  occupation: z.boolean(),
+  railways: z.boolean(),
+  cities: z.boolean(),
+  regions: z.boolean(),
+});
+const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD");
+/**
+ * 所有地球动画共有的参数（src/earth3d/scenes/shared.tsx 的 EarthSceneProps）。
+ * 每个地球动画的 schema 都 extend 它，Studio 面板里这一组完全一样。
+ */
+const earthSceneSchema = z.object({
+  style: earthStyleSchema,
+  map: mapTogglesSchema,
+  pass: renderPassSchema,
+});
+const earthSceneDefaults = {
+  style: "default" as const,
+  map: { rivers: true, nations: true, occupation: true, railways: true, cities: true, regions: true },
+  pass: "full" as const,
+};
 
-const earthFlyoverSchema = z.object({
+const earthFlyoverSchema = earthSceneSchema.extend({
+  date: dateSchema,
   title: text(),
   subtitle: text(),
   from: z.tuple([z.number().min(-180).max(180), z.number().min(-85).max(85)]),
   to: z.tuple([z.number().min(-180).max(180), z.number().min(-85).max(85)]),
   fromLabel: text(),
   toLabel: text(),
-  routeColor: color(),
+  // 不填时路线颜色跟随风格
+  routeColor: color().optional(),
+  railFocus: z.array(z.string()),
   overlayOpacity: z.number().min(0).max(1),
-  layers: z.object({
-    rivers: z.boolean(),
-    borders: z.boolean(),
-    route: z.boolean(),
-    pins: z.boolean(),
-  }),
-  style: earthStyleSchema,
-  pass: renderPassSchema,
+  events: z.object({ route: z.boolean(), pins: z.boolean() }),
 });
 
-const sinoJapaneseWarDemoSchema = z.object({
+const sinoJapaneseWarDemoSchema = earthSceneSchema.extend({
   title: text(),
   subtitle: text(),
   cardLeft: z.number().min(0).max(900),
   cardBottom: z.number().min(0).max(500),
   progressTop: z.number().min(0).max(160),
   showProgressBar: z.boolean(),
-  layers: z.object({
-    rivers: z.boolean(),
-    borders: z.boolean(),
-    territory: z.boolean(),
-    frontlines: z.boolean(),
-    arrows: z.boolean(),
-    cities: z.boolean(),
-    regions: z.boolean(),
-  }),
-  style: earthStyleSchema,
-  pass: renderPassSchema,
+  events: z.object({ frontlines: z.boolean(), arrows: z.boolean() }),
 });
 
 const geoCameraSchema = z.object({
@@ -407,28 +418,28 @@ const geoCameraSchema = z.object({
   headingDeg: z.number().min(-360).max(360),
 });
 
-const earth3DPreviewSchema = z.object({
+const earth3DPreviewSchema = earthSceneSchema.extend({
+  date: dateSchema,
   view: geoCameraSchema,
   keyframes: z.array(z.object({ frame: z.number().min(0), camera: geoCameraSchema })),
-  style: earthStyleSchema,
   // 不填时由风格决定
   exaggeration: z.number().min(0.5).max(8).optional(),
-  layers: z.object({ rivers: z.boolean(), buildings: z.boolean(), borders: z.boolean() }),
+  buildings: z.boolean(),
   pixelError: z.number().min(0.5).max(8),
   hazeDensity: z.number().min(0).max(0.1).optional(),
-  pass: renderPassSchema,
 });
 
-const strategicMapDemoSchema = z.object({
-  style: earthStyleSchema,
-  layers: z.object({
-    rivers: z.boolean(),
-    territory: z.boolean(),
-    arrows: z.boolean(),
-    places: z.boolean(),
-    hud: z.boolean(),
-  }),
-  pass: renderPassSchema,
+const strategicMapDemoSchema = earthSceneSchema.extend({
+  events: z.object({ arrows: z.boolean(), places: z.boolean(), hud: z.boolean() }),
+});
+
+const earthBackdropSchema = earthSceneSchema.extend({
+  date: dateSchema,
+  lon: z.number().min(-180).max(180),
+  lat: z.number().min(-85).max(85),
+  rangeKm: z.number().min(50).max(40000),
+  pitchDeg: z.number().min(0).max(80),
+  driftDeg: z.number().min(0).max(60),
 });
 
 const defaultNarratedVideoProps = {
@@ -654,39 +665,30 @@ const mapRouteFlyoverDefaultProps: z.input<typeof mapRouteFlyoverSchema> = {
 };
 
 const earthFlyoverDefaultProps: z.input<typeof earthFlyoverSchema> = {
+  ...earthSceneDefaults,
+  date: "1937-07-07",
   title: "关东州与南满铁路",
   subtitle: "从大连到长春",
   from: [121.6, 38.92],
   to: [125.32, 43.88],
   fromLabel: "大连",
   toLabel: "长春",
-  routeColor: "#f97316",
+  railFocus: ["nanman"],
   overlayOpacity: 0.86,
-  layers: { rivers: true, borders: true, route: true, pins: true },
-  style: "default",
-  pass: "full",
+  events: { route: true, pins: true },
 };
 
 const sinoJapaneseWarDemoDefaultProps: z.input<
   typeof sinoJapaneseWarDemoSchema
 > = {
+  ...earthSceneDefaults,
   title: "1931-1945 中日战争演化",
   subtitle: "真实三维地球上的时间线、战线与占领区",
   cardLeft: 48,
   cardBottom: 42,
   progressTop: 34,
   showProgressBar: true,
-  layers: {
-    rivers: true,
-    borders: true,
-    territory: true,
-    frontlines: true,
-    arrows: true,
-    cities: true,
-    regions: true,
-  },
-  style: "default",
-  pass: "full",
+  events: { frontlines: true, arrows: true },
 };
 
 export const RemotionRoot: React.FC = () => {
@@ -1009,10 +1011,28 @@ export const RemotionRoot: React.FC = () => {
             { frame: 299, camera: { lon: 118.78, lat: 32.04, rangeKm: 40, pitchDeg: 62, headingDeg: 20 } },
           ],
           view: { lon: 116, lat: 33, rangeKm: 14000, pitchDeg: 0, headingDeg: 0 },
-          style: "default",
-          layers: { rivers: true, buildings: true, borders: true },
+          ...earthSceneDefaults,
+          date: "1937-07-07",
+          buildings: true,
           pixelError: 1.5,
-          pass: "full",
+        }}
+      />
+      <Composition
+        id="EarthBackdrop"
+        component={EarthBackdrop}
+        schema={earthBackdropSchema}
+        durationInFrames={300}
+        fps={30}
+        width={1280}
+        height={720}
+        defaultProps={{
+          ...earthSceneDefaults,
+          date: "1937-07-07",
+          lon: 112,
+          lat: 33,
+          rangeKm: 5200,
+          pitchDeg: 18,
+          driftDeg: 6,
         }}
       />
       <Composition
@@ -1024,9 +1044,9 @@ export const RemotionRoot: React.FC = () => {
         width={1280}
         height={720}
         defaultProps={{
+          ...earthSceneDefaults,
           style: "strategic",
-          layers: { rivers: true, territory: true, arrows: true, places: true, hud: true },
-          pass: "full",
+          events: { arrows: true, places: true, hud: true },
         }}
       />
       <Composition

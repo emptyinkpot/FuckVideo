@@ -29,7 +29,7 @@
   - 贴地图层用同一套光照，着色区域里的山也有阴影。
   - 默认太阳：近处 18°，远处升到 60°；想要更强的立体感，把 `sun.elevationDeg` 设到 10-12°。
 - **天空和大气**：低空是蓝天，升到太空后变为星空，地球边缘有受光一侧的大气辉光。空气透视分波长计算：蓝光衰减和散射都更强，远山逐渐偏蓝灰；朝太阳方向看时，前向散射让空气发亮。
-- **图层**：国界、控制区着色、战线、进攻箭头、地名都是叠加在基础地球上的独立图层，见下方“分层”。
+- **图层**：国家（按政权涂色、国界）、占领（斜纹、前线、争夺虚线）、铁路、城市、国家名、战线、进攻箭头都是叠加在基础地球上的独立图层，见下方“分层”。
 - **精度分级**：整个地球切成四叉树分块，镜头近处细、远处粗。所有分块用同一套数据、同一套生成方法、同一个材质，接缝处用裙边遮挡，边缘法线用分块外多存的一圈采样点计算。不存在局部贴片，镜头对准哪里都不会改变地图本身。
 
 全球统一细分到第 5 级。战区范围（东经 97–146°，北纬 18–54°）细分到第 9 级，最细一级的网格点间距约 240 米，与高程数据本身的分辨率一致。
@@ -39,11 +39,12 @@
 | 部分 | 状态 |
 |---|---|
 | 源码集中到本目录，旧的局部贴片方案已删除 | 完成 |
-| 数据预处理（高程、地表分类、水域、湖泊水位、河流、城市、国界、分块） | 完成 |
+| 数据预处理（高程、地表分类、水域、湖泊水位、河流、城市、铁路、分块） | 完成 |
 | 地形分块、精度分级、地表着色、水面、河流、天空大气 | 完成 |
 | 1930 年代城市建筑、村庄、农田 | 完成，见下方已知问题 |
-| 1938 年国界 | 完成 |
-| 战线、进攻箭头、控制区着色、城市和地名标签 | 完成 |
+| 政治地理：政权表、区域、领有和控制时间段（1931–1946） | 完成，按省级粒度 |
+| 国家层、占领层、战线、进攻箭头、城市和国家名标签 | 完成 |
+| 人文图层：国家（政权色、自动国界）、占领（斜纹、前线、争夺虚线、边界推进）、1930 年代城市、1930 年代铁路 | 完成 |
 | `SinoJapaneseWarDemo`（中日战争成片）改用新地球 | 完成 |
 | `EarthFlyover`（路线飞越，替代平面照片地图的 `AtlasMapFlyover`） | 完成 |
 | `EarthBackdrop`（讲解视频背景，替代平面照片世界地图） | 完成 |
@@ -58,32 +59,50 @@
 - 城市街网过于规整，没有城墙、河道穿城和成片绿地；城区外缘是按城市规模生成的不规则圆形。
 - 地表分类在 300 米尺度上能看出成块的轮廓。
 - 里海在 Natural Earth 海洋数据里算作海洋，水面按海平面 0 米画（实际约 -28 米），沿岸低地会被淹没一圈。
-- 控制区着色用的是现代省界和 1938 年世界格局底图，按省整块着色，不是精确的历史占领线（史料库 `geometryPolicy` 里有说明）。
-- 1938 年底图里的“日本帝国”（本土、朝鲜、台湾等）在所有年份都按日本着色，包括 1945 年投降之后。
+- 政治地理按现代省级区块，只能表达大势：日军的“点线占领”按省画会夸大范围；热河、察哈尔、绥远等已撤销的省份无法单独表示；现代内蒙古整块按绥远一带的归属处理。详见 `history/README.md`。
+- 1938 年底图不区分朝鲜和日本本土，1945 年投降之后朝鲜仍按日本领有。
+- 国家层、占领层贴在地形表面上，海面盖在海底的地形上面：贴着海岸的地方按海面网格的格子呈锯齿状。
+- 铁路的经营方只按战前的归属记录（满铁、中东铁路出售等），战时占领区铁路改由日方机构经营（华北交通等）没有逐段记录。
+- 铁路走向沿现代路网找出，现代路网改线、截弯取直的地方会和 1930 年代的线路有出入；约 2% 的车站间距离没有对应的现代线路，按直线画。部分区段的通车日期只精确到年（数据里标了 `approx`）。
 
 ## 分层
 
 ```txt
-基础地球（globe/）       地形、地表、海洋湖泊、河流、建筑、天空大气。不知道任何图层的存在。
-  └─ 图层（layers/）     每个图层按需提供三种内容中的任意几种：
-       decal             贴地内容：一张经纬度透明图，单独一遍画在地形表面上，随地形明暗
-       objects           三维对象：国界线、战线、箭头
-       labels            画面文字：地名，HTML 放在三维位置的投影处
-画面（view/EarthView）   三维画布 + 文字层；按渲染通道分层导出
-成片（scenes/）          只负责组装：镜头 + 基础地球 + 图层 + 字幕卡片
+core/      坐标、镜头
+globe/     自然地理基础层：地形、地表、海洋湖泊、河流、建筑、天空大气。不知道任何上层的存在
+map/       人文地理层：国家（按政权涂色、国界）、占领、铁路、城市、国家名，全部按日期变化
+events/    事件层：战线、进攻箭头、事件光晕、地名标注、航线
+layers/    图层接口和公用的贴地线条工具（types.ts、geoLines.ts、geometryCache.ts）
+view/      画面组装（EarthView）：自然地理 + 人文地理（按 date 自动加上全部图层）+ 事件 + 文字层；分层导出；风格
+scenes/    Remotion 动画：只管镜头、时间线、事件和界面
+styles/    风格：与上面各层平行，每个风格覆盖所有层的画法（地形、人文图层、事件、文字、界面）
 ```
 
-现有图层：
+几条约定：
 
-| 图层 | 工厂函数 | 内容 |
-|---|---|---|
-| 1938 年国界 | `bordersLayer()` | 三维对象 |
-| 控制区着色 | `territoryLayer({ dataset, date, next })` | 贴地内容，两个日期之间可渐变 |
-| 战线 | `frontlinesLayer({ lines })` | 三维对象，贴地 |
-| 进攻箭头 | `arrowsLayer({ arrows, progress })` | 三维对象，贴地，按进度生长 |
-| 地名 | `placeLabelsLayer({ places, style })` | 画面文字 |
+- **所有地球动画都通过 `EarthView` 出画，`EarthView` 必须给 `date`。** 它按日期自动叠上完整的人文地理层（`map/mapLayers.ts`），动画不再自己挑选人文图层；以后新增的人文图层只改 `mapLayers.ts`，所有动画自动带上。
+- **所有地球动画共用一组参数**（`scenes/shared.tsx` 的 `EarthSceneProps`，`src/Root.tsx` 的 `earthSceneSchema`）：`style` 风格、`map` 人文地理层开关（河流、国家、占领、铁路、城市、国家名，默认全开）、`pass` 分层导出。单个镜头的动画另有 `date`；动画自己的事件开关在 `events` 里。
+- **画法全部来自风格。** 箭头按阵营取色（`events.actors`），航线、战线、事件光晕、地名标注、国家名、字幕卡片、状态条、图例都按风格取色；风格类型要求每一项都填，少一项类型检查就报错。
+- **回归测试检查完整性。** `EarthView` 每次挂载时打印它画了哪些人文图层；`tests/verify-upstream.mjs` 逐个组合检查，画了地球却缺任何一个人文图层就失败，原本画地球的组合不再画地球也失败（名单在 `tests/fixtures/earth-compositions.json`）。
 
-新图层只需实现 `layers/types.ts` 里的 `EarthLayer`：`id`、`order`、`opacity`，以及 `decal`、`objects`、`labels` 中需要的几个。每个函数在每次渲染时调用，地形分块加载完成后会重新调用，贴地的线条随之按新高度重建。
+目前画地球的组合：`SinoJapaneseWarDemo`、`StrategicMapDemo`、`EarthFlyover`、`Earth3DPreview`、`EarthBackdrop`，以及用到它们的 `NarratedVideo`（讲解背景）、`GeneratedTemplateVideo`（模板默认用战争动画）。`MultiSceneVideo` 的路线飞越场景同样走 `EarthFlyover`。
+
+图层：
+
+| 层 | 图层 | 工厂函数 | 内容 |
+|---|---|---|---|
+| 人文 | 国家 | `nationsLayer({ date, next })` | 贴地内容：按领有政权涂色，国界从颜色交界处生成，见下方“人文图层” |
+| 人文 | 占领 | `occupationLayer({ date, contested, next })` | 贴地内容：控制者颜色的斜纹、前线，争夺区流动虚线 |
+| 人文 | 铁路 | `railwaysLayer({ date, focus, only })` | 三维对象，贴地 |
+| 人文 | 城市 | `citiesLayer({ date, avoid, reserve })` | 画面文字 |
+| 人文 | 国家、政权名 | `regionsLayer({ date })` | 画面文字：当天领有土地的政权；军阀、根据地只在较近的镜头显示 |
+| 人文 | 全部人文图层 | `mapLayers(date, options)` | `EarthView` 自动调用 |
+| 事件 | 战线 | `frontlinesLayer({ lines })` | 三维对象，贴地 |
+| 事件 | 进攻箭头、航线 | `arrowsLayer({ arrows, progress })` | 三维对象，贴地，按进度生长；`actor` 决定颜色 |
+| 事件 | 事件光晕 | `pulseLayer({ at, frame, start })` | 画面文字层 |
+| 事件 | 地名标注 | `placeLabelsLayer({ places, style })` | 画面文字（城市表里没有的小地方） |
+
+新图层只需实现 `layers/types.ts` 里的 `EarthLayer`：`id`、`order`、`opacity`，以及 `decal`、`objects`、`labels` 中需要的几个。`objects` 拿到的上下文里有当前风格（`context.style`），`labels` 拿到镜头、画面尺寸和风格。每个函数在每次渲染时调用，地形分块加载完成后会重新调用，贴地的线条随之按新高度重建。
 
 贴地内容的实现：用地形网格再画一遍，顶点着色器与地形完全相同，深度一致，配合 LessEqual 深度比较贴在地表上；颜色按地形的阳光、天光、陡坡明暗受光，再加空气透视。
 
@@ -105,7 +124,40 @@ npx remotion render src/index.ts SinoJapaneseWarDemo out/war-overlay.mov --gl=an
   --image-format=png --codec=prores --prores-profile=4444 --props='{"pass":"overlay"}'
 ```
 
-各图层也可以单独开关，Studio 右侧面板里勾选（`layers` 参数），例如关掉国界、只留控制区和箭头。
+各图层也可以单独开关，Studio 右侧面板里勾选（`map` 和 `events` 参数），例如关掉国家层、只留占领和箭头。
+
+## 人文图层
+
+国家范围、城市、铁路和自然地理（`globe/`）分开，各自是一个图层，画法都来自风格（`styles/` 的 `political`、`occupation`、`cities`、`railways`、`regions`）。
+
+**全球地块系统**（参考 Paradox 游戏的 province map；数据 `pipeline/build_provinces.py`，前端 `map/provinceStore.ts`）：
+
+- 全世界切成 6955 个固定地块：中国大陆按县（geoBoundaries CHN ADM2，2391 个），世界其他地方（含台港澳）按省、州一级（Natural Earth 一级行政区）。每个地块记代表点、面积、现代中国省份，以及 1930 / 1938 / 1945 年历史世界底图里所属的国家和宗主国。
+- 两张地块编号图：全球约 10 公里一像素，东亚（东经 70–150°、北纬 15–56°）约 2.2 公里一像素。不同来源之间的细缝在陆地上按相邻地块补上，海上不补。
+- 地块边界线：从编号图抽出相邻地块之间的边（海岸线不算），先简化掉像素台阶再平滑成曲线，每 2 公里取一次地面高度；每条线记两侧的地块。
+- 每个日期只算一张“地块 -> 领有者、控制者、状态”的对照表，换日期是瞬间的。世界各国按当年底图的宗主国（殖民地取宗主国，像《钢铁雄心》一样同色）；`history/political/` 里整理的东亚区域按领有、控制时间段覆盖上去（区域展开成地块：中国按现代省份，底图国家按 1938 年国名，手画范围按代表点）。
+
+**国家层**（`map/political.tsx`）：着色器按经纬度取地块、查对照表、从政权色板取颜色，相邻四个像素的颜色双线性混合，交界处没有锯齿。东亚整理的政权逐个配色（日本阵营白色系、国民政府阵营蓝色系、社会主义阵营红色系），世界其他国家按国名从中性色板取，换日期颜色不变。
+
+**国界和前线**（`map/borderLines.tsx`）：从地块边界线里挑出当天两侧不同的，画成按屏幕像素宽度的贴地线，远近都清楚。两侧领有者属于不同国家为国界（粗、可带光晕），同一国家内（中央与军阀）为细线；一侧被占领或争夺、两侧控制者不同为前线，颜色取占领方，占领为实线、争夺为流动虚线。国界属于国家层，前线属于占领层。两个日期之间旧线淡出、新线淡入。
+
+**占领层**（`map/occupation.tsx`）：被占领的地块保留领有者的底色，叠上控制者颜色的斜纹；正在争夺的地块画进攻方颜色的流动虚线（比占领斜纹淡、稀）。斜纹、虚线的间距按屏幕像素，并按 2 的幂分级，推拉镜头不跳。
+
+**国家名**（`map/regions.tsx`）：东亚整理的政权按政权表的位置，当天领有土地的才标；世界其他国家、殖民地按当年底图的国名，位置为其地块的面积加权中心，有中文名、面积够大的才标。
+
+**城市**（`layers/cities.tsx`，数据 `history/places/cities.ts`）：115 座 1930–40 年代东亚城市。
+
+- 按日期显示当时的名字：北平（1928–1949）、奉天（伪满时期）、新京（1932–1945）、京城（1910–1945）、归绥、迪化、安东、石门、宁夏、库伦等；
+- 首都按日期标出：国家首都实心星（南京 → 1937-11-20 起重庆）、傀儡政权首都空心星（新京、北平临时政府、汪伪南京、蒙疆张家口）、殖民地首府方形（京城、台北、河内）、根据地中心带圈圆点（延安）；
+- 分三级，按镜头距离显示（一级 15000 公里内、二级 3500、三级 1200，超出后淡出）；
+- 按重要程度依次摆放，先试圆点右边再试左边，压住别的文字或 `avoid` 矩形（字幕卡片等）就不显示。
+
+**铁路**（`layers/railways.tsx`，数据 `pipeline/railways_source.py` → `assets/railways.bin`、`railways.json`）：31 条 1930 年代干线、62 个区段，包括平汉、津浦、北宁、京沪、沪杭甬、浙赣、粤汉、陇海、胶济、正太、平绥、同蒲、广九、湘桂，东北的南满、安奉、中东、京图、四洮—洮昂—齐北、图佳，朝鲜、台湾、日本的干线，滇越铁路，以及相邻的苏联段。
+
+- 每个区段记通车日期，按日期只显示已通车的；每条线记经营方的变化（中国、日本、满洲国、俄国/苏联、法国），按日期着色；
+- 线路走向：相邻车站之间沿 Natural Earth 现代铁路网找最短路径（98% 的车站间距离能找到），找不到或绕路超过 35% 时用直线；
+- 写实风格画传统地图的铁路符号（深色外沿、里面黑白相间，段长按屏幕像素）；态势图风格画带光晕的细亮线；
+- `focus` 指定焦点线路：更粗、发光，态势图风格下有光点沿线流动。
 
 ## 风格
 
@@ -114,13 +166,13 @@ npx remotion render src/index.ts SinoJapaneseWarDemo out/war-overlay.mov --gl=an
 | 风格 | 文件 | 样子 |
 |---|---|---|
 | `default` 写实 | `styles/default.ts` | 真实比例地形、真实地表分类、物理天空和空气透视（风格系统建立之前的画面，逐像素一致） |
-| `strategic` 态势图 | `styles/strategic.ts` | 地形放大 3.5 倍；西北方向低角度侧光、深阴影；山脊棱线提亮、沟底压暗；统一暗青灰底色；控制区着色接近直接把山体染色；河流换成亮蓝色；远处沉进暗色雾里，四周暗角 |
+| `strategic` 态势图 | `styles/strategic.ts` | 地形放大 3.5 倍；西北方向低角度侧光、深阴影；山脊棱线提亮、沟底压暗；统一暗青灰底色；政权底色较浓、国界带光晕；河流换成亮蓝色；远处沉进暗色雾里，四周暗角 |
 
 每个地球组合（战争动画、路线飞越、预览、背景、态势图示例）都有 `style` 参数，Studio 右侧面板里是下拉框。风格参数（`styles/types.ts`）包括：地形高度倍数、自动太阳、地表底色（真实分类或按海拔、坡度的风格化底色）、阳光和天光强度、山脊高光和沟谷压暗、雾的浓度和颜色、天空颜色、水面和河流颜色、贴地图层强度、整体调色和暗角。
 
 新风格：复制一个风格文件改数值，再登记到 `styles/index.ts` 的 `EARTH_STYLES`，下拉框会自动出现。
 
-控制区图层另有画法选项 `look`：争夺区画斜纹（`hatch`，适合全国尺度）或淡色填充（`tint`，适合几百公里以内的近景，斜纹在近景下会变成几十公里宽的条带），以及是否描区块边线。
+风格里的 `political`、`occupation` 两节决定国家层和占领层的样子；铁路颜色也取 `political.colors`（写实风格按 `railways.ownerShade` 调暗）。
 
 态势图示例 `StrategicMapDemo`：1937 年平型关战役，12 秒。镜头从高空推近到恒山、五台山之间，日军第 5 师团由灵丘向平型关推进，八路军第 115 师在乔沟一线设伏；顶部状态条、图例、字幕。
 
@@ -130,7 +182,7 @@ npx remotion render src/index.ts SinoJapaneseWarDemo out/war-overlay.mov --gl=an
 |---|---|---|
 | 解压后的地形分块数据 | 256MB，按最近使用淘汰，当前帧用到的不淘汰 | `globe/terrain/tileStore.ts` |
 | 地形、水面网格和坡度、地平线、地表分类纹理 | 内存和显存合计 1GB，按最近使用淘汰，当前帧用到的不淘汰；内存里的数据保留，Studio 新建画布时能重新上传 | `globe/terrain/chunkMesh.ts` |
-| 控制区叠加图 | 最近 4 张（每张约 32MB） | `layers/territory.ts` |
+| 地块对照表、国界和前线几何 | 对照表最近 16 个日期（每个约 28KB）；线条几何最近 48 份 | `map/provinceStore.ts`、`map/borderLines.tsx` |
 | 城市建筑 | 最近 4 座城市；城市离开画面时释放显卡实例数据 | `globe/buildings/cityBuildings.ts` |
 | 贴地线条几何 | 每条只留最新一份，地形变化重建时释放旧的 | `layers/geometryCache.ts` |
 
@@ -168,19 +220,29 @@ src/earth3d/
     default.ts              默认（写实）
     strategic.ts            态势图
     index.ts                风格登记、写入着色器参数、整体调色
-  layers/                   图层
-    types.ts                图层接口、渲染通道
-    borders.tsx             1938 年国界
-    territory.ts            控制区着色（按日期从史料库生成贴地叠加图）
-    warLayers.tsx           战线、进攻箭头图层
-    warLines.ts             战线、箭头的贴地几何与箭头材质
-    geoLines.ts             贴地带状线（按像素宽度）的几何与材质
+  layers/                   图层接口和公用工具
+    types.ts                图层接口、渲染通道、文字层拿到的画面信息
+    geoLines.ts             贴地带状线（按像素宽度、可带光晕）的几何与材质
     geometryCache.ts        贴地几何缓存（地形变化时重建，旧的立即释放）
-    placeLabels.tsx         地名图层
+  map/                      人文地理层
+    mapLayers.ts            某一天的全部人文图层（EarthView 自动调用）、统一开关
+    provinceStore.ts        全球地块系统：编号图、边界线、地块信息；某一天每个地块的领有者、控制者
+    political.tsx           国家层（按领有政权涂色）、政权色板
+    occupation.tsx          占领层（斜纹、争夺虚线）
+    borderLines.tsx         国界（国家层）、前线（占领层）：从地块边界线挑出当天两侧不同的
+    railways.tsx            1930 年代铁路（按日期通车、按经营方着色）
+    cities.tsx              1930 年代城市（历史地名、首都、分级、避让）
+    regions.tsx             国家、政权名（当天领有土地的政权）
+  events/                   事件层
+    warLayers.tsx           战线、进攻箭头（颜色按阵营和风格）
+    warLines.ts             战线、箭头的贴地几何与箭头材质
+    pulse.tsx               事件地点的跳动光晕
+    placeLabels.tsx         地名标注
   view/
     EarthView.tsx           三维画布 + 文字层，渲染通道，缺地形数据时的提示
     screenProjection.ts     经纬度投影到画面坐标
-  scenes/                   成片
+  scenes/                   成片（Remotion 动画）
+    shared.tsx              所有地球动画共用的参数、默认日期、按风格的界面颜色
     SinoJapaneseWarDemo.tsx 1931–1945 中日战争
     EarthFlyover.tsx        路线飞越（自动场景系统、多场景视频也在用）
     EarthBackdrop.tsx       讲解视频的地球背景（只有基础地球）
@@ -188,7 +250,9 @@ src/earth3d/
     StrategicMapDemo.tsx    态势图风格示例：1937 年平型关战役
   history/                  史料库（字段说明见 history/README.md）
     datasets/               史实数据
-    wars/sinoJapaneseWar.ts 中日战争成片的配置：事件顺序、镜头规则、阵营颜色、城市、国家名
+    wars/sinoJapaneseWar.ts 中日战争成片的配置：事件顺序、镜头规则、阵营颜色、国家名
+    places/                 1930–40 年代城市表、历史地名和首都的时间段
+    political/              政治地理：政权表、区域、领有和控制时间段、解析和自检（见 history/README.md）
   data/                     地理边界：1938 年世界格局、中国省界
   pipeline/                 数据预处理（Python）
     config.py               路径、数据源、战区范围、各级网格大小
@@ -199,7 +263,10 @@ src/earth3d/
     build_cities.py         1930 年代城市表（位置、人口、城区轮廓）
     build_masks.py          海洋、湖泊掩码和湖泊水位；1937 年后修建的水库按陆地处理
     build_rivers.py         河流（平滑、按流量定宽、水面不往下游爬升）
-    build_borders.py        1938 年陆上国界
+    build_provinces.py      全球地块：编号图、边界线、地块信息
+    provinces.lock.json     地块源数据（中国县级、世界一级行政区、三个年份的历史底图）的锁定校验值
+    railways_source.py      1930 年代干线铁路（人工整理：车站、通车日期、经营方）
+    build_railways.py       铁路走向（沿现代路网找路径）和贴地高度
     build_tiles.py          渲染分块
     relief.py               坡度图、8 方向地平线图（细法线、山体投影、天空可见度）
     build_all.py            检查并增量重建以上全部步骤，最后与 assets.sha256 核对
@@ -208,8 +275,9 @@ src/earth3d/
     manifest.py             生成、核对 assets.sha256
     requirements.txt        固定版本的 Python 依赖
     inputs.lock.json        河流、湖泊、海洋、城市矢量数据的锁定校验值
+    railways.lock.json      现代铁路网数据的锁定校验值
   assets/                   生成的渲染数据
-    cities.json, rivers.bin, borders-1938.bin, tiles.json   小文件，提交在仓库里
+    cities.json, rivers.bin, railways.bin, railways.json, provinces-*.bin, provinces.json, tiles.json   小文件，提交在仓库里
     tiles/                  地形分块，约 775MB，不提交，由脚本重建
   assets.sha256             assets 下每个文件的校验值（解压后内容），用来确认重建结果一致
   .cache/                   原始下载缓存和 Python 虚拟环境，约 2.8GB（不提交）
@@ -223,8 +291,11 @@ src/earth3d/
 | 地表分类 | ESA WorldCover 2021 v200 | 地表上色 | © ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021)，CC BY 4.0 |
 | 河流 | HydroRIVERS v1.0（亚洲、西伯利亚） | 河道、宽度 | Lehner & Grill 2013，需署名 |
 | 湖泊、海洋、城市 | Natural Earth 10m | 水面范围、城市位置 | 公有领域 |
-| 1938 国界 | `src/earth3d/data/historical-world-1938.geojson`（源自 historical-basemaps，GPL-3.0） | 国界、控制区着色底图 | 见 `asset-source/historical-basemaps/` |
-| 中国省界 | `src/earth3d/data/china-provinces.geojson`（现代省级区块） | 控制区着色 | — |
+| 铁路走向 | Natural Earth 10m railroads（现代路网，只用来确定车站之间的线路走向） | 铁路 | 公有领域 |
+| 历史世界底图 | historical-basemaps 1930 / 1938 / 1945（GPL-3.0，固定到提交 d7cc908） | 世界各国、殖民地的归属 | 见 `asset-source/historical-basemaps/` |
+| 中国县级边界 | geoBoundaries CHN ADM2（来源中国国家测绘地理信息局，PDDL 公有领域） | 地块 | 无 |
+| 世界一级行政区 | Natural Earth 10m admin-1 | 地块 | 公有领域 |
+| 中国省界 | `src/earth3d/data/china-provinces.geojson`（现代省级区块） | 判断地块所在的现代省份 | — |
 
 使用新地球的视频需要在片尾附上述署名。
 
@@ -232,7 +303,7 @@ WorldCover 是 2021 年的地表数据。现代建成区按耕地处理，1937 �
 
 ## 重建数据
 
-仓库里提交了城市、河流、国界这几个小数据文件；地形分块（约 775MB）不提交，克隆后要重建。没有地形分块时，其他动画照常可用，用到地球的动画会在画面上提示。
+仓库里提交了城市、河流、铁路这几个小数据文件；地形分块（约 775MB）不提交，克隆后要重建。没有地形分块时，其他动画照常可用，用到地球的动画会在画面上提示。
 
 **不用手动操作：仓库根目录的 `start.bat` 每次启动时都会快速检查一遍**（约一秒，只比较源码指纹、产物是否存在、分块数量，不读数据内容）。都是最新就静默通过；有缺的或过期的，就在后台开始重建并弹出进度窗口，Studio 照常启动，数据生成好后刷新一下页面即可。
 
@@ -288,11 +359,11 @@ npx remotion still src/index.ts Earth3DPreview screenshots/earth3d/nanjing.png -
 
 ## 战争成片（SinoJapaneseWarDemo）
 
-- 事件按日期排序，每个事件 5 秒：前 3.5 秒停在事件镜头上缓慢推近，箭头在这段时间里长出来；后 1.5 秒飞往下一个事件，控制区着色同时渐变到下一个日期的状态。
+- 事件按日期排序，每个事件 5 秒：前 3.5 秒停在事件镜头上缓慢推近，箭头在这段时间里长出来；后 1.5 秒飞往下一个事件，国家层、占领层同时过渡到下一个日期的状态，前线平滑推进。
 - 开头 3 秒从太空降到第一个事件。
 - 事件镜头取自史料里的 `camera.focus` 和 `camera.zoom`：距离为 `1500 × (2.3 / zoom)³` 公里，俯仰 38°。
 - 着色、战线、箭头都来自史料库，城市、国家名、阵营颜色、镜头规则在 `history/wars/sinoJapaneseWar.ts`，成片组件里不写任何归属。史料数据有缺字段、引用不存在的区域等问题时，渲染前直接报错。
-- `layers` 参数逐个开关河流、国界、控制区、战线、箭头、城市名、国家名；`pass` 参数分层导出。
+- `map` 参数逐个开关河流、国家、占领、铁路、城市、国家名，`events` 参数开关战线、箭头；`pass` 参数分层导出。
 
 ## 史料编辑
 

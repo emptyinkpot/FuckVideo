@@ -2,15 +2,15 @@ import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } fr
 import { FONT_SANS } from "../../fonts";
 import { cameraAtFrame, type GeoCamera } from "../core/camera";
 import { EARTH_RADIUS_KM, angularDistance } from "../core/geo";
-import { bordersLayer } from "../layers/borders";
-import type { EarthLayer, RenderPass } from "../layers/types";
-import { arrowsLayer } from "../layers/warLayers";
+import { arrowsLayer } from "../events/warLayers";
+import type { EarthLayer } from "../layers/types";
+import { css, resolveStyle } from "../styles";
 import { EarthView } from "../view/EarthView";
-import type { EarthStyleId } from "../styles";
+import { DEFAULT_SCENE_DATE, showsText, uiTheme, type EarthSceneProps } from "./shared";
 
-export type EarthFlyoverProps = {
-  /** 画面风格：default（写实）、strategic（态势图），见 src/earth3d/styles */
-  style?: EarthStyleId;
+export type EarthFlyoverProps = EarthSceneProps & {
+  /** 画面日期（人文地理层按它显示），默认 1937-07-07 */
+  date?: string;
   title?: string;
   subtitle?: string;
   /** 起点 [经度, 纬度] */
@@ -19,18 +19,19 @@ export type EarthFlyoverProps = {
   to?: [number, number];
   fromLabel?: string;
   toLabel?: string;
+  /** 路线颜色；不填按风格（events.route） */
   routeColor?: string;
+  /** 焦点铁路（线路 id，见 src/earth3d/assets/railways.json），例如 ["nanman"] */
+  railFocus?: string[];
   /** 左侧文字底色的不透明度 */
   overlayOpacity?: number;
-  /** 图层开关；不填的都显示 */
-  layers?: { rivers?: boolean; borders?: boolean; route?: boolean; pins?: boolean };
-  /** 分层导出，见 EarthView */
-  pass?: RenderPass;
+  /** 事件层开关：路线箭头、起终点标记 */
+  events?: { route?: boolean; pins?: boolean };
 };
 
 /**
  * 三维地球上的路线飞越：镜头先俯瞰整条路线，再斜着推向终点，路线箭头沿地表从起点长到终点。
- * 替代原来平面照片地图上的 AtlasMapFlyover。
+ * 带全部人文地理层；替代原来平面照片地图上的 AtlasMapFlyover。
  */
 export const EarthFlyover = ({
   title = "关东州与南满铁路",
@@ -39,16 +40,22 @@ export const EarthFlyover = ({
   to = [125.32, 43.88],
   fromLabel = "大连",
   toLabel = "长春",
-  routeColor = "#f97316",
+  routeColor,
+  railFocus = [],
   overlayOpacity = 0.86,
-  layers: toggles = {},
+  date = DEFAULT_SCENE_DATE,
+  events: eventToggles = {},
+  map,
   pass = "full",
   style = "default",
 }: EarthFlyoverProps) => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
   const intro = spring({ frame, fps, config: { damping: 90, stiffness: 120 } });
-  const show = (key: keyof NonNullable<EarthFlyoverProps["layers"]>) => toggles[key] !== false;
+  const show = (key: keyof NonNullable<EarthFlyoverProps["events"]>) => eventToggles[key] !== false;
+  const ui = uiTheme(style);
+  const look = resolveStyle(style);
+  const pinColor = routeColor ?? css(look.events.route);
 
   const routeKm = angularDistance(from[0], from[1], to[0], to[1]) * EARTH_RADIUS_KM;
   const middle: [number, number] = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
@@ -77,15 +84,23 @@ export const EarthFlyover = ({
     { label: fromLabel, at: from, delay: durationInFrames * 0.12 },
     { label: toLabel, at: to, delay: durationInFrames * 0.75 },
   ];
+  // 事件层：路线箭头、起终点标记。人文地理层由 EarthView 按日期加上。
   const layers: EarthLayer[] = [];
-  if (show("borders")) layers.push(bordersLayer({ opacity: 0.6 }));
   if (show("route")) {
-    layers.push(arrowsLayer({ id: "route", arrows: [{ id: "route", from, to, color: routeColor }], progress: routeProgress, widthPx: 10, opacity: 1 }));
+    layers.push(
+      arrowsLayer({
+        id: "route",
+        arrows: [{ id: "route", from, to, actor: "route", color: routeColor }],
+        progress: routeProgress,
+        widthPx: 10,
+        opacity: 1,
+      }),
+    );
   }
   if (show("pins")) {
     layers.push({
       id: "pins",
-      order: 40,
+      order: 45,
       labels: (project) =>
         pins.map((pin) => {
           const at = project(pin.at[0], pin.at[1]);
@@ -104,15 +119,7 @@ export const EarthFlyover = ({
                 gap: 6,
               }}
             >
-              <div
-                style={{
-                  color: "white",
-                  fontSize: 22,
-                  fontWeight: 900,
-                  textShadow: "0 0 5px rgba(0,0,0,0.95), 0 0 14px rgba(0,0,0,0.7)",
-                  whiteSpace: "nowrap",
-                }}
-              >
+              <div style={{ color: ui.text, fontSize: 22, fontWeight: 900, textShadow: ui.textShadow, whiteSpace: "nowrap" }}>
                 {pin.label}
               </div>
               <div
@@ -120,9 +127,9 @@ export const EarthFlyover = ({
                   width: 18,
                   height: 18,
                   borderRadius: 18,
-                  background: routeColor,
-                  border: "4px solid #fff7ed",
-                  boxShadow: `0 0 0 10px ${routeColor}38`,
+                  background: pinColor,
+                  border: `4px solid ${ui.text}`,
+                  boxShadow: `0 0 0 10px ${pinColor.startsWith("#") ? `${pinColor}38` : pinColor.replace(/[\d.]+\)$/, "0.22)")}`,
                 }}
               />
             </div>
@@ -131,25 +138,35 @@ export const EarthFlyover = ({
     });
   }
 
-  const showText = pass === "full" || pass === "labels";
+  const panel = look.ui.panel;
+  const shade = (alpha: number) => css(panel, alpha);
   return (
     <AbsoluteFill style={{ overflow: "hidden", fontFamily: FONT_SANS }}>
       <AbsoluteFill style={{ opacity: intro }}>
-        <EarthView view={view} style={style} layers={layers} pass={pass} showRivers={show("rivers")} showBuildings={false} />
+        <EarthView
+          view={view}
+          style={style}
+          date={date}
+          // 城市名避开左上的标题
+          map={{ toggles: map, railFocus, avoid: [[60, 60, 640, 150]] }}
+          layers={layers}
+          pass={pass}
+          showBuildings={false}
+        />
       </AbsoluteFill>
       {pass === "full" ? (
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: `linear-gradient(90deg, rgba(7,17,31,${overlayOpacity}), transparent 35%, transparent 70%, rgba(7,17,31,0.45))`,
+            background: `linear-gradient(90deg, ${shade(overlayOpacity)}, transparent 35%, transparent 70%, ${shade(0.45)})`,
           }}
         />
       ) : null}
-      {showText ? (
-        <div style={{ position: "absolute", left: 70, top: 76, color: "white", opacity: intro }}>
+      {showsText(pass) ? (
+        <div style={{ position: "absolute", left: 70, top: 76, color: ui.text, opacity: intro, textShadow: ui.textShadow }}>
           <div style={{ fontSize: 56, fontWeight: 900, lineHeight: 1.05 }}>{title}</div>
-          <div style={{ marginTop: 14, fontSize: 23, fontWeight: 800, color: "#fed7aa" }}>{subtitle}</div>
+          <div style={{ marginTop: 14, fontSize: 23, fontWeight: 800, color: ui.accent }}>{subtitle}</div>
         </div>
       ) : null}
     </AbsoluteFill>

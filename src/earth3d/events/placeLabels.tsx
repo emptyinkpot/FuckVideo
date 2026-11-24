@@ -1,4 +1,5 @@
-import type { EarthLayer } from "./types";
+import type { EarthLayer } from "../layers/types";
+import { css } from "../styles";
 
 export type Place = { name: string; lon: number; lat: number };
 
@@ -22,8 +23,10 @@ export const placeLabelsLayer = ({
   id,
   order,
   opacity,
-  labels: (project) =>
+  labels: (project, { style: look }) =>
     places.map((place) => {
+      const regionGlow = look.regions.glow > 0 ? `, 0 0 ${10 + 8 * look.regions.glow}px ${css(look.regions.text, 0.45 * look.regions.glow)}` : "";
+      const placeGlow = look.cities.glow > 0 ? `, 0 0 ${8 + 6 * look.cities.glow}px ${css(look.cities.dot, 0.5 * look.cities.glow)}` : "";
       const at = project(place.lon, place.lat);
       if (!at) return null;
       if (style === "region") {
@@ -35,11 +38,11 @@ export const placeLabelsLayer = ({
               left: at.x,
               top: at.y,
               transform: "translate(-50%, -50%)",
-              color: "rgba(255,255,255,0.92)",
+              color: css(look.regions.text, 0.92),
               fontSize: 26,
               fontWeight: 800,
               letterSpacing: 4,
-              textShadow: "0 0 6px rgba(0,0,0,0.9), 0 0 18px rgba(0,0,0,0.6)",
+              textShadow: `0 0 6px ${css(look.regions.halo, 0.9)}, 0 0 18px ${css(look.regions.halo, 0.6)}${regionGlow}`,
               whiteSpace: "nowrap",
             }}
           >
@@ -58,15 +61,15 @@ export const placeLabelsLayer = ({
             alignItems: "center",
             gap: 6,
             transform: "translate(-5px, -50%)",
-            color: "#fff8e6",
+            color: css(look.events.placeText),
             fontSize: 17,
             fontWeight: 700,
-            textShadow: "0 0 4px rgba(0,0,0,0.95), 0 0 12px rgba(0,0,0,0.7)",
+            textShadow: `0 0 4px ${css(look.events.placeHalo, 0.95)}, 0 0 12px ${css(look.events.placeHalo, 0.7)}${placeGlow}`,
             whiteSpace: "nowrap",
           }}
         >
           <div
-            style={{ width: 9, height: 9, borderRadius: 9, background: "#fde68a", boxShadow: "0 0 0 2px rgba(0,0,0,0.6)" }}
+            style={{ width: 9, height: 9, borderRadius: 9, background: css(look.cities.dot), boxShadow: "0 0 0 2px rgba(0,0,0,0.6)" }}
           />
           {place.name}
         </div>

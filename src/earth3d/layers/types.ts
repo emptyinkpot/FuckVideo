@@ -1,23 +1,38 @@
 import type * as THREE from "three";
+import type { GeoCamera } from "../core/camera";
+import type { EarthStyle } from "../styles/types";
 
 /** 经纬度 -> 画面像素坐标；地球背面或贴着画面边缘时为 null。 */
 export type Projector = (lon: number, lat: number) => { x: number; y: number } | null;
+
+/** 文字层拿到的画面信息：镜头、画面尺寸、当前风格。 */
+export type LabelInfo = { view: GeoCamera; width: number; height: number; style: EarthStyle };
 
 /** 西、南、东、北（度） */
 export type LonLatBounds = [number, number, number, number];
 
 /**
- * 贴地内容：一张经纬度等距的透明图（RGB 颜色，A 强度），画在地形表面上，随地形明暗。
- * 可以给两张图 a、b，按 mix 从 a 过渡到 b。
+ * 贴地内容：全球地块系统（map/provinceStore.ts）画在地形表面上，随地形明暗。
+ * mode：nations 国家层（按领有政权涂色），occupation 占领层（斜纹、争夺虚线）。
+ * 给了 lookupB 时，按 mix 从 lookupA 的状态过渡到 lookupB 的状态。
  */
 export type DecalSource = {
-  a: THREE.Texture;
-  b?: THREE.Texture | null;
+  mode: "nations" | "occupation";
+  provinces: {
+    global: { texture: THREE.Texture; bounds: LonLatBounds; size: [number, number] };
+    detail: { texture: THREE.Texture; bounds: LonLatBounds; size: [number, number] };
+  };
+  lookupA: THREE.Texture;
+  lookupB?: THREE.Texture | null;
   mix?: number;
-  bounds: LonLatBounds;
+  lookupWidth: number;
+  /** 政权色板（按当前风格） */
+  palette: THREE.Texture;
 };
 
 export type LayerContext = {
+  /** 当前画面风格，图层按它决定颜色、线宽、光晕 */
+  style: EarthStyle;
   /** 地形高度倍数，贴地的线条要和地形一致 */
   exaggeration: number;
   /** 已加载的地形分块数；变化时贴地线条按新高度重建 */
@@ -40,7 +55,7 @@ export type EarthLayer = {
   order?: number;
   decal?: (context: LayerContext) => DecalSource | null;
   objects?: (context: LayerContext) => React.ReactNode;
-  labels?: (project: Projector) => React.ReactNode;
+  labels?: (project: Projector, info: LabelInfo) => React.ReactNode;
 };
 
 /**

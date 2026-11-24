@@ -27,5 +27,7 @@
   "MapRouteFlyover",
   "EarthFlyover",
   "Earth3DPreview",
+  "EarthBackdrop",
+  "StrategicMapDemo",
   "SinoJapaneseWarDemo"
 ]

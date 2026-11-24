@@ -3,7 +3,7 @@ import { EARTH_RADIUS_KM, lonLatToVector, vectorToLonLat } from "../core/geo";
 import { earthUniforms } from "../globe/materials/earthUniforms";
 import { ATMOSPHERE_GLSL } from "../globe/materials/shaderChunks";
 import { sampleHeight } from "../globe/terrain/tileStore";
-import { buildLineGeometry, type PolylineSet } from "./geoLines";
+import { buildLineGeometry, type PolylineSet } from "../layers/geoLines";
 
 /** 战线、箭头的网格原点（东亚中部）。 */
 export const WAR_ORIGIN = lonLatToVector(115, 35, 0);
@@ -72,6 +72,7 @@ export const buildArrowGeometry = (from: [number, number], to: [number, number],
   return geometry;
 };
 
+/** 进攻箭头材质。颜色、线宽、光晕由图层每帧按风格设置（uColor、uWidthPx、uGlowPx、uGlowAlpha）。 */
 export const createArrowMaterial = (color: THREE.ColorRepresentation, widthPx = 9) =>
   new THREE.ShaderMaterial({
     transparent: true,
@@ -84,6 +85,8 @@ export const createArrowMaterial = (color: THREE.ColorRepresentation, widthPx = 
       uProgress: { value: 1 },
       uHeadLength: { value: 0.14 },
       uOpacity: { value: 1 },
+      uGlowPx: { value: 0 },
+      uGlowAlpha: { value: 0 },
     },
     vertexShader: /* glsl */ `
       attribute float aSide;
@@ -94,9 +97,12 @@ export const createArrowMaterial = (color: THREE.ColorRepresentation, widthPx = 
       uniform float uWidthPx;
       uniform float uProgress;
       uniform float uHeadLength;
+      uniform float uGlowPx;
       varying vec3 vWorld;
       varying float vAcross;
       varying float vVisible;
+      varying float vCore;
+      varying float vTotal;
       #include <common>
       #include <logdepthbuf_pars_vertex>
       void main() {
@@ -109,7 +115,11 @@ export const createArrowMaterial = (color: THREE.ColorRepresentation, widthPx = 
         if (aT > headStart) width = uWidthPx * 2.8 * clamp((uProgress - aT) / uHeadLength, 0.0, 1.0);
         vVisible = step(aT, uProgress);
         vec3 side = normalize(cross(aTangent, up));
-        vec3 offset = side * aSide * pixelKm * width * 0.5 + up * (0.02 + dist * 0.001);
+        // 带宽 = 箭身 + 两侧光晕；vCore 为箭身占带宽的比例
+        float total = width + 6.0 * uGlowPx;
+        vCore = width / max(total, 1e-3);
+        vTotal = total;
+        vec3 offset = side * aSide * pixelKm * total * 0.5 + up * (0.02 + dist * 0.001);
         vWorld = world + offset;
         vAcross = aSide;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position + inverse(mat3(modelMatrix)) * offset, 1.0);
@@ -119,19 +129,32 @@ export const createArrowMaterial = (color: THREE.ColorRepresentation, widthPx = 
     fragmentShader: /* glsl */ `
       uniform vec3 uColor;
       uniform float uOpacity;
+      uniform float uGlowPx;
+      uniform float uGlowAlpha;
       varying vec3 vWorld;
       varying float vAcross;
       varying float vVisible;
+      varying float vCore;
+      varying float vTotal;
       #include <common>
       #include <logdepthbuf_pars_fragment>
       ${ATMOSPHERE_GLSL}
       void main() {
         #include <logdepthbuf_fragment>
         if (vVisible < 0.5) discard;
-        // 边缘一圈深色描边，在亮、暗地表上都看得清
-        vec3 color = mix(uColor, uColor * 0.35, smoothstep(0.72, 0.9, abs(vAcross)));
-        color = mix(color, e3dApplyHaze(color, vWorld), 0.4);
-        gl_FragColor = vec4(color, uOpacity * (1.0 - smoothstep(0.92, 1.0, abs(vAcross))));
+        float a = abs(vAcross) / max(vCore, 1e-3);
+        if (a <= 1.0) {
+          // 箭身：边缘一圈深色描边，在亮、暗地表上都看得清
+          vec3 color = mix(uColor, uColor * 0.35, smoothstep(0.72, 0.9, a));
+          color = mix(color, e3dApplyHaze(color, vWorld), 0.4);
+          gl_FragColor = vec4(color, uOpacity * (1.0 - smoothstep(0.92, 1.0, a)));
+        } else {
+          // 箭身外的光晕
+          float px = (abs(vAcross) - vCore) * vTotal * 0.5;
+          float glow = uGlowPx > 0.0 ? exp(-px / uGlowPx) * uGlowAlpha : 0.0;
+          if (glow < 0.003) discard;
+          gl_FragColor = vec4(uColor, uOpacity * glow);
+        }
         #include <colorspace_fragment>
       }
     `,

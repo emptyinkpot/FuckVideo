@@ -33,5 +33,13 @@ export const earthUniforms = {
   uWaterTint: { value: new THREE.Vector3(1, 1, 1) },
   uRiverColor: { value: new THREE.Vector3(1, 1, 1) },
   uRiverMix: { value: 0 },
-  uDecalStrength: { value: 1 },
+  // 国家层（styles/types.ts 的 political）：x 为填充不透明度
+  uPolFill: { value: new THREE.Vector4() },
+  uPolEmissive: { value: 0 },
+  // 占领层（styles/types.ts 的 occupation）
+  /** stripeSpacingPx、stripeWidthPx、stripeAlpha、fill */
+  uOccStripe: { value: new THREE.Vector4() },
+  /** dashPx、dashSpeed */
+  uOccDash: { value: new THREE.Vector2() },
+  uOccEmissive: { value: 0 },
 };

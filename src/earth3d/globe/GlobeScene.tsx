@@ -194,7 +194,7 @@ export const GlobeScene = ({
   const buildings = cityTilesReady ? nearbyCities.map((city) => getCityBuildings(city, rivers)) : [];
 
   // 5. 图层
-  const context: LayerContext = { exaggeration, loadedTiles: loadedTileCount() };
+  const context: LayerContext = { style, exaggeration, loadedTiles: loadedTileCount() };
   const activeLayers = drawLayers ? [...layers].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) : [];
   const decals = activeLayers.flatMap((layer, index) => {
     const source = layer.decal?.(context);
@@ -204,11 +204,20 @@ export const GlobeScene = ({
       uniforms = createDecalUniforms();
       decalUniforms.set(layer.id, uniforms);
     }
-    uniforms.uDecalA.value = source.a;
-    uniforms.uDecalB.value = source.b ?? source.a;
-    uniforms.uMix.value = source.b ? (source.mix ?? 0) : 0;
+    const { global, detail } = source.provinces;
+    uniforms.uProvGlobal.value = global.texture;
+    uniforms.uProvGlobalBounds.value.set(...global.bounds);
+    uniforms.uProvGlobalSize.value.set(...global.size);
+    uniforms.uProvDetail.value = detail.texture;
+    uniforms.uProvDetailBounds.value.set(...detail.bounds);
+    uniforms.uProvDetailSize.value.set(...detail.size);
+    uniforms.uLookupA.value = source.lookupA;
+    uniforms.uLookupB.value = source.lookupB ?? source.lookupA;
+    uniforms.uMix.value = source.lookupB ? (source.mix ?? 0) : 0;
+    uniforms.uLookupWidth.value = source.lookupWidth;
+    uniforms.uPalette.value = source.palette;
     uniforms.uOpacity.value = layer.opacity ?? 1;
-    uniforms.uBounds.value.set(...source.bounds);
+    uniforms.uMode.value = source.mode === "nations" ? 1 : 2;
     return [{ id: layer.id, uniforms, renderOrder: 1.5 + index * 0.01 }];
   });
 

@@ -1,22 +1,12 @@
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { FONT_SANS } from "../../fonts";
 import { cameraAtFrame, type CameraKeyframe } from "../core/camera";
-import {
-  arrowColor,
-  cities,
-  dataset,
-  eventCamera,
-  events,
-  openingCamera,
-  regionLabelsFor,
-} from "../history/wars/sinoJapaneseWar";
-import { bordersLayer } from "../layers/borders";
-import { placeLabelsLayer } from "../layers/placeLabels";
-import { territoryLayer } from "../layers/territory";
-import type { EarthLayer, RenderPass } from "../layers/types";
-import { arrowsLayer, frontlinesLayer } from "../layers/warLayers";
+import { arrowsLayer, frontlinesLayer, type ArrowActor } from "../events/warLayers";
+import { eventCamera, events, openingCamera } from "../history/wars/sinoJapaneseWar";
+import type { HistoricalActor } from "../history/schema";
+import type { EarthLayer } from "../layers/types";
 import { EarthView } from "../view/EarthView";
-import type { EarthStyleId } from "../styles";
+import { showsText, uiTheme, type EarthSceneProps } from "./shared";
 
 const FPS = 30;
 /** 开场：从太空降到第一个事件 */
@@ -26,39 +16,22 @@ export const SINO_JAPANESE_WAR_SCENE_FRAMES = FPS * 5;
 const HOLD_FRAMES = Math.round(SINO_JAPANESE_WAR_SCENE_FRAMES * 0.7);
 export const SINO_JAPANESE_WAR_DURATION = INTRO_FRAMES + SINO_JAPANESE_WAR_SCENE_FRAMES * events.length;
 
-/** 各图层开关；不填的都显示。 */
-export type WarLayerToggles = {
-  /** 河流（基础地球的一部分） */
-  rivers?: boolean;
-  /** 1938 年国界 */
-  borders?: boolean;
-  /** 控制区着色 */
-  territory?: boolean;
+/** 事件层开关；不填的都显示。人文地理层的开关在 map 里（所有地球动画共用）。 */
+export type WarEventToggles = {
   /** 战线 */
   frontlines?: boolean;
   /** 进攻箭头 */
   arrows?: boolean;
-  /** 城市名 */
-  cities?: boolean;
-  /** 国家、地区名 */
-  regions?: boolean;
 };
 
-export type SinoJapaneseWarDemoProps = {
-  /** 画面风格：default（写实）、strategic（态势图），见 src/earth3d/styles */
-  style?: EarthStyleId;
+export type SinoJapaneseWarDemoProps = EarthSceneProps & {
   title?: string;
   subtitle?: string;
   cardLeft?: number;
   cardBottom?: number;
   progressTop?: number;
   showProgressBar?: boolean;
-  layers?: WarLayerToggles;
-  /**
-   * 分层导出：full 完整画面；globe 只有基础地球；overlay 只有国界、着色、战线、箭头（透明背景）；
-   * labels 只有地名、标题、信息卡、进度条（透明背景）。
-   */
-  pass?: RenderPass;
+  events?: WarEventToggles;
 };
 
 const KEYFRAMES: CameraKeyframe[] = (() => {
@@ -73,6 +46,10 @@ const KEYFRAMES: CameraKeyframe[] = (() => {
   return frames;
 })();
 
+/** 史料里的参与方 -> 箭头阵营（风格里有颜色的几个；其余按 other）。 */
+const arrowActor = (actor?: HistoricalActor): ArrowActor =>
+  actor === "japan" || actor === "manchukuo" || actor === "china" || actor === "soviet" ? actor : "other";
+
 const easeOut = (value: number) => 1 - (1 - value) ** 3;
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
@@ -83,12 +60,15 @@ export const SinoJapaneseWarDemo = ({
   cardBottom = 42,
   progressTop = 34,
   showProgressBar = true,
-  layers: toggles = {},
+  events: eventToggles = {},
+  map,
   pass = "full",
   style = "default",
 }: SinoJapaneseWarDemoProps) => {
   const frame = useCurrentFrame();
-  const show = (key: keyof WarLayerToggles) => toggles[key] !== false;
+  const { height } = useVideoConfig();
+  const show = (key: keyof WarEventToggles) => eventToggles[key] !== false;
+  const ui = uiTheme(style);
 
   // 当前所处的事件与过渡进度
   const sceneFrame = Math.max(0, frame - INTRO_FRAMES);
@@ -101,18 +81,8 @@ export const SinoJapaneseWarDemo = ({
   const lineOpacity = frame < INTRO_FRAMES ? 0 : 1 - transition;
   const labelOpacity = interpolate(frame, [INTRO_FRAMES * 0.5, INTRO_FRAMES], [0, 1], clamp);
 
+  // 事件层：战线、进攻箭头（颜色按阵营和风格）。人文地理层由 EarthView 按日期加上。
   const layers: EarthLayer[] = [];
-  if (show("territory")) {
-    layers.push(
-      territoryLayer({
-        dataset,
-        date: event.date,
-        contested: event.hatchRegions ?? [],
-        next: nextEvent ? { date: nextEvent.date, contested: nextEvent.hatchRegions ?? [], mix: transition } : null,
-      }),
-    );
-  }
-  if (show("borders")) layers.push(bordersLayer());
   if (show("frontlines")) {
     layers.push(
       frontlinesLayer({
@@ -126,20 +96,16 @@ export const SinoJapaneseWarDemo = ({
     layers.push(
       arrowsLayer({
         id: `arrows-${event.id}`,
-        arrows: (event.arrows ?? []).map((arrow) => ({ ...arrow, color: arrowColor(arrow.actor) })),
+        arrows: (event.arrows ?? []).map((arrow) => ({ ...arrow, actor: arrowActor(arrow.actor) })),
         progress: arrowProgress,
         opacity: 0.92 * lineOpacity,
       }),
     );
   }
-  if (show("regions")) {
-    layers.push(placeLabelsLayer({ id: "regions", places: regionLabelsFor(event), style: "region", opacity: labelOpacity }));
-  }
-  if (show("cities")) {
-    layers.push(placeLabelsLayer({ id: "cities", places: cities, style: "city", opacity: labelOpacity }));
-  }
+  // 城市名避开左下的字幕卡片
+  const card: [number, number, number, number] = [cardLeft, height - cardBottom - 220, 560, 220];
 
-  const showText = pass === "full" || pass === "labels";
+  const showText = showsText(pass);
   const cardOpacity =
     frame < INTRO_FRAMES
       ? interpolate(frame, [INTRO_FRAMES - 25, INTRO_FRAMES], [0, 1], clamp)
@@ -156,9 +122,19 @@ export const SinoJapaneseWarDemo = ({
       <EarthView
         style={style}
         view={cameraAtFrame(KEYFRAMES, frame)}
+        date={event.date}
+        map={{
+          toggles: map,
+          // 事件额外标注的争夺省份；过渡时国家和占领状态向下一个事件推进
+          political: {
+            contested: event.hatchRegions ?? [],
+            next: nextEvent ? { date: nextEvent.date, contested: nextEvent.hatchRegions ?? [], mix: transition } : null,
+          },
+          avoid: [card],
+          opacity: labelOpacity,
+        }}
         layers={layers}
         pass={pass}
-        showRivers={show("rivers")}
         showBuildings={false}
       />
 
@@ -168,13 +144,13 @@ export const SinoJapaneseWarDemo = ({
             position: "absolute",
             left: cardLeft,
             top: 70,
-            color: "#f8fafc",
+            color: ui.text,
             opacity: interpolate(frame, [0, 12, INTRO_FRAMES * 0.6, INTRO_FRAMES * 0.8], [0, 1, 1, 0]),
-            textShadow: "0 0 24px rgba(0,0,0,0.8)",
+            textShadow: ui.textShadow,
           }}
         >
           <div style={{ fontSize: 52, fontWeight: 900 }}>{title}</div>
-          <div style={{ marginTop: 10, fontSize: 22, fontWeight: 700, color: "#bfdbfe" }}>{subtitle}</div>
+          <div style={{ marginTop: 10, fontSize: 22, fontWeight: 700, color: ui.muted }}>{subtitle}</div>
         </div>
       ) : null}
 
@@ -187,18 +163,18 @@ export const SinoJapaneseWarDemo = ({
             width: 560,
             padding: "18px 22px",
             borderRadius: 10,
-            background: "rgba(8, 12, 18, 0.62)",
-            color: "#f8fafc",
+            ...ui.panel,
+            color: ui.text,
             opacity: cardOpacity,
           }}
         >
-          <div style={{ fontSize: 26, fontWeight: 900, color: "#facc15" }}>{event.date.slice(0, 4)}</div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: ui.accent }}>{event.date.slice(0, 4)}</div>
           <div style={{ marginTop: 2, fontSize: 44, fontWeight: 900, lineHeight: 1.1 }}>{event.title}</div>
-          <div style={{ marginTop: 10, fontSize: 19, fontWeight: 600, color: "#dbe7f7", lineHeight: 1.45 }}>
+          <div style={{ marginTop: 10, fontSize: 19, fontWeight: 600, color: ui.muted, lineHeight: 1.45 }}>
             {event.summary}
           </div>
           {event.camera.label ? (
-            <div style={{ marginTop: 10, fontSize: 15, color: "#94a3b8" }}>{event.camera.label}</div>
+            <div style={{ marginTop: 10, fontSize: 15, color: ui.muted, opacity: 0.75 }}>{event.camera.label}</div>
           ) : null}
         </div>
       ) : null}
@@ -216,7 +192,7 @@ export const SinoJapaneseWarDemo = ({
             overflow: "hidden",
           }}
         >
-          <div style={{ width: `${progress}%`, height: "100%", background: "rgba(255,180,80,0.96)" }} />
+          <div style={{ width: `${progress}%`, height: "100%", background: ui.accent }} />
         </div>
       ) : null}
     </AbsoluteFill>

@@ -5,23 +5,30 @@ import { FONT_SANS } from "../../fonts";
 import { cameraPose } from "../core/camera";
 import { GlobeScene, type GlobeSceneProps } from "../globe/GlobeScene";
 import { builtTileCount, subscribeTiles } from "../globe/terrain/tileStore";
+import { DEFAULT_MAP_TOGGLES, mapLayers, type MapOptions } from "../map/mapLayers";
 import { gradeFilter, resolveStyle } from "../styles";
 import { screenProjector } from "./screenProjection";
 
 export type EarthViewProps = GlobeSceneProps & {
+  /** 画面对应的日期（YYYY-MM-DD）：人文地理层（国界、控制区、铁路、城市、国家名）按这一天显示 */
+  date: string;
+  /** 人文地理层的开关和选项，不填的都显示 */
+  map?: MapOptions;
   /** full、globe 两种通道的背景色；overlay、labels 通道总是透明背景 */
   background?: string;
 };
 
 /**
- * 一个完整的地球画面：三维画布（基础地球 + 图层的贴地内容、三维对象）加上 HTML 文字层。
+ * 一个完整的地球画面，所有地球动画都通过它出画：
+ *   自然地理（globe/）+ 人文地理（map/，按 date 自动加上全部图层）+ 事件（layers 参数，由动画传入）+ 文字层。
+ * 动画只管镜头、时间线、事件和界面，不再自己挑选人文图层，新增的人文图层所有动画自动带上。
  * 用 pass 分层导出时：
  * - full：全部；globe：只有基础地球；
  * - overlay：只有图层的贴地内容和三维对象，透明背景；
  * - labels：只有文字，透明背景。三维画布照常加载地形但不出颜色，文字位置和完整画面完全一致。
  * 透明背景的导出需要支持透明的格式，例如 --image-format=png --codec=prores --prores-profile=4444。
  */
-export const EarthView = ({ background = "black", ...props }: EarthViewProps) => {
+export const EarthView = ({ background = "black", date, map, layers: eventLayers = [], ...props }: EarthViewProps) => {
   const { width, height } = useVideoConfig();
   const pass = props.pass ?? "full";
   // 地形分块加载后文字高度随之更新
@@ -31,8 +38,15 @@ export const EarthView = ({ background = "black", ...props }: EarthViewProps) =>
   const transparent = pass === "overlay" || pass === "labels";
   const showLabels = pass === "full" || pass === "labels";
   const project = screenProjector(cameraPose(props.view), width, height);
-  const layers = [...(props.layers ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const human = mapLayers(date, map);
+  const layers = [...human, ...eventLayers].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const showRivers = props.showRivers ?? map?.toggles?.rivers ?? DEFAULT_MAP_TOGGLES.rivers;
   const style = resolveStyle(props.style);
+  // 回归测试（tests/verify-upstream.mjs）按这一行检查每个地球动画画了哪些人文图层
+  const humanIds = human.map((layer) => layer.id).join(",");
+  useEffect(() => {
+    console.info(`[earth3d] map layers: ${humanIds}`);
+  }, [humanIds]);
   const vignette = style.grade.vignette;
 
   return (
@@ -46,7 +60,11 @@ export const EarthView = ({ background = "black", ...props }: EarthViewProps) =>
           gl={{ logarithmicDepthBuffer: true, antialias: true, alpha: true }}
           camera={{ fov: 35, near: 0.0005, far: 400000 }}
         >
-          {pass === "labels" ? <GlobeScene {...props} pass="overlay" layers={[]} /> : <GlobeScene {...props} />}
+          {pass === "labels" ? (
+            <GlobeScene {...props} showRivers={showRivers} pass="overlay" layers={[]} />
+          ) : (
+            <GlobeScene {...props} showRivers={showRivers} layers={layers} />
+          )}
         </ThreeCanvas>
       </AbsoluteFill>
       {vignette > 0 && (pass === "full" || pass === "globe") ? (
@@ -61,7 +79,7 @@ export const EarthView = ({ background = "black", ...props }: EarthViewProps) =>
         ? layers.map((layer) =>
             layer.labels ? (
               <AbsoluteFill key={layer.id} style={{ opacity: layer.opacity ?? 1, pointerEvents: "none" }}>
-                {layer.labels(project)}
+                {layer.labels(project, { view: props.view, width, height, style })}
               </AbsoluteFill>
             ) : null,
           )

@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { earthUniforms } from "../globe/materials/earthUniforms";
 import { defaultStyle } from "./default";
 import { strategicStyle } from "./strategic";
@@ -44,8 +45,21 @@ export const applyStyleUniforms = (style: EarthStyle) => {
   u.uWaterTint.value.fromArray(water.tint);
   u.uRiverColor.value.fromArray(linear(water.river));
   u.uRiverMix.value = water.riverMix;
-  u.uDecalStrength.value = style.decalStrength;
+  const pol = style.political;
+  u.uPolFill.value.set(pol.fill, 0, 0, 0);
+  u.uPolEmissive.value = pol.emissive;
+  const occ = style.occupation;
+  u.uOccStripe.value.set(occ.stripeSpacingPx, occ.stripeWidthPx, occ.stripeAlpha, occ.fill);
+  u.uOccDash.value.set(occ.dashPx, occ.dashSpeed);
+  u.uOccEmissive.value = occ.emissive;
 };
+
+/** 风格颜色（sRGB 0-1）转成 CSS 颜色，给界面和文字用。 */
+export const css = (c: Rgb, alpha = 1) =>
+  `rgba(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)}, ${alpha})`;
+
+/** 风格颜色转成 three.js 颜色（线性空间），给材质用。 */
+export const threeColor = (c: Rgb) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
 
 /** 整体调色：作用在三维画布上的 CSS 滤镜。 */
 export const gradeFilter = (style: EarthStyle) => {

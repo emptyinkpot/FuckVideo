@@ -96,10 +96,16 @@ STEPS = [
         outputs=[ASSETS / "rivers.bin"], after=["fetch_dem.py", "fetch_vectors.py", "build_masks.py"],
     ),
     Step(
-        "build_borders.py", "生成国界数据",
-        outputs=[ASSETS / "borders-1938.bin"],
-        inputs=[EARTH3D / "data" / "historical-world-1938.geojson"],
-        after=["fetch_dem.py", "build_masks.py"],
+        "build_provinces.py", "生成全球地块",
+        outputs=[ASSETS / f"provinces-{name}" for name in ("global.bin", "detail.bin", "borders.bin")] + [ASSETS / "provinces.json"],
+        inputs=[HERE / "provinces.lock.json", EARTH3D / "data" / "china-provinces.geojson"],
+        after=["fetch_dem.py", "fetch_vectors.py"],
+    ),
+    Step(
+        "build_railways.py", "生成铁路数据",
+        outputs=[ASSETS / "railways.bin", ASSETS / "railways.json"],
+        inputs=[HERE / "railways.lock.json"],
+        after=["fetch_dem.py"],
     ),
     Step(
         "build_tiles.py", "生成地形分块",
@@ -393,6 +399,10 @@ def run_step(index: int, step: Step, stamps: dict, stamp: str, status: Status, l
 
 def build(status: Status, log) -> int:
     stamps = load_stamps()
+    # 已删除的步骤留下的记录一并清掉
+    known = {step.script for step in STEPS} | {"build_tiles.pending"}
+    for name in [name for name in stamps if name not in known]:
+        del stamps[name]
     prints = fingerprints()
     changed: set[str] = set()
     for index, step in enumerate(STEPS):

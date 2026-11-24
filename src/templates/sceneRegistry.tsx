@@ -173,7 +173,7 @@ export const renderSceneTemplate = (scene: AutoScene) => {
           {...asProps<React.ComponentProps<typeof EarthFlyover>>({
             title: commonProps(scene).title,
             subtitle: commonProps(scene).subtitle,
-            routeColor: "#f4d35e",
+            // 路线颜色跟随地球风格（styles/ 的 events.route），这里不写死
             overlayOpacity: 0.76,
             ...scene.props,
           })}
